@@ -809,6 +809,24 @@ async function runBot() {
   }
 
   console.log(`\n═══ Done — ${fired} signal(s) fired. ═══`);
+
+  // Write openPositions for the web app
+  const openPos = Object.keys(state)
+    .filter(k => k.startsWith("POS2_"))
+    .map(k => { try { return JSON.parse(state[k]); } catch(e) { return null; } })
+    .filter(p => p && p.state === "OPEN")
+    .map(p => ({
+      pair      : p.symbol.replace("-USDT", "/USDT"),
+      direction : p.direction === "BULL" ? "LONG" : "SHORT",
+      entry     : String(p.entry),
+      sl        : String(p.sl),
+      tp        : String(p.tp2),
+      score     : 85,
+      timeframe : "4H",
+      timestamp : new Date(p.ts).toISOString()
+    }));
+  state.openPositions = openPos;
+  state.lastScanTime  = new Date().toISOString();
 }
 
 // ── ENTRY POINT ───────────────────────────────────────────────────────────────
