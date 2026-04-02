@@ -1,0 +1,16 @@
+{
+  "name": "gwp-bots",
+  "version": "2.2.0",
+  "description": "Ghost Wick Protocol™ — Altcoin + Forex bots on GitHub Actions",
+  "scripts": {
+    "altcoin": "node altcoin/bot.js scan",
+    "forex": "node forex/bot.js scan",
+    "altcoin:daily": "node altcoin/bot.js daily",
+    "altcoin:weekly": "node altcoin/bot.js weekly",
+    "forex:daily": "node forex/bot.js daily",
+    "forex:weekly": "node forex/bot.js weekly"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.9"
+  }
+}

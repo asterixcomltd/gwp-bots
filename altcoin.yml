@@ -1,0 +1,55 @@
+name: GWP Altcoin Bot v2.2
+
+on:
+  schedule:
+    # Every 15 minutes — catches all 4H GWP setups (240min candle / 15min poll = 16 checks)
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: false
+        default: "scan"
+        type: choice
+        options: [scan, daily, weekly, health]
+
+permissions:
+  contents: write   # needed to commit state.json back
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Altcoin Bot
+        env:
+          ALTCOIN_TG_TOKEN: ${{ secrets.ALTCOIN_TG_TOKEN }}
+          ALTCOIN_CHAT_ID:  ${{ secrets.ALTCOIN_CHAT_ID }}
+          EMAIL_USER:       ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS:       ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO:         ${{ secrets.EMAIL_TO }}
+          EMAIL_CC:         ${{ secrets.EMAIL_CC }}
+        run: node altcoin/bot.js ${{ github.event.inputs.mode || 'scan' }}
+
+      - name: Commit updated state
+        run: |
+          git config user.name  "gwp-bot[actions]"
+          git config user.email "gwp-bot@users.noreply.github.com"
+          git add altcoin/state.json
+          git diff --staged --quiet || git commit -m "chore: altcoin state [skip ci]"
+          git push
