@@ -1,17 +1,17 @@
 # ════════════════════════════════════════════════════════════════════
-# GWP FOREX BOT v3.0 — GitHub Actions Workflow
-# Pairs: XAUUSD · EURUSD · GBPUSD · BTC
-# State: forex_state.json (committed back to repo)
+# GWP ALTCOIN BOT v3.0 — GitHub Actions Workflow
+# Pairs: DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH (KuCoin)
+# State: altcoin_state.json (committed back to repo)
 # © 2026 Asterix.COM Ltd. / Abdin
 # ════════════════════════════════════════════════════════════════════
 
-name: GWP Forex Bot v3.0
+name: GWP Altcoin Bot v3.0
 
 on:
   schedule:
-    - cron: '0,30 * * * *'    # Main scan every 30 min
-    - cron: '0 8 * * *'       # Daily summary 08:00 UTC
-    - cron: '5 8 * * 1'       # Weekly summary Monday 08:05 UTC
+    - cron: '15,45 * * * *'   # Main scan every 30 min (offset 15 from forex)
+    - cron: '2 8 * * *'       # Daily summary 08:02 UTC
+    - cron: '7 8 * * 1'       # Weekly summary Monday 08:07 UTC
   workflow_dispatch:
     inputs:
       mode:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 jobs:
-  run-forex-bot:
+  run-altcoin-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -50,7 +50,7 @@ jobs:
           HOUR=$(date -u +%H)
           MIN=$(date -u +%M)
           DAY=$(date -u +%u)
-          if [ "$DAY" = "1" ] && [ "$HOUR" = "08" ] && [ "$MIN" -ge "4" ] && [ "$MIN" -le "9" ]; then
+          if [ "$DAY" = "1" ] && [ "$HOUR" = "08" ] && [ "$MIN" -ge "6" ] && [ "$MIN" -le "11" ]; then
             echo "MODE=weekly" >> $GITHUB_ENV
             exit 0
           fi
@@ -60,17 +60,16 @@ jobs:
           fi
           echo "MODE=scan" >> $GITHUB_ENV
 
-      - name: Run GWP Forex Bot
+      - name: Run GWP Altcoin Bot
         env:
-          FOREX_TG_TOKEN:  ${{ secrets.FOREX_TG_TOKEN }}
-          FOREX_CHAT_ID:   ${{ secrets.FOREX_CHAT_ID }}
-          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
-        run: node forex_bot.js ${{ env.MODE }}
+          ALTCOIN_TG_TOKEN: ${{ secrets.ALTCOIN_TG_TOKEN }}
+          ALTCOIN_CHAT_ID:  ${{ secrets.ALTCOIN_CHAT_ID }}
+        run: node altcoin_bot.js ${{ env.MODE }}
 
       - name: Save state to repo
         run: |
-          git config user.email "gwp-forex@asterixcom.ltd"
-          git config user.name "GWP Forex Bot"
-          git add forex_state.json
-          git diff --staged --quiet || git commit -m "state(forex): $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+          git config user.email "gwp-altcoin@asterixcom.ltd"
+          git config user.name "GWP Altcoin Bot"
+          git add altcoin_state.json
+          git diff --staged --quiet || git commit -m "state(altcoin): $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
           git push || true
