@@ -1,0 +1,19 @@
+{
+  "name": "gwp-bots",
+  "version": "3.0.0",
+  "description": "Ghost Wick Protocol™ — Forex & Altcoin Signal Bots",
+  "author": "Abdin <asterixcomltd@gmail.com> (Asterix.COM Ltd.)",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "forex": "node forex_bot.js scan",
+    "altcoin": "node altcoin_bot.js scan",
+    "forex:daily": "node forex_bot.js daily",
+    "altcoin:daily": "node altcoin_bot.js daily",
+    "forex:health": "node forex_bot.js health",
+    "altcoin:health": "node altcoin_bot.js health"
+  }
+}
