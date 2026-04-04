@@ -1,0 +1,72 @@
+# ════════════════════════════════════════════════════════════════════
+# GWP FOREX BOT v3.0 — GitHub Actions Workflow
+# Pairs: XAUUSD · EURUSD · GBPUSD · BTC
+# © 2026 Asterix.COM Ltd. / Abdin
+# ════════════════════════════════════════════════════════════════════
+
+name: GWP Forex Bot v3.0
+
+on:
+  schedule:
+    - cron: '0,30 * * * *'
+    - cron: '0 8 * * *'
+    - cron: '5 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'scan / daily / weekly / health'
+        required: false
+        default: 'scan'
+
+permissions:
+  contents: write
+
+jobs:
+  run-forex-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Determine run mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "MODE=${{ github.event.inputs.mode }}" >> $GITHUB_ENV
+            exit 0
+          fi
+          HOUR=$(date -u +%H)
+          MIN=$(date -u +%M)
+          DAY=$(date -u +%u)
+          if [ "$DAY" = "1" ] && [ "$HOUR" = "08" ] && [ "$MIN" -ge "4" ] && [ "$MIN" -le "9" ]; then
+            echo "MODE=weekly" >> $GITHUB_ENV
+            exit 0
+          fi
+          if [ "$HOUR" = "08" ] && [ "$MIN" -lt "10" ]; then
+            echo "MODE=daily" >> $GITHUB_ENV
+            exit 0
+          fi
+          echo "MODE=scan" >> $GITHUB_ENV
+
+      - name: Run GWP Forex Bot
+        env:
+          FOREX_TG_TOKEN:  ${{ secrets.FOREX_TG_TOKEN }}
+          FOREX_CHAT_ID:   ${{ secrets.FOREX_CHAT_ID }}
+          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
+        run: node forex_bot.js $MODE
+
+      - name: Save state to repo
+        run: |
+          git config user.email "gwp-forex@asterixcom.ltd"
+          git config user.name "GWP Forex Bot"
+          git add forex_state.json
+          git diff --staged --quiet || git commit -m "state(forex): $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+          git push || true
