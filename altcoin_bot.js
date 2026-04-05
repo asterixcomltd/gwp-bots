@@ -1,6 +1,6 @@
 "use strict";
 // ════════════════════════════════════════════════════════════════════════════
-// GHOST WICK PROTOCOL — ALTCOIN EDITION  v6.0  MONEY PRINTING MACHINE ELITE MAX™
+// GHOST WICK PROTOCOL — ALTCOIN EDITION  v6.1  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
 // Exchange : KuCoin (Public REST API — no auth key needed)
@@ -31,6 +31,11 @@
 //   ✅ ENHANCED: Volume spike threshold tuned per timeframe
 //   ✅ ENHANCED: Conviction max raised to 105 for confluence SUPREME signals
 //   ✅ TARGET: minimum 4–5 high-accuracy signals per week
+// v6.1 FIXES:
+//   ✅ SL: crypto min 0.35% + candle-range buffer (fixes tight SL)
+//   ✅ Bear bias: trendBull removed, MS additive, Z-Score lowered
+//   ✅ RSI extreme bonus added, !ms.confirmed penalty removed
+//   ✅ Added LINK/ARB/INJ pairs (10 pairs total)
 // ════════════════════════════════════════════════════════════════════════════
 
 const https = require("https");
@@ -51,7 +56,7 @@ const TF_CONFIG = {
     tf:"H1", label:"1H",
     vpLookback:60, avwapLookback:20,
     minRR:1.6, minConviction:54, cooldownHrs:2,
-    atrBufMult:0.35, maxAge:1, avwapProx:0.005,
+    atrBufMult:0.60, maxAge:1, avwapProx:0.005,
     volLookback:20, msLookback:60, swingStrength:3,
     volSpikeMult:1.3,
   },
@@ -59,7 +64,7 @@ const TF_CONFIG = {
     tf:"M15", label:"15M",
     vpLookback:40, avwapLookback:12,
     minRR:1.5, minConviction:56, cooldownHrs:1,
-    atrBufMult:0.30, maxAge:1, avwapProx:0.006,
+    atrBufMult:0.55, maxAge:1, avwapProx:0.006,
     volLookback:15, msLookback:40, swingStrength:2,
     volSpikeMult:1.5,
   },
@@ -70,7 +75,7 @@ const CONFIG = {
   TELEGRAM_TOKEN : process.env.ALTCOIN_TG_TOKEN || "",
   CHAT_ID        : process.env.ALTCOIN_CHAT_ID  || "",
 
-  PAIRS: ["DEXE-USDT","UNI-USDT","SUSHI-USDT","SOL-USDT","AVAX-USDT","BTC-USDT","ETH-USDT"],
+  PAIRS: ["DEXE-USDT","UNI-USDT","SUSHI-USDT","SOL-USDT","AVAX-USDT","BTC-USDT","ETH-USDT","LINK-USDT","ARB-USDT","INJ-USDT"],
 
   CAPITAL:5, RISK_PCT:1.5, LEVERAGE:20,
   VP_ROWS:24, MIN_WICK_DEPTH_PCT:0.12, MIN_BODY_GAP_PCT:0.08,
@@ -96,9 +101,11 @@ const CONFIG = {
 
   // Dedup window — same symbol+direction within this many ms = skip
   DEDUP_WINDOW_MS: 3600000,
+  // v6.1: minimum SL distances
+  CRYPTO_MIN_SL_PCT: 0.35,
 };
 
-const V = "GWP Altcoin v6.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Altcoin v6.1 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "altcoin_state.json");
@@ -203,7 +210,8 @@ function calcZScore(closes,p=20){
   if(closes.length<p)return{z:0,extremeHigh:false,extremeLow:false,mildHigh:false,mildLow:false};
   const win=closes.slice(-p),mean=win.reduce((a,b)=>a+b,0)/p,std=Math.sqrt(win.reduce((a,b)=>a+(b-mean)**2,0)/p);
   const z=std===0?0:(closes[closes.length-1]-mean)/std;
-  return{z,extremeHigh:z>2,extremeLow:z<-2,mildHigh:z>1,mildLow:z<-1};
+  // v6.1: lowered thresholds for better counter-trend detection
+  return{z,extremeHigh:z>1.5,extremeLow:z<-1.5,mildHigh:z>0.8,mildLow:z<-0.8};
 }
 function kalmanFilter(closes){
   if(closes.length<5)return null;const Q=0.01,R=0.5;let x=closes[0],v=0,P=1;
@@ -230,6 +238,11 @@ function calcZoneRevisit(candles,bBot,bTop){
   const recent=candles.slice(-12,-1);
   return recent.filter(c=>c.low<=bTop*1.005&&c.high>=bBot*0.995).length>=2;
 }
+function calcRSI_ac(closes,p=14){
+  if(closes.length<p+2)return 50;let g=0,l=0;
+  for(let i=closes.length-p;i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>=0)g+=d;else l-=d;}
+  return 100-100/(1+g/(l||0.0001));
+}
 function runMathEngine(candles){
   if(!candles||candles.length<30)return null;
   const closes=candles.map(c=>c.close);
@@ -237,7 +250,9 @@ function runMathEngine(candles){
   const kalman=kalmanFilter(closes),atrPct=calcATRPercentile(candles,14);
   const volRatio=calcVolumeRatio(candles,20),ema50=calcEMA(closes,50);
   const trendBull=closes[closes.length-1]>ema50;
-  return{atr,hurst,zScore,kalman,atrPct,volRatio,ema50,trendBull,cur:closes[closes.length-1]};
+  const rsi=calcRSI_ac(closes,14);
+  // v6.1: trendBull removed — GWP is counter-trend
+  return{atr,rsi,hurst,zScore,kalman,atrPct,volRatio,cur:closes[closes.length-1]};
 }
 
 // ── VOLUME PROFILE + AVWAP ────────────────────────────────────────────────────
@@ -390,23 +405,28 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false){
     else if(math.volRatio>=1.5) score+=3;
     else if(math.volRatio>=1.2) score+=1;
 
-    // Trend bias alignment bonus (3)
-    if(math.trendBull&&gwp.direction==="BULL") score+=3;
-    if(!math.trendBull&&gwp.direction==="BEAR") score+=3;
+    // v6.1: trendBull bonus REMOVED — GWP is counter-trend by design
+    // v6.1: RSI extreme bonus
+    if(math.rsi&&gwp.direction==="BULL"&&math.rsi<30) score+=7;
+    else if(math.rsi&&gwp.direction==="BULL"&&math.rsi<40) score+=3;
+    if(math.rsi&&gwp.direction==="BEAR"&&math.rsi>70) score+=7;
+    else if(math.rsi&&gwp.direction==="BEAR"&&math.rsi>60) score+=3;
   }
 
   // MARKET STRUCTURE (0–17) — modifier, NOT gate
   if(ms){
     if(ms.choch&&ms.choch.detected){
       if((gwp.direction==="BULL"&&ms.choch.toBull)||(gwp.direction==="BEAR"&&ms.choch.toBear))score+=14;
-    }else if(ms.bos){
+    }
+    // v6.1: BOS ADDITIVE — scores even with CHoCH
+    if(ms.bos){
       if((gwp.direction==="BULL"&&ms.bos.bullBOS)||(gwp.direction==="BEAR"&&ms.bos.bearBOS))score+=8;
     }
     const lsConf=(gwp.direction==="BULL"&&ms.liqSweep&&ms.liqSweep.lowSweep)||(gwp.direction==="BEAR"&&ms.liqSweep&&ms.liqSweep.highSweep);
     if(lsConf)score+=5;
     if(ms.fvg&&ms.fvg.present)score+=3;
     // No MS = -3 (soft penalty, not block)
-    if(!ms.confirmed) score-=3;
+    // v6.1: !ms.confirmed penalty REMOVED — MS is bonus only
   }
 
   // CONFLUENCE BOOSTS
@@ -463,9 +483,15 @@ function detectGWP(candles,vp,avwap,math,tfCfg){
     const zoneRevisit=calcZoneRevisit(candles,bBot,bTop);
 
     const bodyGapPct=(bodyGap/bH)*100,isPathB=bodyGapPct<35;
+    // v6.1: Multi-layer SL — ATR + candle range + minimum %
+    const sigCandleRange=sig.high-sig.low,rangeBuffer=sigCandleRange*0.15;
     let sl;
-    if(direction==="BEAR"){const slBase=sig.high+atrBuf;sl=isPathB?slBase+(slBase-cur.close)*0.30:slBase;}
-    else{const slBase=sig.low-atrBuf;sl=isPathB?slBase-(cur.close-slBase)*0.30:slBase;}
+    if(direction==="BEAR"){const slBase=Math.max(sig.high+atrBuf,sig.high+rangeBuffer);sl=isPathB?slBase+(slBase-cur.close)*0.30:slBase;}
+    else{const slBase=Math.min(sig.low-atrBuf,sig.low-rangeBuffer);sl=isPathB?slBase-(cur.close-slBase)*0.30:slBase;}
+    // Enforce minimum SL distance for crypto
+    const minSlDist=(cur.close*(CONFIG.CRYPTO_MIN_SL_PCT||0.35)/100);
+    if(direction==="BEAR"&&(sl-cur.close)<minSlDist)sl=cur.close+minSlDist;
+    if(direction==="BULL"&&(cur.close-sl)<minSlDist)sl=cur.close-minSlDist;
 
     const entry=cur.close,tp2=bMid;
     let tp1=direction==="BEAR"?entry-Math.abs(entry-tp2)*0.5:entry+Math.abs(tp2-entry)*0.5;

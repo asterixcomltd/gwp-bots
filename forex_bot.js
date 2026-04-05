@@ -1,6 +1,6 @@
 "use strict";
 // ════════════════════════════════════════════════════════════════════════════
-// GHOST WICK PROTOCOL — FOREX EDITION  v6.0  MONEY PRINTING MACHINE ELITE MAX™
+// GHOST WICK PROTOCOL — FOREX EDITION  v6.1  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
 // Assets   : XAUUSD · EURUSD · GBPUSD (Twelve Data) · BTC (KuCoin)
@@ -8,27 +8,18 @@
 //
 // © 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
 //
-// v6.0 ELITE MAX FIXES + UPGRADES:
-//   ✅ FIX: Node.js 20 deprecation — code is pure Node.js 18+ compatible
-//   ✅ FIX: SESSION_FILTER disabled — bot runs 24/7, NO dead periods
-//   ✅ FIX: Forex session check no longer a GWP score item (not a gate!)
-//   ✅ FIX: Asia/Off-hours sessions now fire signals (previous dead zone)
-//   ✅ FIX: MS unconfirmed = soft penalty only, NOT signal block
-//   ✅ FIX: volumeSpike added back to conviction scoring correctly
-//   ✅ FIX: Stale check smartened with ATR proximity window
-//   ✅ NEW: 15M MICRO-ENTRY ENGINE — sniper entries for forex/gold
-//   ✅ NEW: TREND BIAS — D1 EMA50 directional lean bonus
-//   ✅ NEW: MOMENTUM BURST — ATR expansion on signal candle
-//   ✅ NEW: ZONE REVISIT — accumulation proxy at VAL band
-//   ✅ NEW: SMART DEDUP — prevents double-fire per scan cycle
-//   ✅ NEW: TP3 runner on all signals (20% position)
-//   ✅ NEW: TG message split — no more 4096 char truncation
-//   ✅ NEW: Retry engine on API fail (max 2 retries, 3s delay)
-//   ✅ NEW: Session shown as context label (not gate)
-//   ✅ NEW: Adaptive gate — confluence lowers conviction threshold
-//   ✅ ENHANCED: FVG proximity threshold relaxed slightly
-//   ✅ ENHANCED: Conviction max raised to 105 for SUPREME signals
-//   ✅ TARGET: minimum 4–5 high-accuracy signals per week
+// v6.1 FIXES (on top of v6.0):
+//   ✅ FIX: SL TOO TIGHT — atrBufMult raised 1H:0.35→0.55, M15:0.30→0.50
+//           + candle-range buffer: SL always outside signal candle range
+//           + asset-class minimum: crypto SL ≥ 0.30%, forex ≥ 0.10%
+//           → Root cause of BTC SHORT hitting SL immediately
+//   ✅ FIX: BEAR BIAS — trendBull bonus removed (GWP is counter-trend)
+//   ✅ FIX: BEAR BIAS — MS scoring now ADDITIVE (CHoCH + BOS both score)
+//   ✅ FIX: BEAR BIAS — removed -3 !ms.confirmed penalty (MS = bonus only)
+//   ✅ FIX: BEAR BIAS — Z-Score thresholds lowered (extreme z<-1.5, mild z<-0.8)
+//   ✅ FIX: BEAR BIAS — RSI oversold/overbought bonus added (+7 at extreme)
+//   ✅ NEW: USDJPY + GBPJPY added (6 forex pairs → more BULL opportunities)
+//   ✅ NEW: /usdjpy /gbpjpy commands
 // ════════════════════════════════════════════════════════════════════════════
 
 const https = require("https");
@@ -41,22 +32,25 @@ const TF_CONFIG = {
     tf:"H4", label:"4H",
     vpLookback:100, avwapLookback:30,
     minRR:1.8, minConviction:52, cooldownHrs:4,
-    atrBufMult:0.45, maxAge:2, avwapProx:0.003,
+    atrBufMult:0.50, maxAge:2, avwapProx:0.003,  // 0.45→0.50
     msLookback:80, swingStrength:3, volSpikeMult:1.2,
+    minSlPct:0.10,   // minimum SL distance %
   },
   H1: {
     tf:"H1", label:"1H",
     vpLookback:60, avwapLookback:20,
-    minRR:1.6, minConviction:54, cooldownHrs:2,
-    atrBufMult:0.35, maxAge:1, avwapProx:0.004,
+    minRR:1.6, minConviction:52, cooldownHrs:2,
+    atrBufMult:0.60, maxAge:1, avwapProx:0.004,  // 0.35→0.60 KEY FIX
     msLookback:60, swingStrength:3, volSpikeMult:1.3,
+    minSlPct:0.15,
   },
   M15: {
     tf:"M15", label:"15M",
     vpLookback:40, avwapLookback:12,
-    minRR:1.5, minConviction:56, cooldownHrs:1,
-    atrBufMult:0.30, maxAge:1, avwapProx:0.005,
+    minRR:1.5, minConviction:54, cooldownHrs:1,
+    atrBufMult:0.55, maxAge:1, avwapProx:0.005,  // 0.30→0.55 KEY FIX
     msLookback:40, swingStrength:2, volSpikeMult:1.5,
+    minSlPct:0.10,
   },
 };
 
@@ -67,17 +61,18 @@ const CONFIG = {
   TWELVE_DATA_KEY : process.env.TWELVE_DATA_KEY  || "",
 
   PAIRS: [
-    { symbol:"XAUUSD", label:"XAU/USD 🥇", source:"twelve", twelveSymbol:"XAU/USD", dec:2 },
-    { symbol:"EURUSD", label:"EUR/USD 💶", source:"twelve", twelveSymbol:"EUR/USD", dec:5 },
-    { symbol:"GBPUSD", label:"GBP/USD 💷", source:"twelve", twelveSymbol:"GBP/USD", dec:5 },
-    { symbol:"BTC",    label:"BTC/USDT ₿",  source:"kucoin", kucoinSymbol:"BTC-USDT", dec:2 },
+    { symbol:"XAUUSD", label:"XAU/USD 🥇", source:"twelve", twelveSymbol:"XAU/USD",  dec:2, crypto:false },
+    { symbol:"EURUSD", label:"EUR/USD 💶", source:"twelve", twelveSymbol:"EUR/USD",  dec:5, crypto:false },
+    { symbol:"GBPUSD", label:"GBP/USD 💷", source:"twelve", twelveSymbol:"GBP/USD",  dec:5, crypto:false },
+    { symbol:"USDJPY", label:"USD/JPY 🇯🇵", source:"twelve", twelveSymbol:"USD/JPY", dec:3, crypto:false },
+    { symbol:"GBPJPY", label:"GBP/JPY 🇯🇵", source:"twelve", twelveSymbol:"GBP/JPY", dec:3, crypto:false },
+    { symbol:"BTC",    label:"BTC/USDT ₿",  source:"kucoin", kucoinSymbol:"BTC-USDT", dec:2, crypto:true  },
   ],
 
   CAPITAL:100, RISK_PCT:1.5, LEVERAGE:30,
   VP_ROWS:24, MIN_WICK_DEPTH_PCT:0.12, MIN_BODY_GAP_PCT:0.08,
 
-  // 24/7 — NO SESSION FILTER
-  SESSION_FILTER: false,
+  SESSION_FILTER: false,  // 24/7 — NO DEAD PERIODS
 
   CIRCUIT_BREAKER:true, CIRCUIT_BREAKER_LOSSES:3, CIRCUIT_BREAKER_HRS:24,
   TD_SLEEP_MS:1500,
@@ -87,9 +82,13 @@ const CONFIG = {
   TP3_MULT:2.2,
   MAX_RETRIES:2, RETRY_DELAY_MS:3000,
   DEDUP_WINDOW_MS:3600000,
+
+  // Minimum SL % by asset class (v6.1 — prevents hairline SL)
+  CRYPTO_MIN_SL_PCT: 0.35,  // 0.35% minimum for BTC/crypto
+  FOREX_MIN_SL_PCT:  0.10,  // 0.10% minimum for forex pairs
 };
 
-const V = "GWP Forex v6.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Forex v6.1 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "forex_state.json");
@@ -174,6 +173,11 @@ async function fetchCandles(pair, tf, limit) {
 }
 
 // ── MATH ENGINE ───────────────────────────────────────────────────────────────
+function calcRSI(closes,p=14){
+  if(closes.length<p+2)return 50;let g=0,l=0;
+  for(let i=closes.length-p;i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>=0)g+=d;else l-=d;}
+  return 100-100/(1+g/(l||0.0001));
+}
 function calcATR(candles,p=14){
   if(candles.length<p+1)return 0;const trs=[];
   for(let i=1;i<candles.length;i++)trs.push(Math.max(candles[i].high-candles[i].low,Math.abs(candles[i].high-candles[i-1].close),Math.abs(candles[i].low-candles[i-1].close)));
@@ -205,7 +209,8 @@ function calcZScore(closes,p=20){
   if(closes.length<p)return{z:0,extremeHigh:false,extremeLow:false,mildHigh:false,mildLow:false};
   const win=closes.slice(-p),mean=win.reduce((a,b)=>a+b,0)/p,std=Math.sqrt(win.reduce((a,b)=>a+(b-mean)**2,0)/p);
   const z=std===0?0:(closes[closes.length-1]-mean)/std;
-  return{z,extremeHigh:z>2,extremeLow:z<-2,mildHigh:z>1,mildLow:z<-1};
+  // v6.1: lowered thresholds — fires more readily for counter-trend setups
+  return{z,extremeHigh:z>1.5,extremeLow:z<-1.5,mildHigh:z>0.8,mildLow:z<-0.8};
 }
 function kalmanFilter(closes){
   if(closes.length<5)return null;const Q=0.01,R=0.5;let x=closes[0],v=0,P=1;
@@ -222,21 +227,19 @@ function calcMomentumBurst(candles,sigIdx){
   if(sigIdx<10)return false;
   const recent=candles.slice(Math.max(0,sigIdx-10),sigIdx);
   const avgRange=recent.reduce((a,c)=>a+(c.high-c.low),0)/recent.length;
-  const sigRange=candles[sigIdx].high-candles[sigIdx].low;
-  return avgRange>0&&sigRange>=avgRange*1.5;
+  return avgRange>0&&(candles[sigIdx].high-candles[sigIdx].low)>=avgRange*1.5;
 }
 function calcZoneRevisit(candles,bBot,bTop){
-  const recent=candles.slice(-12,-1);
-  return recent.filter(c=>c.low<=bTop*1.005&&c.high>=bBot*0.995).length>=2;
+  return candles.slice(-12,-1).filter(c=>c.low<=bTop*1.005&&c.high>=bBot*0.995).length>=2;
 }
 function runMathEngine(candles){
   if(!candles||candles.length<30)return null;
   const closes=candles.map(c=>c.close);
-  const atr=calcATR(candles,14),hurst=calcHurst(closes),zScore=calcZScore(closes,20);
-  const kalman=kalmanFilter(closes),atrPct=calcATRPercentile(candles,14);
-  const volRatio=calcVolumeRatio(candles,20),ema50=calcEMA(closes,50);
-  const trendBull=closes[closes.length-1]>ema50;
-  return{atr,hurst,zScore,kalman,atrPct,volRatio,ema50,trendBull,cur:closes[closes.length-1]};
+  const atr=calcATR(candles,14),rsi=calcRSI(closes,14),hurst=calcHurst(closes);
+  const zScore=calcZScore(closes,20),kalman=kalmanFilter(closes);
+  const atrPct=calcATRPercentile(candles,14),volRatio=calcVolumeRatio(candles,20);
+  // v6.1: trendBull removed — GWP is a counter-trend strategy
+  return{atr,rsi,hurst,zScore,kalman,atrPct,volRatio,cur:closes[closes.length-1]};
 }
 
 // ── VOLUME PROFILE + AVWAP ────────────────────────────────────────────────────
@@ -257,9 +260,10 @@ function computeAVWAP(candles,lookback){
 }
 
 // ── VOLUME SPIKE ──────────────────────────────────────────────────────────────
-function hasVolumeSpike(sigCandle,allCandles,sigIdx,volLookback,mult){
-  const start=Math.max(0,sigIdx-volLookback),vols=allCandles.slice(start,sigIdx).map(c=>c.vol||0);
-  if(!vols.length)return true;const avg=vols.reduce((a,b)=>a+b,0)/vols.length;
+function hasVolumeSpike(sigCandle,allCandles,sigIdx,lookback,mult){
+  const start=Math.max(0,sigIdx-lookback),vols=allCandles.slice(start,sigIdx).map(c=>c.vol||0);
+  if(!vols.length)return true;
+  const avg=vols.reduce((a,b)=>a+b,0)/vols.length;
   return avg===0?true:(sigCandle.vol||0)>=avg*mult;
 }
 
@@ -292,11 +296,13 @@ function detectCHoCH(candles,swings){
   const hl=lows[lows.length-1].price  >lows[lows.length-2].price;
   const lh=highs[highs.length-1].price<highs[highs.length-2].price;
   const ll=lows[lows.length-1].price  <lows[lows.length-2].price;
-  let prevTrend=null;if(hh&&hl)prevTrend="BULL";if(lh&&ll)prevTrend="BEAR";
+  let prevTrend=null;
+  if(hh&&hl)prevTrend="BULL";
+  if(lh&&ll)prevTrend="BEAR";
   if(!prevTrend)return{detected:false,toBull:false,toBear:false,prevTrend:null};
   const last5=candles.slice(-5);let toBull=false,toBear=false;
-  if(prevTrend==="BEAR"){const rh=swings.highs.filter(s=>s.idx<candles.length-5).slice(-1)[0];if(rh&&last5.some(c=>c.close>rh.price))toBull=true;}
-  if(prevTrend==="BULL"){const rl=swings.lows.filter(s=>s.idx<candles.length-5).slice(-1)[0];if(rl&&last5.some(c=>c.close<rl.price))toBear=true;}
+  if(prevTrend==="BEAR"){const refHigh=swings.highs.filter(s=>s.idx<candles.length-5).slice(-1)[0];if(refHigh&&last5.some(c=>c.close>refHigh.price))toBull=true;}
+  if(prevTrend==="BULL"){const refLow=swings.lows.filter(s=>s.idx<candles.length-5).slice(-1)[0];if(refLow&&last5.some(c=>c.close<refLow.price))toBear=true;}
   return{detected:toBull||toBear,toBull,toBear,prevTrend};
 }
 function detectLiquiditySweep(candles,swings){
@@ -306,7 +312,7 @@ function detectLiquiditySweep(candles,swings){
   let highSweep=false,lowSweep=false,highLevel=null,lowLevel=null;
   for(const c of lookback){
     for(const sh of safeHighs){if(c.high>sh.price&&c.close<sh.price){highSweep=true;highLevel=sh.price;break;}}
-    for(const sl of safeLows) {if(c.low<sl.price&&c.close>sl.price){lowSweep=true; lowLevel=sl.price;break;}}
+    for(const sl of safeLows) {if(c.low <sl.price&&c.close>sl.price){lowSweep=true; lowLevel=sl.price;break;}}
   }
   return{highSweep,lowSweep,highLevel,lowLevel};
 }
@@ -314,35 +320,36 @@ function detectFVG(candles,direction){
   const cur=candles[candles.length-1];let found=false,fvgHigh=null,fvgLow=null;
   for(let i=candles.length-1;i>=Math.max(2,candles.length-12);i--){
     const c1=candles[i-2],c3=candles[i];
-    if(direction==="BULL"&&c3.low>c1.high){const prox=Math.abs(cur.close-c1.high)/cur.close;if((cur.close>=c1.high&&cur.close<=c3.low)||prox<0.008){found=true;fvgHigh=c3.low;fvgLow=c1.high;break;}}
-    if(direction==="BEAR"&&c3.high<c1.low){const prox=Math.abs(cur.close-c1.low)/cur.close;if((cur.close<=c1.low&&cur.close>=c3.high)||prox<0.008){found=true;fvgHigh=c1.low;fvgLow=c3.high;break;}}
+    if(direction==="BULL"&&c3.low>c1.high){const prox=Math.abs(cur.close-c1.high)/cur.close;if((cur.close>=c1.high&&cur.close<=c3.low)||prox<0.010){found=true;fvgHigh=c3.low;fvgLow=c1.high;break;}}
+    if(direction==="BEAR"&&c3.high<c1.low){const prox=Math.abs(cur.close-c1.low)/cur.close;if((cur.close<=c1.low&&cur.close>=c3.high)||prox<0.010){found=true;fvgHigh=c1.low;fvgLow=c3.high;break;}}
   }
   return{present:found,fvgHigh,fvgLow};
 }
 function analyzeMarketStructure(candles,direction,tfCfg){
-  if(!candles||candles.length<20){return{confirmed:false,label:"⬜ MS: INSUFFICIENT",strength:0,bos:null,choch:null,liqSweep:null,fvg:null};}
+  if(!candles||candles.length<20)return{confirmed:false,label:"⬜ MS: INSUFFICIENT",strength:0,bos:null,choch:null,liqSweep:null,fvg:null};
   const slice=candles.slice(-Math.min(tfCfg.msLookback,candles.length));
   const swings=detectSwings(slice,tfCfg.swingStrength);
   const bos=detectBOS(slice,swings),choch=detectCHoCH(slice,swings);
   const liqSweep=detectLiquiditySweep(slice,swings),fvg=detectFVG(slice,direction);
   let confirmed=false,label="🟡 MS: UNCONFIRMED",strength=0;
   if(direction==="BULL"){
-    if(choch.detected&&choch.toBull) {confirmed=true;label="🔄 CHoCH→BULL";   strength=3;}
-    else if(bos.bullBOS)              {confirmed=true;label="⬆️ BOS BULL";     strength=2;}
-    else if(liqSweep.lowSweep)        {confirmed=true;label="💧 LIQ SWEEP↓";   strength=2;}
-    else if(fvg.present)               {confirmed=true;label="🟦 FVG BULL";    strength=1;}
+    if(choch.detected&&choch.toBull){confirmed=true;label="🔄 CHoCH→BULL";strength=3;}
+    else if(bos.bullBOS)            {confirmed=true;label="⬆️ BOS BULL";  strength=2;}
+    else if(liqSweep.lowSweep)      {confirmed=true;label="💧 LIQ SWEEP↓";strength=2;}
+    else if(fvg.present)             {confirmed=true;label="🟦 FVG BULL";  strength=1;}
   }
   if(direction==="BEAR"){
-    if(choch.detected&&choch.toBear) {confirmed=true;label="🔄 CHoCH→BEAR";   strength=3;}
-    else if(bos.bearBOS)              {confirmed=true;label="⬇️ BOS BEAR";     strength=2;}
-    else if(liqSweep.highSweep)       {confirmed=true;label="💧 LIQ SWEEP↑";   strength=2;}
-    else if(fvg.present)               {confirmed=true;label="🟥 FVG BEAR";    strength=1;}
+    if(choch.detected&&choch.toBear){confirmed=true;label="🔄 CHoCH→BEAR";strength=3;}
+    else if(bos.bearBOS)            {confirmed=true;label="⬇️ BOS BEAR";  strength=2;}
+    else if(liqSweep.highSweep)     {confirmed=true;label="💧 LIQ SWEEP↑";strength=2;}
+    else if(fvg.present)             {confirmed=true;label="🟥 FVG BEAR";  strength=1;}
   }
   const prevStr=choch.prevTrend?`Prev:${choch.prevTrend}`:"Trend:unclear";
   return{confirmed,label,strength,bos,choch,liqSweep,fvg,swings,prevStr};
 }
 
 // ── CONVICTION ENGINE ─────────────────────────────────────────────────────────
+// v6.1: trendBull removed, MS ADDITIVE, Z-Score lowered, RSI bonus added
 function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false){
   let score=0;
 
@@ -364,37 +371,52 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false){
   // ZONE REVISIT (3)
   if(gwp.zoneRevisit) score+=3;
 
-  // MATH ENGINE (0–22)
+  // MATH ENGINE (0–30)
   if(math){
     if(math.hurst<0.45)      score+=8;
     else if(math.hurst<0.55) score+=4;
+
+    // Z-Score (v6.1: lower thresholds for better counter-trend detection)
     const z=math.zScore;
     if(gwp.direction==="BULL"&&z.extremeLow) score+=6;
     if(gwp.direction==="BEAR"&&z.extremeHigh)score+=6;
     if(gwp.direction==="BULL"&&z.mildLow)    score+=3;
     if(gwp.direction==="BEAR"&&z.mildHigh)   score+=3;
+
+    // Kalman velocity reversal
     if(math.kalman){const rev=(gwp.direction==="BULL"&&!math.kalman.bullish)||(gwp.direction==="BEAR"&&math.kalman.bullish);if(rev)score+=6;}
+
+    // ATR percentile sweet zone
     if(math.atrPct>=25&&math.atrPct<=75)     score+=4;
     else if(math.atrPct>=15&&math.atrPct<=85)score+=2;
+
+    // Volume ratio
     if(math.volRatio>=2.0)      score+=4;
     else if(math.volRatio>=1.5) score+=3;
     else if(math.volRatio>=1.2) score+=1;
-    // Trend alignment bonus
-    if(math.trendBull&&gwp.direction==="BULL") score+=3;
-    if(!math.trendBull&&gwp.direction==="BEAR") score+=3;
+
+    // v6.1: RSI extreme bonus — fuel for counter-trend reversal
+    if(math.rsi&&gwp.direction==="BULL"&&math.rsi<30) score+=7;
+    else if(math.rsi&&gwp.direction==="BULL"&&math.rsi<40) score+=3;
+    if(math.rsi&&gwp.direction==="BEAR"&&math.rsi>70) score+=7;
+    else if(math.rsi&&gwp.direction==="BEAR"&&math.rsi>60) score+=3;
+    // v6.1: trendBull bias REMOVED — GWP is counter-trend by design
   }
 
-  // MARKET STRUCTURE (0–17) — modifier NOT gate
+  // MARKET STRUCTURE (0–30) — v6.1: ADDITIVE, no penalty
   if(ms){
+    // CHoCH is king — but BOS also scores independently (was else-if)
     if(ms.choch&&ms.choch.detected){
       if((gwp.direction==="BULL"&&ms.choch.toBull)||(gwp.direction==="BEAR"&&ms.choch.toBear))score+=14;
-    }else if(ms.bos){
+    }
+    // v6.1: BOS ADDITIVE — scores even when CHoCH is present
+    if(ms.bos){
       if((gwp.direction==="BULL"&&ms.bos.bullBOS)||(gwp.direction==="BEAR"&&ms.bos.bearBOS))score+=8;
     }
     const lsConf=(gwp.direction==="BULL"&&ms.liqSweep&&ms.liqSweep.lowSweep)||(gwp.direction==="BEAR"&&ms.liqSweep&&ms.liqSweep.highSweep);
     if(lsConf)score+=5;
     if(ms.fvg&&ms.fvg.present)score+=3;
-    if(!ms.confirmed)score-=3;  // soft penalty, not block
+    // v6.1: !ms.confirmed penalty REMOVED — MS is bonus only, never a barrier
   }
 
   // CONFLUENCE BOOSTS
@@ -414,7 +436,8 @@ function isDuplicate(symbol,direction,tag){
 function markFired(symbol,direction,tag){setProp(`FDUP6_${tag}_${symbol}_${direction}`,Date.now().toString());}
 
 // ── CORE GWP DETECTOR ─────────────────────────────────────────────────────────
-function detectGWP(candles,vp,avwap,math,dec,tfCfg){
+// v6.1: KEY FIX — SL calculation now uses candle-range buffer + asset-class minimum
+function detectGWP(candles,vp,avwap,math,dec,tfCfg,isCrypto){
   if(!candles||candles.length<6||!vp)return null;
   const n=candles.length,cur=candles[n-1];
   const{valBandBot:bBot,valBandTop:bTop,valBandMid:bMid,rowHeight:bH}=vp;
@@ -448,11 +471,32 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg){
     const zoneRevisit=calcZoneRevisit(candles,bBot,bTop);
 
     const bodyGapPct=(bodyGap/bH)*100,isPathB=bodyGapPct<35;
-    let sl;
-    if(direction==="BEAR"){const slBase=sig.high+atrBuf;sl=isPathB?slBase+(slBase-cur.close)*0.30:slBase;}
-    else{const slBase=sig.low-atrBuf;sl=isPathB?slBase-(cur.close-slBase)*0.30:slBase;}
 
-    const entry=cur.close,tp2=bMid;
+    // ── v6.1 SL FIX: Multi-layer buffer ──────────────────────────────────────
+    // Layer 1: ATR buffer (raised atrBufMult)
+    // Layer 2: Signal candle full range (prevents SL inside the wick)
+    // Layer 3: Asset-class minimum percentage
+    const sigCandleRange=sig.high-sig.low;
+    const rangeBuffer=sigCandleRange*0.15;  // 15% of signal candle range
+
+    let sl;
+    if(direction==="BEAR"){
+      const slBase=Math.max(sig.high+atrBuf, sig.high+rangeBuffer);
+      sl=isPathB?slBase+(slBase-cur.close)*0.30:slBase;
+    }else{
+      const slBase=Math.min(sig.low-atrBuf, sig.low-rangeBuffer);
+      sl=isPathB?slBase-(cur.close-slBase)*0.30:slBase;
+    }
+
+    // Layer 3: enforce minimum SL distance by asset class
+    const entry=cur.close;
+    const minSlPct = isCrypto ? CONFIG.CRYPTO_MIN_SL_PCT : (tfCfg.minSlPct||CONFIG.FOREX_MIN_SL_PCT);
+    const minSlDist = entry * minSlPct / 100;
+    if(direction==="BEAR"&&(sl-entry)<minSlDist) sl=entry+minSlDist;
+    if(direction==="BULL"&&(entry-sl)<minSlDist) sl=entry-minSlDist;
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const tp2=bMid;
     let tp1=direction==="BEAR"?entry-Math.abs(entry-tp2)*0.5:entry+Math.abs(tp2-entry)*0.5;
     const risk=Math.abs(entry-sl);if(risk<=0)continue;
     let rr=Math.abs(entry-tp2)/risk;
@@ -461,7 +505,6 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg){
 
     const tp3=direction==="BEAR"?entry-Math.abs(entry-tp2)*CONFIG.TP3_MULT:entry+Math.abs(tp2-entry)*CONFIG.TP3_MULT;
     const agePenalty=age*0.5;
-    // NOTE: No session check in checklist — 24/7 active
     const checks=[
       {item:`${tfCfg.label} candle CLOSED${age>0?` [${age} bars ago]`:""}`,pass:true},
       {item:"Wick penetrated INTO VAL band",                                  pass:true},
@@ -478,7 +521,7 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg){
 
     const fmt=v=>Number(v).toFixed(dec);
     const reEntry=isPathB?fmt(direction==="BEAR"?entry+Math.abs(entry-sl)*0.8:entry-Math.abs(entry-sl)*0.8):null;
-    console.log(`  ✅ GWP [${tfCfg.label}]: ${direction} age=${age} ${grade} score=${score.toFixed(1)} R:R=${rr.toFixed(2)} Vol=${volumeSpike} Mom=${momentumBurst}`);
+    console.log(`  ✅ GWP [${tfCfg.label}]: ${direction} age=${age} ${grade} score=${score.toFixed(1)} R:R=${rr.toFixed(2)} SL=${fmt(sl)} (${(Math.abs(entry-sl)/entry*100).toFixed(3)}%)`);
 
     return{
       direction,grade,score:score.toFixed(1),rawScore,age,tf:tfCfg.tf,tfLabel:tfCfg.label,
@@ -498,7 +541,7 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg){
   return null;
 }
 
-// ── SESSION LABEL (context only — NOT a gate) ─────────────────────────────────
+// ── SESSION LABEL ────────────────────────────────────────────────────────────
 function getForexSession(){
   const h=new Date().getUTCHours();
   if(h>=7&&h<12)  return "🇬🇧 London (24/7 ✅)";
@@ -554,7 +597,7 @@ async function checkOpenPositions(){
     const f=n=>Number(n).toFixed(p.dec);let msg=null;
     if(!p.tp1hit&&(isL?price>=p.tp1:price<=p.tp1)){p.tp1hit=true;msg=`🎯 <b>GWP TP1 HIT — ${p.label} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
     if(!p.tp2hit&&(isL?price>=p.tp2:price<=p.tp2)){p.tp2hit=true;msg=`🏆 <b>GWP TP2 HIT — ${p.label} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
-    if(p.tp2hit&&(isL?price>=p.tp3:price<=p.tp3)){msg=`🏅 <b>GWP TP3 HIT! — ${p.label} [${p.tf}]</b> 💎\nFull exit.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,true);}
+    if(p.tp2hit&&(isL?price>=p.tp3:price<=p.tp3)){msg=`🏅 <b>GWP TP3 HIT! — ${p.label} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,true);}
     if(isL?price<=p.sl:price>=p.sl){const pbN=p.isPathB?`\n⚡ Path B re-entry: <code>${p.reEntry||"zone"}</code>`:"";msg=`❌ <b>GWP SL HIT — ${p.label} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,false);}
     if(msg){await tgSend(msg);if(p.state==="CLOSED")delProp(key);else setProp(key,JSON.stringify(p));}else{setProp(key,JSON.stringify(p));}
   }
@@ -626,7 +669,7 @@ function formatTripleSignal(r4h,r1h,r15m,pair,c4h,c1h,c15m,ms4h,ms1h,ms15m){
     `━━━━━ 💼 TRADE LEVELS ━━━━━\n`+
     `🎯 <b>Entry:</b>   <code>${r4h.entry}</code>  (4H basis)\n`+
     `🔬 <b>Sniper:</b>  <code>${r15m.entry}</code>  (15M limit)\n`+
-    `🛑 <b>SL:</b>      <code>${r4h.sl}</code>  (-${r4h.slPct}%)\n`+
+    `🛑 <b>SL:</b>      <code>${r4h.sl}</code>  (-${r4h.slPct}%)  [v6.1 safe buffer]\n`+
     `✅ <b>TP1:</b>     <code>${r4h.tp1}</code>  (+${r4h.tp1Pct}% — 40%)\n`+
     `🏆 <b>TP2:</b>     <code>${r4h.tp2}</code>  (+${r4h.tp2Pct}% — 40% · BE)\n`+
     `💎 <b>TP3:</b>     <code>${r4h.tp3}</code>  (+${r4h.tp3Pct}% — 20% runner)\n`+
@@ -665,7 +708,7 @@ function formatConfluenceSignal(r4h,r1h,pair,conv4h,conv1h,ms4h,ms1h){
     `━━━━━ 💼 TRADE LEVELS ━━━━━\n`+
     `🎯 <b>Entry:</b>   <code>${r4h.entry}</code>  (4H)\n`+
     `⚡ <b>Precise:</b> <code>${r1h.entry}</code>  (1H limit)\n`+
-    `🛑 <b>SL:</b>      <code>${r4h.sl}</code>  (-${r4h.slPct}%)\n`+
+    `🛑 <b>SL:</b>      <code>${r4h.sl}</code>  (-${r4h.slPct}%)  [v6.1 safe buffer]\n`+
     `✅ <b>TP1:</b>     <code>${r4h.tp1}</code>  (+${r4h.tp1Pct}% — 40%)\n`+
     `🏆 <b>TP2:</b>     <code>${r4h.tp2}</code>  (+${r4h.tp2Pct}% — 40% · BE)\n`+
     `💎 <b>TP3:</b>     <code>${r4h.tp3}</code>  (+${r4h.tp3Pct}% — 20% runner)\n`+
@@ -691,7 +734,7 @@ function formatSingleSignal(r,pair,conv,ms,label){
     `${fmtExtras(r)}\n\n`+
     `🏛 <b>Market Structure</b>\n  ${fmtMS(ms,r.direction)}\n\n`+
     `🎯 <b>Entry:</b>  <code>${r.entry}</code>\n`+
-    `🛑 <b>SL:</b>     <code>${r.sl}</code>  (-${r.slPct}%)\n`+
+    `🛑 <b>SL:</b>     <code>${r.sl}</code>  (-${r.slPct}%)  [v6.1 safe buffer]\n`+
     `✅ <b>TP1:</b>    <code>${r.tp1}</code>  (+${r.tp1Pct}% — 40%)\n`+
     `🏆 <b>TP2:</b>    <code>${r.tp2}</code>  (+${r.tp2Pct}% — VAL Mid)\n`+
     `💎 <b>TP3:</b>    <code>${r.tp3}</code>  (+${r.tp3Pct}% — runner)\n`+
@@ -704,10 +747,139 @@ function formatSingleSignal(r,pair,conv,ms,label){
   );
 }
 
+// ── INFO COMMANDS ─────────────────────────────────────────────────────────────
+async function sendDailySummary(){
+  const today=getDateKey();let d;try{d=JSON.parse(getProp("F6_D_"+today)||"[]");}catch(e){d=[];}
+  let msg=`📅 <b>DAILY SUMMARY — ${today} UTC</b>\n━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  if(!d.length)msg+=`📊 <b>Signals: 0</b>\nScanning 24/7. No setups triggered today.\n\n`;
+  else{msg+=`📊 <b>Signals: ${d.length}</b>\n`;d.forEach(s=>{msg+=`  ${s.dir==="BULL"?"🟢":"🔴"} ${s.sym} [${s.tf}] ${s.mode||""} | ${s.grade} | R:R ${s.rr}\n`;});msg+="\n";}
+  msg+=`⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
+}
+async function sendWeeklySummary(){
+  let w;try{w=JSON.parse(getProp("F6_W_"+getWeekKey())||"{}");}catch(e){w={};}
+  const closed=(w.wins||0)+(w.losses||0),wr=closed>0?((w.wins||0)/closed*100).toFixed(0)+"%":"—";
+  let msg=`📆 <b>WEEKLY SUMMARY — ${getWeekKey().replace("_"," ")}</b>\n━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  msg+=`📊 Signals: ${w.signals||0}  Confluences: ${w.confluence||0}  Triples: ${w.triple||0}\n`;
+  if(closed>0)msg+=`✅ ${w.wins||0}W  ❌ ${w.losses||0}L  Win Rate: <b>${wr}</b>\n💰 P&L: <b>${(w.pnl||0)>=0?"+":""}${w.pnl||0}%</b>\n`;
+  else msg+=`  No closed trades yet.\n`;
+  msg+=`\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
+}
+async function sendHealth(){
+  let msg=`💚 <b>GWP Forex v6.1 ELITE MAX — HEALTH</b>\n\n`;
+  for(const pair of CONFIG.PAIRS){
+    let price="?";
+    try{const c=pair.source==="kucoin"?await fetchKuCoin(pair.kucoinSymbol,"H1",2):await fetchTwelveData(pair.twelveSymbol,"H1",2);if(c&&c.length)price=c[c.length-1].close.toFixed(pair.dec);}catch(e){}
+    const cb=isCircuitBroken(pair.symbol)?" ⛔CB":"";
+    msg+=`${price!=="?"?"✅":"❌"} ${pair.symbol}: ${price!=="?"?"$"+price:"NO DATA"}${cb}\n`;
+  }
+  msg+=`\n🕐 ${getForexSession()}\n`;
+  msg+=`🔄 Scanning 24/7 — No dead periods\n`;
+  msg+=`📊 Twelve Data key: ${CONFIG.TWELVE_DATA_KEY?"✅ SET":"❌ MISSING"}\n`;
+  msg+=`📅 Last scan: ${state.lastScanTime||"never"}\n`;
+  msg+=`🔥 Last fired: ${state.lastScanFired||0} signals\n`;
+  msg+=`⚙️ v6.1: SL buffer fixed | Bear bias removed\n\n<i>${V}</i>`;await tgSend(msg);
+}
+async function sendStatus(){
+  let w;try{w=JSON.parse(getProp("F6_W_"+getWeekKey())||"{}");}catch(e){w={};}
+  const openCount=Object.keys(state).filter(k=>k.startsWith("FPOS6_")).length;
+  await tgSend(
+    `📡 <b>GWP Forex v6.1 ELITE MAX — ONLINE</b> ✅\n\n`+
+    `Pairs: ${CONFIG.PAIRS.map(p=>p.symbol).join(", ")}\n`+
+    `TFs: 4H + 1H + 15M (Triple Engine)\n`+
+    `Gates: 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n`+
+    `Session: 24/7 — ALWAYS ON\n`+
+    `Confluence: +${CONFIG.CONFLUENCE_CONVICTION_BOOST} | Triple: +${CONFIG.TRIPLE_TF_BOOST}\n`+
+    `SL: crypto min ${CONFIG.CRYPTO_MIN_SL_PCT}% | forex min ${CONFIG.FOREX_MIN_SL_PCT}%\n`+
+    `Open positions: ${openCount}\n`+
+    `This week: ${w.signals||0} signals | ${w.wins||0}W ${w.losses||0}L\n\n`+
+    `<i>${V}</i>`
+  );
+}
+async function sendPositions(){
+  const keys=Object.keys(state).filter(k=>k.startsWith("FPOS6_"));
+  if(!keys.length){await tgSend(`📭 No open positions.\n\n<i>${V}</i>`);return;}
+  let msg=`📊 <b>Open GWP Positions</b>\n\n`;
+  for(const k of keys){try{const p=JSON.parse(getProp(k));msg+=`${p.direction==="BULL"?"🟢":"🔴"} <b>${p.label}</b> ${p.direction} [${p.tf}]\n  Entry: ${p.entry}  SL: ${p.sl}  TP2: ${p.tp2}  TP3: ${p.tp3}  Conv: ${p.conviction}/105\n\n`;}catch(e){}}
+  await tgSend(msg+`<i>${V}</i>`);
+}
+async function sendHelp(){
+  await tgSend(
+    `👻 <b>GWP FOREX v6.1 ELITE MAX™</b>\n`+
+    `<b>Money Printing Machine — 24/7 Always On</b>\n\n`+
+    `<b>Commands:</b>\n`+
+    `/scan — full scan (4H+1H+15M)\n`+
+    `/xauusd · /eurusd · /gbpusd · /usdjpy · /gbpjpy · /btc\n`+
+    `/daily · /weekly · /health · /positions · /status · /reset · /help\n\n`+
+    `<b>v6.1 Fixes:</b>\n`+
+    `▸ 🛑 SL: crypto min 0.35% | forex min 0.10%\n`+
+    `▸ ⚖️ Bear bias removed: trendBull bonus gone\n`+
+    `▸ ➕ MS scoring additive: CHoCH + BOS both score\n`+
+    `▸ 📉 Z-Score thresholds lowered for better detection\n`+
+    `▸ 📊 RSI oversold/overbought bonus added\n`+
+    `▸ 🇯🇵 USDJPY + GBPJPY added (6 pairs total)\n\n`+
+    `<i>Every candle. Every session. Zero downtime.</i>\n\n`+
+    `<i>${V}</i>`
+  );
+}
+async function resetCooldowns(){
+  let n=0;for(const k of Object.keys(state)){if(k.startsWith("fcd6_")||k.startsWith("FPOS6_")||k.startsWith("FCB6_")||k.startsWith("FCBL6_")||k.startsWith("FDUP6_")){delProp(k);n++;}}
+  await tgSend(`✅ Cleared ${n} cooldowns/positions/dedups/circuit-breakers.\n\n<i>${V}</i>`);
+}
+
+// ── SINGLE PAIR SCAN ──────────────────────────────────────────────────────────
+async function scanSingle(pair){
+  const c4h=await fetchCandles(pair,"H4",TF_CONFIG.H4.vpLookback+20);
+  const c1h=await fetchCandles(pair,"H1",TF_CONFIG.H1.vpLookback+20);
+  const c15m=await fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20);
+  const vp4h=c4h?computeVolumeProfile(c4h,TF_CONFIG.H4.vpLookback):null;
+  const vp1h=c1h?computeVolumeProfile(c1h,TF_CONFIG.H1.vpLookback):null;
+  const vp15m=c15m?computeVolumeProfile(c15m,TF_CONFIG.M15.vpLookback):null;
+  const m4h=c4h?runMathEngine(c4h):null,m1h=c1h?runMathEngine(c1h):null,m15m=c15m?runMathEngine(c15m):null;
+  const isCrypto=pair.crypto||false;
+  const r4h=c4h&&vp4h?detectGWP(c4h,vp4h,computeAVWAP(c4h,TF_CONFIG.H4.avwapLookback),m4h,pair.dec,TF_CONFIG.H4,isCrypto):null;
+  const r1h=c1h&&vp1h?detectGWP(c1h,vp1h,computeAVWAP(c1h,TF_CONFIG.H1.avwapLookback),m1h,pair.dec,TF_CONFIG.H1,isCrypto):null;
+  const r15m=c15m&&vp15m?detectGWP(c15m,vp15m,computeAVWAP(c15m,TF_CONFIG.M15.avwapLookback),m15m,pair.dec,TF_CONFIG.M15,isCrypto):null;
+  const ms4h=r4h?analyzeMarketStructure(c4h,r4h.direction,TF_CONFIG.H4):null;
+  const ms1h=r1h?analyzeMarketStructure(c1h,r1h.direction,TF_CONFIG.H1):null;
+  const ms15m=r15m?analyzeMarketStructure(c15m,r15m.direction,TF_CONFIG.M15):null;
+  if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction){
+    const c4=computeConviction(r4h,m4h,ms4h,"H4",false,true),c1=computeConviction(r1h,m1h,ms1h,"H1",false,true),c15=computeConviction(r15m,m15m,ms15m,"M15",false,true);
+    await tgSend(formatTripleSignal(r4h,r1h,r15m,pair,c4,c1,c15,ms4h,ms1h,ms15m));
+  }else if(r4h&&r1h&&r4h.direction===r1h.direction){
+    const c4=computeConviction(r4h,m4h,ms4h,"H4",true),c1=computeConviction(r1h,m1h,ms1h,"H1",true);
+    await tgSend(formatConfluenceSignal(r4h,r1h,pair,c4,c1,ms4h,ms1h));
+  }else if(r4h){
+    const cv=computeConviction(r4h,m4h,ms4h,"H4",false);
+    await tgSend(formatSingleSignal(r4h,pair,cv,ms4h,""));
+  }else if(r1h){
+    const cv=computeConviction(r1h,m1h,ms1h,"H1",false);
+    await tgSend(formatSingleSignal(r1h,pair,cv,ms1h,"⚡ <b>SCALP</b> —"));
+  }else{
+    await tgSend(`⬜ <b>No GWP — ${pair.label}</b>\n4H VP: ${vp4h?vp4h.valBandBot.toFixed(pair.dec)+"–"+vp4h.valBandTop.toFixed(pair.dec):"fail"}\n${getForexSession()}\n\n<i>${V}</i>`);
+  }
+}
+
+// ── COMMAND HANDLER ────────────────────────────────────────────────────────────
+async function handleCommand(cmd){
+  cmd=cmd.trim().toLowerCase().split(" ")[0];
+  if(cmd==="/scan")      {await runBot();return;}
+  if(cmd==="/daily")     {await sendDailySummary();return;}
+  if(cmd==="/weekly")    {await sendWeeklySummary();return;}
+  if(cmd==="/health")    {await sendHealth();return;}
+  if(cmd==="/positions") {await sendPositions();return;}
+  if(cmd==="/status")    {await sendStatus();return;}
+  if(cmd==="/reset")     {await resetCooldowns();return;}
+  if(cmd==="/help")      {await sendHelp();return;}
+  const pairCmd=CONFIG.PAIRS.find(p=>cmd==="/"+p.symbol.toLowerCase());
+  if(pairCmd){await scanSingle(pairCmd);return;}
+  if(cmd==="/jpy")   {const p=CONFIG.PAIRS.find(x=>x.symbol==="USDJPY");if(p)await scanSingle(p);return;}
+  if(cmd==="/gbpjpy"){const p=CONFIG.PAIRS.find(x=>x.symbol==="GBPJPY");if(p)await scanSingle(p);return;}
+}
+
 // ── MAIN RUNNER ────────────────────────────────────────────────────────────────
 async function runBot(){
-  console.log(`\n═══ GWP FOREX v6.0 ELITE MAX ═══ ${new Date().toISOString()}`);
-  console.log(`  Running 24/7 — No dead periods — ${getForexSession()}`);
+  console.log(`\n═══ GWP FOREX v6.1 ELITE MAX ═══ ${new Date().toISOString()}`);
+  console.log(`  Running 24/7 — ${getForexSession()}`);
   if(!CONFIG.TWELVE_DATA_KEY)console.error("⚠️  TWELVE_DATA_KEY not set — forex pairs will fail.");
 
   await checkOpenPositions();
@@ -715,12 +887,9 @@ async function runBot(){
 
   for(const pair of CONFIG.PAIRS){
     try{
-      console.log(`\n▶ ${pair.symbol}`);
+      console.log(`\n▶ ${pair.symbol} (${pair.crypto?"crypto":"forex"})`);
       if(isCircuitBroken(pair.symbol)){console.log("  ⛔ Circuit breaker");continue;}
 
-      // Fetch sequentially — TwelveData has a 1500ms rate-limit sleep per call;
-      // Promise.all would run all 3 sleeps in parallel, defeating the throttle.
-      // KuCoin has no sleep so sequential is still fast for BTC.
       const c4h  = await fetchCandles(pair,"H4", TF_CONFIG.H4.vpLookback+20);
       const c1h  = await fetchCandles(pair,"H1", TF_CONFIG.H1.vpLookback+20);
       const c15m = await fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20);
@@ -736,12 +905,13 @@ async function runBot(){
       const av15m=c15m?computeAVWAP(c15m,TF_CONFIG.M15.avwapLookback):null;
 
       const m4h=runMathEngine(c4h),m1h=c1h?runMathEngine(c1h):null,m15m=c15m?runMathEngine(c15m):null;
+      const isCrypto=pair.crypto||false;
 
-      console.log(`  4H: ${vp4h.valBandBot.toFixed(pair.dec)}–${vp4h.valBandTop.toFixed(pair.dec)} | Hurst:${m4h?m4h.hurst.toFixed(3):"?"} | ATR%:${m4h?m4h.atrPct:"?"}`);
+      console.log(`  4H: ${vp4h.valBandBot.toFixed(pair.dec)}–${vp4h.valBandTop.toFixed(pair.dec)} | RSI:${m4h?m4h.rsi.toFixed(1):"?"} | Hurst:${m4h?m4h.hurst.toFixed(3):"?"}`);
 
-      const r4h=detectGWP(c4h,vp4h,av4h,m4h,pair.dec,TF_CONFIG.H4);
-      const r1h=vp1h?detectGWP(c1h,vp1h,av1h,m1h,pair.dec,TF_CONFIG.H1):null;
-      const r15m=vp15m?detectGWP(c15m,vp15m,av15m,m15m,pair.dec,TF_CONFIG.M15):null;
+      const r4h=detectGWP(c4h,vp4h,av4h,m4h,pair.dec,TF_CONFIG.H4,isCrypto);
+      const r1h=vp1h?detectGWP(c1h,vp1h,av1h,m1h,pair.dec,TF_CONFIG.H1,isCrypto):null;
+      const r15m=vp15m?detectGWP(c15m,vp15m,av15m,m15m,pair.dec,TF_CONFIG.M15,isCrypto):null;
 
       const ms4h=r4h?analyzeMarketStructure(c4h,r4h.direction,TF_CONFIG.H4):null;
       const ms1h=r1h?analyzeMarketStructure(c1h,r1h.direction,TF_CONFIG.H1):null;
@@ -841,136 +1011,12 @@ async function runBot(){
   console.log(`\n═══ Done — ${fired} signal(s) fired. ═══`);
 }
 
-// ── INFO COMMANDS ─────────────────────────────────────────────────────────────
-async function sendDailySummary(){
-  const today=getDateKey();let d;try{d=JSON.parse(getProp("F6_D_"+today)||"[]");}catch(e){d=[];}
-  let msg=`📅 <b>DAILY SUMMARY — ${today} UTC</b>\n━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  if(!d.length)msg+=`📊 <b>Signals: 0</b>\nScanning 24/7. No setups triggered today.\n\n`;
-  else{msg+=`📊 <b>Signals: ${d.length}</b>\n`;d.forEach(s=>{msg+=`  ${s.dir==="BULL"?"🟢":"🔴"} ${s.sym} [${s.tf}] ${s.mode||""} | ${s.grade} | R:R ${s.rr}\n`;});msg+="\n";}
-  msg+=`⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
-}
-async function sendWeeklySummary(){
-  let w;try{w=JSON.parse(getProp("F6_W_"+getWeekKey())||"{}");}catch(e){w={};}
-  const closed=(w.wins||0)+(w.losses||0),wr=closed>0?((w.wins||0)/closed*100).toFixed(0)+"%":"—";
-  let msg=`📆 <b>WEEKLY SUMMARY — ${getWeekKey().replace("_"," ")}</b>\n━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  msg+=`📊 Signals: ${w.signals||0}  Confluences: ${w.confluence||0}  Triples: ${w.triple||0}\n`;
-  if(closed>0)msg+=`✅ ${w.wins||0}W  ❌ ${w.losses||0}L  Win Rate: <b>${wr}</b>\n💰 P&L: <b>${(w.pnl||0)>=0?"+":""}${w.pnl||0}%</b>\n`;
-  else msg+=`  No closed trades yet.\n`;
-  msg+=`\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
-}
-async function sendHealth(){
-  let msg=`💚 <b>GWP Forex v6.0 ELITE MAX — HEALTH</b>\n\n`;
-  for(const pair of CONFIG.PAIRS){
-    let price="?";
-    try{const c=pair.source==="kucoin"?await fetchKuCoin(pair.kucoinSymbol,"H1",2):await fetchTwelveData(pair.twelveSymbol,"H1",2);if(c&&c.length)price=c[c.length-1].close.toFixed(pair.dec);}catch(e){}
-    const cb=isCircuitBroken(pair.symbol)?" ⛔CB":"";
-    msg+=`${price!=="?"?"✅":"❌"} ${pair.symbol}: ${price!=="?"?"$"+price:"NO DATA"}${cb}\n`;
-  }
-  msg+=`\n🕐 ${getForexSession()}\n`;
-  msg+=`🔄 Scanning 24/7 — No dead periods\n`;
-  msg+=`📊 Twelve Data key: ${CONFIG.TWELVE_DATA_KEY?"✅ SET":"❌ MISSING"}\n`;
-  msg+=`📅 Last scan: ${state.lastScanTime||"never"}\n`;
-  msg+=`🔥 Last fired: ${state.lastScanFired||0} signals\n\n<i>${V}</i>`;await tgSend(msg);
-}
-async function sendStatus(){
-  let w;try{w=JSON.parse(getProp("F6_W_"+getWeekKey())||"{}");}catch(e){w={};}
-  const openCount=Object.keys(state).filter(k=>k.startsWith("FPOS6_")).length;
-  await tgSend(
-    `📡 <b>GWP Forex v6.0 ELITE MAX — ONLINE</b> ✅\n\n`+
-    `Pairs: ${CONFIG.PAIRS.map(p=>p.symbol).join(", ")}\n`+
-    `TFs: 4H + 1H + 15M (Triple Engine)\n`+
-    `Gates: 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n`+
-    `Session: 24/7 — ALWAYS ON\n`+
-    `Confluence: +${CONFIG.CONFLUENCE_CONVICTION_BOOST} | Triple: +${CONFIG.TRIPLE_TF_BOOST}\n`+
-    `Open positions: ${openCount}\n`+
-    `This week: ${w.signals||0} signals | ${w.wins||0}W ${w.losses||0}L\n\n`+
-    `<i>${V}</i>`
-  );
-}
-async function sendPositions(){
-  const keys=Object.keys(state).filter(k=>k.startsWith("FPOS6_"));
-  if(!keys.length){await tgSend(`📭 No open positions.\n\n<i>${V}</i>`);return;}
-  let msg=`📊 <b>Open GWP Positions</b>\n\n`;
-  for(const k of keys){try{const p=JSON.parse(getProp(k));msg+=`${p.direction==="BULL"?"🟢":"🔴"} <b>${p.label}</b> ${p.direction} [${p.tf}]\n  Entry: ${p.entry}  SL: ${p.sl}  TP2: ${p.tp2}  TP3: ${p.tp3}  Conv: ${p.conviction}/105\n\n`;}catch(e){}}
-  await tgSend(msg+`<i>${V}</i>`);
-}
-async function sendHelp(){
-  await tgSend(
-    `👻 <b>GWP FOREX v6.0 ELITE MAX™</b>\n`+
-    `<b>Money Printing Machine — 24/7 Always On</b>\n\n`+
-    `<b>Commands:</b>\n`+
-    `/scan — full scan (4H+1H+15M)\n`+
-    `/xauusd · /eurusd · /gbpusd · /btc\n`+
-    `/daily · /weekly · /health · /positions · /status · /reset · /help\n\n`+
-    `<b>v6.0 Engine:</b>\n`+
-    `▸ 👻 GWP — VAL band wick (king)\n`+
-    `▸ 📐 Math — Hurst · Z · Kalman · ATR% · Volume · EMA50\n`+
-    `▸ 🏛 MS — CHoCH · BOS · LiqSweep · FVG (filter not gate)\n`+
-    `▸ 🔥 Triple TF: 4H+1H+15M = MAX conviction\n`+
-    `▸ 💎 TP3 runner on every signal\n`+
-    `▸ 🌙 24/7 — No session filter, no news blackout\n\n`+
-    `<i>Every candle. Every session. Zero downtime.</i>\n\n`+
-    `<i>${V}</i>`
-  );
-}
-async function resetCooldowns(){
-  let n=0;for(const k of Object.keys(state)){if(k.startsWith("fcd6_")||k.startsWith("FPOS6_")||k.startsWith("FCB6_")||k.startsWith("FCBL6_")||k.startsWith("FDUP6_")){delProp(k);n++;}}
-  await tgSend(`✅ Cleared ${n} cooldowns/positions/dedups/circuit-breakers.\n\n<i>${V}</i>`);
-}
-
-// ── SINGLE PAIR SCAN ──────────────────────────────────────────────────────────
-async function scanSingle(pair){
-  const c4h=await fetchCandles(pair,"H4",TF_CONFIG.H4.vpLookback+20);
-  const c1h=await fetchCandles(pair,"H1",TF_CONFIG.H1.vpLookback+20);
-  const c15m=await fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20);
-  const vp4h=c4h?computeVolumeProfile(c4h,TF_CONFIG.H4.vpLookback):null;
-  const vp1h=c1h?computeVolumeProfile(c1h,TF_CONFIG.H1.vpLookback):null;
-  const vp15m=c15m?computeVolumeProfile(c15m,TF_CONFIG.M15.vpLookback):null;
-  const m4h=c4h?runMathEngine(c4h):null,m1h=c1h?runMathEngine(c1h):null,m15m=c15m?runMathEngine(c15m):null;
-  const r4h=c4h&&vp4h?detectGWP(c4h,vp4h,computeAVWAP(c4h,TF_CONFIG.H4.avwapLookback),m4h,pair.dec,TF_CONFIG.H4):null;
-  const r1h=c1h&&vp1h?detectGWP(c1h,vp1h,computeAVWAP(c1h,TF_CONFIG.H1.avwapLookback),m1h,pair.dec,TF_CONFIG.H1):null;
-  const r15m=c15m&&vp15m?detectGWP(c15m,vp15m,computeAVWAP(c15m,TF_CONFIG.M15.avwapLookback),m15m,pair.dec,TF_CONFIG.M15):null;
-  const ms4h=r4h?analyzeMarketStructure(c4h,r4h.direction,TF_CONFIG.H4):null;
-  const ms1h=r1h?analyzeMarketStructure(c1h,r1h.direction,TF_CONFIG.H1):null;
-  const ms15m=r15m?analyzeMarketStructure(c15m,r15m.direction,TF_CONFIG.M15):null;
-  if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction){
-    const c4=computeConviction(r4h,m4h,ms4h,"H4",false,true),c1=computeConviction(r1h,m1h,ms1h,"H1",false,true),c15=computeConviction(r15m,m15m,ms15m,"M15",false,true);
-    await tgSend(formatTripleSignal(r4h,r1h,r15m,pair,c4,c1,c15,ms4h,ms1h,ms15m));
-  }else if(r4h&&r1h&&r4h.direction===r1h.direction){
-    const c4=computeConviction(r4h,m4h,ms4h,"H4",true),c1=computeConviction(r1h,m1h,ms1h,"H1",true);
-    await tgSend(formatConfluenceSignal(r4h,r1h,pair,c4,c1,ms4h,ms1h));
-  }else if(r4h){
-    const cv=computeConviction(r4h,m4h,ms4h,"H4",false);
-    await tgSend(formatSingleSignal(r4h,pair,cv,ms4h,""));
-  }else if(r1h){
-    const cv=computeConviction(r1h,m1h,ms1h,"H1",false);
-    await tgSend(formatSingleSignal(r1h,pair,cv,ms1h,"⚡ <b>SCALP</b> —"));
-  }else{
-    await tgSend(`⬜ <b>No GWP — ${pair.label}</b>\n4H VP: ${vp4h?vp4h.valBandBot.toFixed(pair.dec)+"–"+vp4h.valBandTop.toFixed(pair.dec):"fail"}\n${getForexSession()}\n\n<i>${V}</i>`);
-  }
-}
-
-// ── COMMAND HANDLER ────────────────────────────────────────────────────────────
-async function handleCommand(cmd){
-  cmd=cmd.trim().toLowerCase().split(" ")[0];
-  if(cmd==="/scan")      {await runBot();return;}
-  if(cmd==="/daily")     {await sendDailySummary();return;}
-  if(cmd==="/weekly")    {await sendWeeklySummary();return;}
-  if(cmd==="/health")    {await sendHealth();return;}
-  if(cmd==="/positions") {await sendPositions();return;}
-  if(cmd==="/status")    {await sendStatus();return;}
-  if(cmd==="/reset")     {await resetCooldowns();return;}
-  if(cmd==="/help")      {await sendHelp();return;}
-  const pairCmd=CONFIG.PAIRS.find(p=>cmd==="/"+p.symbol.toLowerCase());
-  if(pairCmd){await scanSingle(pairCmd);return;}
-}
-
 // ── ENTRY POINT ────────────────────────────────────────────────────────────────
 (async()=>{
   loadState();
   const mode=process.argv[2]||"scan";
-  console.log(`GWP Forex v6.0 ELITE MAX | mode: ${mode} | ${new Date().toISOString()}`);
-  console.log(`Running 24/7 — Session filter: DISABLED — News filter: DISABLED`);
+  console.log(`GWP Forex v6.1 ELITE MAX | mode: ${mode} | ${new Date().toISOString()}`);
+  console.log(`Running 24/7 — SL buffer fixed — Bear bias removed`);
   if(!CONFIG.TWELVE_DATA_KEY)console.error("⚠️  TWELVE_DATA_KEY not set — forex pairs will fail.");
 
   const updates=await pollTelegram();
