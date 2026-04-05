@@ -351,7 +351,6 @@ function analyzeMarketStructure(candles,direction,tfCfg){
 // MS is a FILTER (modifier), not a gate. No MS = lower score, not blocked.
 function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false){
   let score=0;
-  const cfg=TF_CONFIG[tfKey];
 
   // GWP CORE (0–32)
   const gs=parseFloat(gwp.score);score+=gs>=7.5?32:gs>=6.5?26:gs>=5.5?18:10;
@@ -566,8 +565,8 @@ async function checkOpenPositions(){
     const pnl=((isL?(price-p.entry)/p.entry:(p.entry-price)/p.entry)*100).toFixed(3);
     const dp=v=>v<0.01?6:v<1?5:v<10?4:v<1000?3:2,f=v=>Number(v).toFixed(dp(Math.abs(v)));
     let msg=null;
-    if(!p.tp1hit&&(isL?price>=p.tp1:price<=p.tp1)){p.tp1hit=true;msg=`🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n50% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
-    if(!p.tp2hit&&(isL?price>=p.tp2:price<=p.tp2)){p.tp2hit=true;msg=`🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 25% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
+    if(!p.tp1hit&&(isL?price>=p.tp1:price<=p.tp1)){p.tp1hit=true;msg=`🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
+    if(!p.tp2hit&&(isL?price>=p.tp2:price<=p.tp2)){p.tp2hit=true;msg=`🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
     if(p.tp2hit&&(isL?price>=p.tp3:price<=p.tp3)){msg=`🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎🔥\nFull exit.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,true);}
     if(isL?price<=p.sl:price>=p.sl){const pbN=p.isPathB?`\n⚡ Path B re-entry: <code>${p.reEntry||"zone"}</code>`:"";msg=`❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,false);}
     if(msg){await tgSend(msg);if(p.state==="CLOSED")delProp(key);else setProp(key,JSON.stringify(p));}else{setProp(key,JSON.stringify(p));}
@@ -840,6 +839,7 @@ async function runBot(){
           console.log(`  15M conv: ${conv.score}/105 ${conv.grade}`);
           if(parseFloat(conv.score)>=TF_CONFIG.M15.minConviction&&!isDuplicate(symbol,r15m.direction,"M15")){
             await tgSend(formatSingleSignal(r15m,symbol,conv,ms15m,"🔬 <b>MICRO SNIPER</b> —"));
+            storePosition(symbol,r15m,conv,"M15");
             setCooldown(symbol,r15m.direction,"M15");
             markFired(symbol,r15m.direction,"M15");
             trackFired(symbol,r15m,"M15");fired++;

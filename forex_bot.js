@@ -476,22 +476,22 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg){
     const grade=score>=7.5?"A+★ SUPREME":score>=6.5?"A+ ELITE":score>=5.5?"A SOLID":"B+ VALID";
     if(score<4.5){console.log(`  GWP ${direction} ${tfCfg.label} age=${age}: score=${score.toFixed(1)} below threshold`);continue;}
 
-    const f=n=>Number(n).toFixed(dec);
-    const reEntry=isPathB?f(direction==="BEAR"?entry+Math.abs(entry-sl)*0.8:entry-Math.abs(entry-sl)*0.8):null;
+    const fmt=v=>Number(v).toFixed(dec);
+    const reEntry=isPathB?fmt(direction==="BEAR"?entry+Math.abs(entry-sl)*0.8:entry-Math.abs(entry-sl)*0.8):null;
     console.log(`  ✅ GWP [${tfCfg.label}]: ${direction} age=${age} ${grade} score=${score.toFixed(1)} R:R=${rr.toFixed(2)} Vol=${volumeSpike} Mom=${momentumBurst}`);
 
     return{
       direction,grade,score:score.toFixed(1),rawScore,age,tf:tfCfg.tf,tfLabel:tfCfg.label,
       path:isPathB?"B — Sweep + Return ⚠️":"A — Direct Return 🎯",
       isPathB,volumeSpike,avwapTrap,momentumBurst,zoneRevisit,
-      entry:f(entry),sl:f(sl),tp1:f(tp1),tp2:f(tp2),tp3:f(tp3),rr:rr.toFixed(2),
+      entry:fmt(entry),sl:fmt(sl),tp1:fmt(tp1),tp2:fmt(tp2),tp3:fmt(tp3),rr:rr.toFixed(2),
       slPct:(Math.abs(entry-sl)/entry*100).toFixed(3),
       tp1Pct:(Math.abs(entry-tp1)/entry*100).toFixed(3),
       tp2Pct:(Math.abs(entry-tp2)/entry*100).toFixed(3),
       tp3Pct:(Math.abs(entry-tp3)/entry*100).toFixed(3),
       wickDepthPct:(wickDepth/bH*100).toFixed(1),bodyGapPct:bodyGapPct.toFixed(1),
-      avwap:avwap?f(avwap):null,
-      vp:{val:f(bBot),mid:f(bMid),top:f(bTop),poc:f(vp.poc)},
+      avwap:avwap?fmt(avwap):null,
+      vp:{val:fmt(bBot),mid:fmt(bMid),top:fmt(bTop),poc:fmt(vp.poc)},
       checks,reEntry,signalTime:new Date(sig.t).toUTCString(),
     };
   }
@@ -718,12 +718,12 @@ async function runBot(){
       console.log(`\n▶ ${pair.symbol}`);
       if(isCircuitBroken(pair.symbol)){console.log("  ⛔ Circuit breaker");continue;}
 
-      // Fetch all 3 TFs in parallel where possible
-      const [c4h, c1h, c15m] = await Promise.all([
-        fetchCandles(pair,"H4",TF_CONFIG.H4.vpLookback+20),
-        fetchCandles(pair,"H1",TF_CONFIG.H1.vpLookback+20),
-        fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20),
-      ]);
+      // Fetch sequentially — TwelveData has a 1500ms rate-limit sleep per call;
+      // Promise.all would run all 3 sleeps in parallel, defeating the throttle.
+      // KuCoin has no sleep so sequential is still fast for BTC.
+      const c4h  = await fetchCandles(pair,"H4", TF_CONFIG.H4.vpLookback+20);
+      const c1h  = await fetchCandles(pair,"H1", TF_CONFIG.H1.vpLookback+20);
+      const c15m = await fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20);
       if(!c4h||c4h.length<30){console.log("  No 4H data");continue;}
 
       const vp4h=computeVolumeProfile(c4h,TF_CONFIG.H4.vpLookback);
@@ -825,6 +825,7 @@ async function runBot(){
           console.log(`  15M conv: ${conv.score}/105 ${conv.grade}`);
           if(parseFloat(conv.score)>=TF_CONFIG.M15.minConviction&&!isDuplicate(pair.symbol,r15m.direction,"M15")){
             await tgSend(formatSingleSignal(r15m,pair,conv,ms15m,"🔬 <b>MICRO SNIPER</b> —"));
+            storePosition(pair,r15m,conv,"M15");
             setCooldown(pair.symbol,r15m.direction,"M15");
             markFired(pair.symbol,r15m.direction,"M15");
             trackFired(pair,r15m,"M15");fired++;
