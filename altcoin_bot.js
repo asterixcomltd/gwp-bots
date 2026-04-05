@@ -115,6 +115,42 @@ function saveState()  { fs.writeFileSync(STATE_FILE, JSON.stringify(state, null,
 function getProp(k)   { return state[k] || null; }
 function setProp(k,v) { state[k] = v; }
 function delProp(k)   { delete state[k]; }
+// ── SIGNAL FILE WRITER ────────────────────────────────────────────────────────
+// Writes fired signals to altcoin_signals.json (max 25, newest-first).
+// The YAML commits + pushes this file so the Vercel dashboard can read it.
+function appendSignalToFile(symbol, r, conv, tfKey) {
+  try {
+    const pair = symbol.replace('-USDT', '') + '/USDT';
+    const ts   = Date.now();
+    const d    = new Date(ts);
+    const time = d.getUTCHours().toString().padStart(2,'0') + ':' + d.getUTCMinutes().toString().padStart(2,'0');
+    const conviction = parseFloat(conv && conv.score) || 50;
+    // Map 50-123 conviction → 55-100% display score
+    const score = Math.min(Math.round(55 + (conviction - 50) / 73 * 45), 100);
+    const sig = {
+      pair, bot: 'altcoin',
+      dir:   r.direction === 'BULL' ? 'LONG' : 'SHORT',
+      entry: r.entry ? r.entry.toString() : '0',
+      sl:    r.sl    ? r.sl.toString()    : '0',
+      tp:    r.tp2   ? r.tp2.toString()   : (r.tp1 ? r.tp1.toString() : '0'),
+      tp1:   r.tp1   ? r.tp1.toString()   : '0',
+      tp3:   r.tp3   ? r.tp3.toString()   : '0',
+      rr:    r.rr    ? r.rr.toString()    : '',
+      grade: r.grade || '',
+      tf: tfKey, score, ts, time,
+    };
+    const sigFile = path.join(__dirname, 'altcoin_signals.json');
+    let sigs = [];
+    try { sigs = JSON.parse(fs.readFileSync(sigFile, 'utf8')); } catch(e) {}
+    if (!Array.isArray(sigs)) sigs = [];
+    sigs.unshift(sig);
+    if (sigs.length > 25) sigs = sigs.slice(0, 25);
+    fs.writeFileSync(sigFile, JSON.stringify(sigs, null, 2));
+    console.log(`  📝 Signal written to altcoin_signals.json → ${pair} ${sig.dir} [${tfKey}]`);
+  } catch(e) { console.error('appendSignalToFile error:', e.message); }
+}
+
+
 
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 function httpGet(url) {
@@ -657,6 +693,7 @@ function storePosition(symbol,r,conv,tfKey){
     rr:r.rr,grade:r.grade,tf:tfKey,conviction:conv?conv.score:"?",
     isPathB:r.isPathB,reEntry:r.reEntry,state:"OPEN",tp1hit:false,tp2hit:false,ts:Date.now(),
   }));
+  appendSignalToFile(symbol, r, conv, tfKey); // ← NEW: publish to dashboard
 }
 async function checkOpenPositions(){
   const posKeys=Object.keys(state).filter(k=>k.startsWith("APOS6_"));
