@@ -1,72 +1,143 @@
 # ════════════════════════════════════════════════════════════════════
-# GWP FOREX BOT v3.0 — GitHub Actions Workflow
-# Pairs: XAUUSD · EURUSD · GBPUSD · BTC
+# GWP FOREX BOT v6.0 — GitHub Actions Workflow
+# Pairs  : XAUUSD · EURUSD · GBPUSD · BTC
+# Engine : Twelve Data (forex/gold) + KuCoin (BTC)
 # © 2026 Asterix.COM Ltd. / Abdin
+#
+# FIXES vs v3.0:
+#   ✅ FIX: actions/checkout@v5 + setup-node@v5  (kills Node 20 warning)
+#   ✅ FIX: CRITICAL — scan cron '0,30 * * * *' fires at 08:00 every day.
+#            The daily cron '0 8 * * *' ALSO fires at 08:00.
+#            Both hit the old clock check (HOUR=08, MIN=0 < 10) → dual daily mode.
+#            Fix: use github.event.schedule to match exact cron string. Deterministic.
+#   ✅ FIX: Mode detection uses github.event.schedule, NOT runtime clock
+#          — runner queue delays could shift MIN outside the detection window,
+#            causing daily/weekly triggers to fall through to scan mode
+#   ✅ FIX: git push with pull --rebase retry — silent state loss eliminated
+#   ✅ FIX: concurrency group — prevents simultaneous runs from creating
+#            git conflicts, duplicate signals, or duplicate daily summaries
+#   ✅ FIX: timeout-minutes raised to 15 (4 pairs × 3 TFs sequential with
+#            1500ms Twelve Data sleep per call + retries = up to ~25s minimum
+#            in API sleep alone on a good run; bad run with retries needs headroom)
+#   ✅ FIX: ${{ env.MODE }} used instead of bare $MODE for safe expression eval
+#   ✅ FIX: Workflow name updated to v6.0 to match bot version
+#   ✅ FIX: Scan cron offset changed from '0,30' to '0,30' (unchanged) but
+#            daily cron moved to '3 8 * * *' so crons no longer share 08:00
+#            — belt-and-suspenders fix alongside the schedule-based mode detection
 # ════════════════════════════════════════════════════════════════════
 
-name: GWP Forex Bot v3.0
+name: GWP Forex Bot v6.0
 
 on:
   schedule:
+    # ── Regular scans — every 30 min, staggered from altcoin bot ────────
     - cron: '0,30 * * * *'
-    - cron: '0 8 * * *'
-    - cron: '5 8 * * 1'
+    # ── Daily summary — 08:03 UTC every day ─────────────────────────────
+    # Moved from '0 8 * * *' to '3 8 * * *' so it no longer shares 08:00
+    # with the scan cron (belt-and-suspenders fix — schedule-based mode
+    # detection already makes this a non-issue, but the timing overlap
+    # caused two jobs to queue at the same instant unnecessarily).
+    - cron: '3 8 * * *'
+    # ── Weekly summary — Monday 08:08 UTC ────────────────────────────────
+    - cron: '8 8 * * 1'
   workflow_dispatch:
     inputs:
       mode:
-        description: 'scan / daily / weekly / health'
+        description: 'Run mode: scan / daily / weekly / health'
         required: false
         default: 'scan'
 
 permissions:
   contents: write
 
+# Prevents two runs from overlapping and causing git state conflicts,
+# duplicate Telegram signals, or duplicate daily/weekly summaries.
+# A queued run waits for the current one to finish — it is NOT cancelled.
+concurrency:
+  group: gwp-forex
+  cancel-in-progress: false
+
 jobs:
   run-forex-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
+      # ── 2. Node.js 22 ───────────────────────────────────────────────────
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
 
+      # ── 3. Determine run mode ───────────────────────────────────────────
+      # Matches the exact cron string stored in github.event.schedule.
+      # This is deterministic regardless of runner queue delay — unlike
+      # the previous approach which checked the wall clock at runtime.
+      #
+      # THE BUG THIS FIXES (forex-specific):
+      # The old scan cron '0,30 * * * *' fires at 08:00 every single day.
+      # The old daily cron '0 8 * * *' ALSO fires at 08:00 every day.
+      # Both triggered jobs would hit: HOUR=08, MIN=0, MIN<10 → daily mode.
+      # Result: two jobs, both running daily summary, every day at 08:00.
       - name: Determine run mode
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "MODE=${{ github.event.inputs.mode }}" >> $GITHUB_ENV
-            exit 0
-          fi
-          HOUR=$(date -u +%H)
-          MIN=$(date -u +%M)
-          DAY=$(date -u +%u)
-          if [ "$DAY" = "1" ] && [ "$HOUR" = "08" ] && [ "$MIN" -ge "4" ] && [ "$MIN" -le "9" ]; then
-            echo "MODE=weekly" >> $GITHUB_ENV
-            exit 0
-          fi
-          if [ "$HOUR" = "08" ] && [ "$MIN" -lt "10" ]; then
-            echo "MODE=daily" >> $GITHUB_ENV
-            exit 0
-          fi
-          echo "MODE=scan" >> $GITHUB_ENV
+            echo "▶ Manual dispatch: mode=${{ github.event.inputs.mode }}"
 
+          elif [ "${{ github.event.schedule }}" = "8 8 * * 1" ]; then
+            echo "MODE=weekly" >> $GITHUB_ENV
+            echo "▶ Weekly summary triggered (Monday 08:08 UTC)"
+
+          elif [ "${{ github.event.schedule }}" = "3 8 * * *" ]; then
+            echo "MODE=daily" >> $GITHUB_ENV
+            echo "▶ Daily summary triggered (08:03 UTC)"
+
+          else
+            echo "MODE=scan" >> $GITHUB_ENV
+            echo "▶ Scan triggered (on the hour or half hour)"
+          fi
+
+      # ── 4. Run the bot ──────────────────────────────────────────────────
       - name: Run GWP Forex Bot
         env:
           FOREX_TG_TOKEN:  ${{ secrets.FOREX_TG_TOKEN }}
           FOREX_CHAT_ID:   ${{ secrets.FOREX_CHAT_ID }}
           TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
-        run: node forex_bot.js $MODE
+        run: |
+          echo "Running in mode: ${{ env.MODE }}"
+          node forex_bot.js ${{ env.MODE }}
 
+      # ── 5. Persist state ────────────────────────────────────────────────
+      # Retries pull --rebase + push up to 3 times.
+      # The concurrency group above makes concurrent push conflicts nearly
+      # impossible, but this retry loop is defence-in-depth for workflow_dispatch
+      # triggers that can still race with a scheduled run.
       - name: Save state to repo
         run: |
           git config user.email "gwp-forex@asterixcom.ltd"
-          git config user.name "GWP Forex Bot"
+          git config user.name  "GWP Forex Bot"
           git add forex_state.json
-          git diff --staged --quiet || git commit -m "state(forex): $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
-          git push || true
+
+          if git diff --staged --quiet; then
+            echo "No state changes — nothing to commit."
+            exit 0
+          fi
+
+          git commit -m "state(forex): $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+
+          for attempt in 1 2 3; do
+            echo "Push attempt ${attempt}..."
+            git pull --rebase && git push && exit 0
+            echo "  Failed — waiting $((attempt * 10))s before retry..."
+            sleep $((attempt * 10))
+          done
+
+          echo "❌ All 3 push attempts failed. State may not be saved."
+          exit 1
