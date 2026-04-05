@@ -1,251 +1,245 @@
-# GWP Bots — Ghost Wick Protocol™ v6.0
+# GWP Bots — Ghost Wick Protocol™ v7.0
 
-**Autonomous trading signal bots by Abdin · Asterix.COM Ltd.**
+**Autonomous trading signal bots by Abdin · Asterix.COM Ltd. · Accra, Ghana**
 
-Two independent bots running on GitHub Actions — no server, no VPS, zero hosting cost:
-
-- **Forex Bot** — XAUUSD · EURUSD · GBPUSD · BTC (via Twelve Data + KuCoin)
-- **Altcoin Bot** — DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH (via KuCoin)
+> *Every candle. Every session. Zero downtime.*
 
 ---
 
-## What's New in v6.0
+## Overview
 
-| Feature | v3.0 | v6.0 |
-|---|---|---|
-| Timeframes | 4H + 1H | **4H + 1H + 15M Triple Engine** |
-| Session filter | Active hours only | **24/7 — no dead periods** |
-| MS (market structure) | Hard signal gate | **Soft filter — penalty only** |
-| Take profits | TP1 + TP2 | **TP1 + TP2 + TP3 runner** |
-| Conviction scale | /100 | **/105 (confluence bonus)** |
-| Duplicate protection | None | **Smart dedup per scan cycle** |
-| API failure handling | Crash | **Auto-retry (×2, 3s delay)** |
-| Telegram messages | Single block | **Auto-split >3800 chars** |
-| GitHub Actions | Node 20 (deprecated) | **Node 22, @v5 actions** |
-| Mode detection | Runtime clock (fragile) | **`github.event.schedule` (exact)** |
-| Git state persistence | `push \|\| true` (silent loss) | **Pull-rebase + 3-attempt retry** |
-| Concurrent runs | Possible (git conflicts) | **Concurrency group — serialised** |
+Two production-grade Node.js bots that run on GitHub Actions and deliver institutional-quality trade signals to Telegram — 24 hours a day, 7 days a week.
+
+| Bot | File | Exchange | Pairs |
+|-----|------|----------|-------|
+| **GWP Altcoin** | `altcoin_bot.js` | KuCoin (public REST) | DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH · LINK · ARB · INJ |
+| **GWP Forex** | `forex_bot.js` | KuCoin + Twelve Data | XAUUSD · EURUSD · GBPUSD · USDJPY · GBPJPY · BTC |
 
 ---
 
-## Repository Structure
+## Strategy: Ghost Wick Protocol™ (GWP)
 
-```
-gwp-bots/
-├── .github/
-│   └── workflows/
-│       ├── gwp-forex.yml         ← Forex bot schedule + CI
-│       └── gwp-altcoin.yml       ← Altcoin bot schedule + CI
-├── forex_bot.js                  ← GWP Forex v6.0 engine
-├── altcoin_bot.js                ← GWP Altcoin v6.0 engine
-├── forex_state.json              ← Auto-managed: cooldowns, positions, stats
-├── altcoin_state.json            ← Auto-managed: cooldowns, positions, stats
-├── package.json
-└── README.md
-```
+GWP is a **counter-trend, mean-reversion** strategy that hunts institutional liquidity grabs at the VAL (Value Area Low) band of the Volume Profile.
 
----
-
-## Deploy in 5 Steps
-
-### 1. Upload the bot files
-
-Upload `forex_bot.js`, `altcoin_bot.js`, `forex_state.json`, `altcoin_state.json`,
-and `package.json` directly to the root of your repo via **Add file → Upload files**.
-
-`forex_state.json` and `altcoin_state.json` should start as empty objects:
-```json
-{}
-```
-
-### 2. Upload the YAML workflow files
-
-> ⚠️ The `.github/workflows/` folder is hidden in the web UI upload dialog.
-> You must create the files using the editor, not drag-and-drop.
-
-**From your phone or browser:**
-1. Go to your repo → **Add file** → **Create new file**
-2. In the filename box type exactly: `.github/workflows/gwp-forex.yml`
-   (GitHub auto-creates the folders as you type each `/`)
-3. Paste the full content of `gwp-forex.yml`
-4. Click **Commit changes**
-5. Repeat for `.github/workflows/gwp-altcoin.yml`
-
-### 3. Set GitHub Secrets
-
-**Settings → Secrets and variables → Actions → New repository secret**
-
-| Secret | Value |
-|---|---|
-| `FOREX_TG_TOKEN` | Forex Telegram bot token |
-| `FOREX_CHAT_ID` | Forex Telegram chat / channel ID |
-| `ALTCOIN_TG_TOKEN` | Altcoin Telegram bot token |
-| `ALTCOIN_CHAT_ID` | Altcoin Telegram chat / channel ID |
-| `TWELVE_DATA_KEY` | Twelve Data API key — free at twelvedata.com |
-
-### 4. Enable workflow write permissions
-
-**Settings → Actions → General → Workflow permissions**
-Select **Read and write permissions** → Save
-
-*(Required so the bot can commit state files back to the repo.)*
-
-### 5. Test manually
-
-**Actions** tab → **GWP Forex Bot v6.0** → **Run workflow** → mode: `health`
-
-If data feeds are live you will receive a health report in Telegram within ~30 seconds.
-
----
-
-## How It Works
-
-### Scan Schedule
-
-| Bot | Scan cron | Daily summary | Weekly summary |
-|---|---|---|---|
-| Forex | `0,30 * * * *` — every :00 and :30 | `3 8 * * *` — 08:03 UTC | `8 8 * * 1` — Mon 08:08 UTC |
-| Altcoin | `15,45 * * * *` — every :15 and :45 | `2 8 * * *` — 08:02 UTC | `7 8 * * 1` — Mon 08:07 UTC |
-
-Bots are staggered 15 minutes apart so they never run at the same time.
-Both run **24/7** — no session filter, no dead periods.
+### The Core Setup
+A signal fires when a candle **wick** penetrates INTO the VAL band while the candle **body** closes OUTSIDE — a ghost wick. This represents institutional absorption at a key volume level.
 
 ### Triple Timeframe Engine
-
-Every scan analyses **4H + 1H + 15M** simultaneously:
+All three timeframes are scanned simultaneously:
 
 ```
-4H  ──→  Macro zone (VAL band, POC, AVWAP)
-1H  ──→  Confirmation + tighter entry
-15M ──→  Sniper entry — limit zone within the 1H setup
+4H  →  Macro trend / volume profile anchor
+1H  →  Swing entry confirmation
+15M →  Sniper execution zone
 ```
 
-Signal types fired (highest to lowest conviction):
+When all three align in the same direction, a **Triple TF ELITE MAX™** signal fires — the highest-conviction alert in the system.
 
-| Type | Condition | Conviction bonus |
-|---|---|---|
-| 🔥🔥🔥 **TRIPLE** | 4H + 1H + 15M all aligned | +25 |
-| 🔥🔥 **CONFLUENCE** | 4H + 1H aligned | +18 |
-| 👻 **4H SOLO** | 4H signal alone | — |
-| ⚡ **SCALP** | 1H signal alone | — |
-| 🔬 **MICRO SNIPER** | 15M with 4H or 1H context | — |
+---
 
-### Signal Quality Gates
+## Signal Anatomy
 
-| Gate | Value | What it filters |
-|---|---|---|
-| GWP wick score | ≥ 4.5 / 8 | Wick + body geometry |
-| R:R | ≥ 1.5–1.8 (per TF) | Adaptive TP extends before rejecting |
-| Conviction | ≥ 52–56 / 105 (per TF) | Combined score of all pillars |
-| Cooldown | 1–4h per direction per TF | Duplicate signals same zone |
-| Dedup window | 1 hour | Same signal firing twice in one scan |
-| Circuit breaker | 3 losses → 24h pause | Protects capital on losing streaks |
-| Stale check | ATR proximity | Kills signal only if target already reached |
+Every alert contains a structured breakdown:
 
-### Conviction Scoring (0–105)
+```
+👻 GWP — BTC/USDT  [1H]
+━━━━━━━━━━━━━━━━━━━━━━━
+🔴 SHORT ▼  Grade: A+ ELITE  7.0/8
+⚡ Conviction: 74/123 — 🔥 SUPREME★
+🕐 London/NY (24/7 ✅)
+🪤 AVWAP TRAP
+🔄 ZONE REVISIT
 
-| Pillar | Max points |
-|---|---|
-| GWP wick score | 32 |
+🏛 Market Structure  ⬇️ BOS BEAR
+  CHoCH:—  BOS↓✅  LiqSwp↑✅  FVG✅
+
+🎯 Entry:   66914.30
+🛑 SL:      66981.65  (-0.10%)
+✅ TP1:     66798.39  (+0.17% — 40%)
+🏆 TP2:     66682.49  (+0.35% — VAL Mid)
+💎 TP3:     66404.31  (+0.76% — runner)
+📐 TP4:     66123.45  (+EW 78.6% runner)
+📐 R:R:     3.44:1
+💼 Risk:    $0.07  Pos: $2 (20×)
+
+━━━━━ 🔬 THEORY ━━━━━
+  🔴 WYK: UPTHRUST ✅ · Vol Climax↑
+  📉 CYCLE: PEAK/TROUGH (T=14) ✅ REVERSAL GATE
+  📐 EW: 78.6%=66123 · 61.8%=66404
+
+━━━━━ 📊 LEVELS ━━━━━
+Band: 66659 – 66705  Mid: 66682  POC: 66870
+Wick: 20.8%  Gap: 178.6%  AVWAP: 67052
+
+━━━━━ ✅ CHECKLIST ━━━━━
+✅ 1. 1H candle CLOSED
+✅ 2. Wick penetrated INTO VAL band
+✅ 3. Body OUTSIDE band ≥8%
+✅ 4. Wick depth ≥12% of band height
+✅ 5. AVWAP Trap — institutional liquidity
+⬜ 6. Volume spike ≥1.3× avg
+✅ 7. R:R ≥ 1.6:1
+✅ 8. Target not yet hit (stale check)
+```
+
+---
+
+## Theory Engine (v7.0)
+
+Three market theories are computed on every signal and displayed in the **THEORY** block:
+
+### 1. Wyckoff Market Cycle Analysis
+Detects **Springs** (fake breakdown → BULL fuel) and **Upthrusts** (fake breakout → BEAR fuel) within the 30-bar lookback range. Volume climax events are flagged when signal-bar volume exceeds 1.8× the 10-bar average.
+
+- **🟢 WYK: SPRING ✅** — ideal bull setup
+- **🔴 WYK: UPTHRUST ✅** — ideal bear setup
+- Spring or Upthrust confirmation adds **+10 conviction points**
+
+### 2. Sine-Wave Cycle Oscillator (Fractal Market Hypothesis)
+Detects the dominant cycle period (T=8–20 bars) using autocorrelation on detrended price, then maps price position onto a sine wave. GWP is counter-trend — the best entries occur when the cycle is at **peak or trough (contraction phase)**, not during expansion.
+
+- **📉 CYCLE: PEAK/TROUGH** → `✅ REVERSAL GATE` → **+8 conviction points**
+- **🌊 CYCLE: EXPANSION** → `⚠️ MONITOR` → no bonus (proceed with caution)
+- **〰️ CYCLE: MID-WAVE** → neutral
+
+### 3. Elliott Wave — 0.786 (π/4) Retracement Level
+Computes the 50-bar swing high/low and derives the 78.6% retracement level (≈ π/4 ≈ 0.7854). This level sits deeper than the 61.8% Golden Pocket and is used as **TP4** — the extended runner target for high-conviction moves.
+
+- `📐 TP4: <price>  (+EW 78.6% runner)` shown in trade levels when applicable
+
+---
+
+## Conviction Scoring (v7.0: max 123)
+
+| Component | Max Points |
+|-----------|-----------|
+| GWP Core Score (8-item checklist) | 32 |
 | AVWAP Trap | 12 |
-| Volume spike on signal bar | 6 |
-| Path A (direct return) bonus | 4 |
-| Momentum burst (ATR expansion) | 4 |
-| Zone revisit (accumulation) | 3 |
-| Hurst exponent < 0.45 (mean-reversion) | 8 |
-| Z-score extreme / mild | 6 / 3 |
-| Kalman filter reversal signal | 6 |
-| ATR percentile 25–75 (healthy range) | 4 |
-| Volume ratio ≥ 2.0× | 4 |
-| EMA50 trend alignment | 3 |
-| Market structure (CHoCH / BOS / LiqSweep / FVG) | up to 17 |
-| MS unconfirmed penalty | −3 |
-| Confluence boost | +18 |
-| Triple TF boost | +25 |
+| Volume Spike | 6 |
+| Path A bonus | 4 |
+| Momentum Burst | 4 |
+| Zone Revisit | 3 |
+| Math Engine (Hurst + Z-Score + Kalman + ATR% + Volume + RSI) | 30 |
+| **Wyckoff Spring/Upthrust** *(v7.0)* | **10** |
+| **Sine-Wave Cycle Contraction** *(v7.0)* | **8** |
+| Market Structure (CHoCH + BOS + LiqSweep + FVG) | 30 |
+| Confluence Boost (4H+1H) | +18 |
+| Triple TF Boost (4H+1H+15M) | +25 |
 
-### Trade Levels
+**Grade thresholds:**
+- 🏆 SUPREME★★★★ = 108+
+- 🏆 SUPREME★★★ = 96+
+- ⚡ SUPREME★★ = 84+
+- 🔥 SUPREME★ = 72+
+- 🔥 ELITE = 58+
+- ✅ SOLID = 50+
 
-Every signal includes:
+---
 
-| Level | Size | Action |
-|---|---|---|
-| **Entry** | — | Current close (4H basis) or 15M sniper limit |
-| **SL** | — | Signal high/low + ATR buffer |
-| **TP1** | 40% | Half-way to VAL mid — take partial, move SL to BE |
-| **TP2** | 40% | VAL band midpoint — main target |
-| **TP3** | 20% | 2.2× the VAL band move — runner |
+## Math Engine
 
-### Market Structure (filter, not gate)
+Computed every scan on all active timeframes:
 
-MS is scored as a **conviction modifier** — unconfirmed MS = −3 points, not a signal block.
+| Indicator | Purpose |
+|-----------|---------|
+| **ATR (14)** | Stop-loss buffer sizing |
+| **RSI (14)** | Extreme overbought/oversold bonus |
+| **Hurst Exponent** | Mean-reversion confirmation (H < 0.45 = ideal) |
+| **Z-Score (20)** | Statistical price extremes |
+| **Kalman Filter** | Fair value + velocity direction |
+| **ATR Percentile** | Volatility regime detection |
+| **Volume Ratio** | Relative volume spike detection |
+| **Sine Oscillator** *(v7.0)* | Expansion vs contraction phase |
 
-| Label | Points |
-|---|---|
-| 🔄 CHoCH (change of character) | +14 |
-| ⬆️/⬇️ BOS (break of structure) | +8 |
-| 💧 Liquidity sweep | +5 |
-| 🟦/🟥 Fair value gap (FVG) | +3 |
-| 🟡 Unconfirmed | −3 |
+---
+
+## Market Structure Engine
+
+Runs on the last N bars (configurable per TF):
+
+- **CHoCH** — Change of Character (prior trend reversal)
+- **BOS** — Break of Structure (momentum confirmation)
+- **Liquidity Sweep** — Wick beyond swing + body rejection
+- **FVG** — Fair Value Gap within proximity of current price
+
+MS is **additive only** (no penalty if absent). CHoCH scores highest (+14), BOS adds independently (+8).
+
+---
+
+## Setup
+
+### GitHub Secrets Required
+
+| Secret | Used By |
+|--------|---------|
+| `ALTCOIN_TG_TOKEN` | Altcoin bot Telegram token |
+| `ALTCOIN_CHAT_ID` | Altcoin Telegram chat ID |
+| `FOREX_TG_TOKEN` | Forex bot Telegram token |
+| `FOREX_CHAT_ID` | Forex Telegram chat ID |
+| `TWELVE_DATA_KEY` | Twelve Data API key (forex pairs) |
+
+### Workflow Schedule
+
+Both bots run every 30 minutes via GitHub Actions. The `forex_state.json` and `altcoin_state.json` files are committed back to the repository after each run to persist state (cooldowns, open positions, dedup windows).
 
 ---
 
 ## Telegram Commands
 
-Send these directly to either bot:
+| Command | Action |
+|---------|--------|
+| `/scan` | Force a full scan immediately |
+| `/[symbol]` | Scan a single pair (e.g. `/btc`, `/xauusd`, `/sol`) |
+| `/daily` | Today's signal summary |
+| `/weekly` | This week's W/L/P&L stats |
+| `/health` | Live price check for all pairs |
+| `/positions` | All open tracked positions |
+| `/status` | Bot uptime + configuration |
+| `/reset` | Clear cooldowns, dedups, circuit breakers |
+| `/help` | Command reference |
+
+---
+
+## Safety Systems
+
+- **Circuit Breaker** — 3 losses within 24h pauses scanning for that pair
+- **Cooldowns** — Separate long/short cooldowns per pair per TF (prevents over-trading)
+- **Signal Dedup** — Identical direction on same symbol suppressed within 1 hour
+- **Stale Check** — Signals where price has already moved past the target are discarded
+- **SL Floor** — Crypto minimum 0.35% SL, Forex minimum 0.10% (prevents hairline stops)
+
+---
+
+## File Structure
 
 ```
-/scan         Full scan — all pairs, all timeframes
-/health       Data feed check — live prices + API status
-/positions    Open positions with live P&L
-/daily        Today's signal summary
-/weekly       This week: signals, win/loss, P&L
-/status       Bot config, gates, open position count
-/reset        Clear all cooldowns and circuit breakers
-/help         Full command reference
-
-── Forex single-pair scans ──────────────────
-/xauusd   /eurusd   /gbpusd   /btc
-
-── Altcoin single-pair scans ────────────────
-/btc   /eth   /sol   /avax   /uni   /sushi   /dexe
+gwp-bots/
+├── altcoin_bot.js        # Altcoin bot — KuCoin pairs
+├── altcoin_state.json    # Persisted state (positions, cooldowns, stats)
+├── forex_bot.js          # Forex+BTC bot — Twelve Data + KuCoin
+├── forex_state.json      # Persisted state
+├── package.json          # Node.js config (no external dependencies)
+├── README.md             # This file
+└── .github/
+    └── workflows/        # GitHub Actions YAML schedules
 ```
 
 ---
 
-## Secrets Configured ✅
+## Version History
 
-| Secret | Status |
-|---|---|
-| `ALTCOIN_CHAT_ID` | ✅ |
-| `ALTCOIN_TG_TOKEN` | ✅ |
-| `FOREX_CHAT_ID` | ✅ |
-| `FOREX_TG_TOKEN` | ✅ |
-| `TWELVE_DATA_KEY` | ✅ |
+| Version | Key Changes |
+|---------|-------------|
+| **v7.0** | Wyckoff Spring/Upthrust detection (+10 pts), Sine-Wave Cycle Oscillator FMH (+8 pts), Elliott Wave 78.6% TP4 runner, Theory Analysis block in all signals, Section separators in signal format, Conviction ceiling raised to 123 |
+| v6.1 | SL multi-layer buffer (ATR + candle range + asset-class floor), Bear bias removed, MS additive scoring, RSI extreme bonus, Z-Score thresholds lowered |
+| v6.0 | 24/7 session filter removal, 15M micro-entry engine, Trend bias EMA50, Circuit breaker, Signal dedup, TP3 runner extension |
 
 ---
 
-## Troubleshooting
+## License & Copyright
 
-**Bot ran but no Telegram message received**
-→ Check `FOREX_TG_TOKEN` / `ALTCOIN_TG_TOKEN` secrets are correct
-→ Send `/health` manually — if it returns silently, the chat ID may be wrong
+© 2026 Asterix.COM Ltd. / Abdin · Accra, Ghana  
+Ghost Wick Protocol™ is proprietary and confidential.  
+Unauthorized reproduction or distribution is prohibited.
 
-**"No 4H data" in Actions log**
-→ KuCoin or Twelve Data was unreachable. Bot retries twice automatically.
-→ If persistent: check `TWELVE_DATA_KEY` secret and twelvedata.com API status
-
-**Node.js 20 deprecation warning**
-→ Resolved in v6.0 — both workflows now use `actions/checkout@v5` + `actions/setup-node@v5` with Node 22
-
-**Duplicate daily summaries**
-→ Resolved in v6.0 — mode detection now uses `github.event.schedule` (exact cron match) instead of the runtime clock
-
-**State file conflict / push failed**
-→ Resolved in v6.0 — 3-attempt `pull --rebase` retry loop + concurrency group prevents simultaneous runs
-
-**Circuit breaker active**
-→ A pair had 3 losses in the window. Send `/reset` to clear, or wait 24h for auto-expiry
-
----
-
-*Ghost Wick Protocol™ · © 2026 Asterix.COM Ltd. · Abdin*
+> *GWP Altcoin v7.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin*

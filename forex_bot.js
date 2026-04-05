@@ -1,6 +1,6 @@
 "use strict";
 // ════════════════════════════════════════════════════════════════════════════
-// GHOST WICK PROTOCOL — FOREX EDITION  v6.1  MONEY PRINTING MACHINE ELITE MAX™
+// GHOST WICK PROTOCOL — FOREX EDITION  v7.0  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
 // Assets   : XAUUSD · EURUSD · GBPUSD (Twelve Data) · BTC (KuCoin)
@@ -88,7 +88,7 @@ const CONFIG = {
   FOREX_MIN_SL_PCT:  0.10,  // 0.10% minimum for forex pairs
 };
 
-const V = "GWP Forex v6.1 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Forex v7.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "forex_state.json");
@@ -239,7 +239,70 @@ function runMathEngine(candles){
   const zScore=calcZScore(closes,20),kalman=kalmanFilter(closes);
   const atrPct=calcATRPercentile(candles,14),volRatio=calcVolumeRatio(candles,20);
   // v6.1: trendBull removed — GWP is a counter-trend strategy
-  return{atr,rsi,hurst,zScore,kalman,atrPct,volRatio,cur:closes[closes.length-1]};
+  return{atr,rsi,hurst,zScore,kalman,atrPct,volRatio,cur:closes[closes.length-1],cycle:calcSineOscillator(closes)};
+}
+
+
+// ── WYCKOFF MARKET CYCLE ANALYSIS ────────────────────────────────────────────
+// Spring   = fake breakdown below support, body closes back inside → BULL
+// Upthrust = fake breakout above resistance, body closes back inside → BEAR
+function detectWyckoff(candles,direction){
+  if(candles.length<30)return{spring:false,upthrust:false,phase:"UNKNOWN",label:"⬜ WYK: —"};
+  const lookback=candles.slice(-30,-1);
+  const rangeHigh=Math.max(...lookback.map(c=>c.high));
+  const rangeLow =Math.min(...lookback.map(c=>c.low));
+  const sig=candles[candles.length-2];
+  const spring  =sig.low <rangeLow *0.9995&&sig.close>rangeLow;
+  const upthrust=sig.high>rangeHigh*1.0005&&sig.close<rangeHigh;
+  const recentVols=candles.slice(-10).map(c=>c.vol);
+  const avgVol=recentVols.reduce((a,b)=>a+b,0)/recentVols.length;
+  const volClimax=sig.vol>avgVol*1.8;
+  let phase="RANGING",label="⬜ WYK: RANGING";
+  if(spring  &&direction==="BULL"){phase="SPRING";   label="🟢 WYK: SPRING ✅";}
+  if(upthrust&&direction==="BEAR"){phase="UPTHRUST"; label="🔴 WYK: UPTHRUST ✅";}
+  if(volClimax&&direction==="BULL")label+=" · Vol Climax↓";
+  if(volClimax&&direction==="BEAR")label+=" · Vol Climax↑";
+  return{spring,upthrust,phase,label,rangeHigh,rangeLow,volClimax};
+}
+// ── SINE-WAVE CYCLE OSCILLATOR (FMH / Ehlers-inspired) ───────────────────────
+// Fractal Market Hypothesis: markets cycle between expansion (trending) and
+// contraction (mean-reverting). GWP fires counter-trend → CONTRACTION = ideal.
+function calcSineOscillator(closes){
+  const p=20;
+  if(closes.length<p*2)return{sine:0,leadSine:0,domPeriod:p,expansion:false,contraction:false,label:"⬜ CYCLE: —"};
+  const win=closes.slice(-(p*2)),mean=win.reduce((a,b)=>a+b,0)/win.length;
+  const detr=win.map(c=>c-mean);
+  let maxCorr=-Infinity,domPeriod=p;
+  for(let lag=8;lag<=p;lag++){
+    let corr=0;for(let i=lag;i<detr.length;i++)corr+=detr[i]*detr[i-lag];
+    if(corr>maxCorr){maxCorr=corr;domPeriod=lag;}
+  }
+  const cycPos=(closes.length%domPeriod)/domPeriod;
+  const sine    =Math.sin(2*Math.PI*cycPos);
+  const leadSine=Math.sin(2*Math.PI*cycPos+Math.PI/4);  // 45° lead = early warning
+  const expansion  =Math.abs(sine)<0.25&&Math.abs(leadSine)>Math.abs(sine);
+  const contraction=Math.abs(sine)>0.70;
+  const label=expansion
+    ?`🌊 CYCLE: EXPANSION (T=${domPeriod})`
+    :contraction
+      ?`📉 CYCLE: PEAK/TROUGH (T=${domPeriod})`
+      :`〰️ CYCLE: MID-WAVE (T=${domPeriod})`;
+  return{sine:parseFloat(sine.toFixed(3)),leadSine:parseFloat(leadSine.toFixed(3)),domPeriod,expansion,contraction,label};
+}
+// ── ELLIOTT WAVE — 0.786 (π/4) RETRACEMENT LEVEL ─────────────────────────────
+// π/4 ≈ 0.7854. Deeper corrective target beyond 0.618 golden pocket.
+// Used as TP4 runner — high-conviction moves often reach this level.
+function calcFib786(candles,direction){
+  if(candles.length<20)return{level786:null,level618:null,label:"⬜ EW: —"};
+  const lookback=candles.slice(-50);
+  const swingHigh=Math.max(...lookback.map(c=>c.high));
+  const swingLow =Math.min(...lookback.map(c=>c.low));
+  const range=swingHigh-swingLow;
+  if(range===0)return{level786:null,level618:null,label:"⬜ EW: —"};
+  const level786=direction==="BEAR"?swingHigh-range*0.786:swingLow+range*0.786;
+  const level618=direction==="BEAR"?swingHigh-range*0.618:swingLow+range*0.618;
+  return{level786,level618,swingHigh,swingLow,
+    label:`📐 EW: 78.6%=${level786.toFixed(2)} · 61.8%=${level618.toFixed(2)}`};
 }
 
 // ── VOLUME PROFILE + AVWAP ────────────────────────────────────────────────────
@@ -403,7 +466,14 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false){
     // v6.1: trendBull bias REMOVED — GWP is counter-trend by design
   }
 
-  // MARKET STRUCTURE (0–30) — v6.1: ADDITIVE, no penalty
+  // WYCKOFF STRUCTURAL CONFIRMATION (0–10)
+  if(gwp.wyckoff){
+    if(gwp.direction==="BULL"&&gwp.wyckoff.spring)   score+=10;
+    if(gwp.direction==="BEAR"&&gwp.wyckoff.upthrust) score+=10;
+  }
+  // SINE-WAVE CYCLE GATE — contraction = cycle exhaustion = GWP reversal window (+8)
+  if(math&&math.cycle&&math.cycle.contraction) score+=8;
+    // MARKET STRUCTURE (0–30) — v6.1: ADDITIVE, no penalty
   if(ms){
     // CHoCH is king — but BOS also scores independently (was else-if)
     if(ms.choch&&ms.choch.detected){
@@ -423,8 +493,8 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false){
   if(isTriple)  score+=CONFIG.TRIPLE_TF_BOOST;
   else if(isConfluence)score+=CONFIG.CONFLUENCE_CONVICTION_BOOST;
 
-  score=Math.max(0,Math.min(score,105));
-  const grade=score>=92?"🏆 SUPREME★★★★":score>=84?"🏆 SUPREME★★★":score>=76?"⚡ SUPREME★★":score>=68?"🔥 SUPREME★":score>=58?"🔥 ELITE":score>=50?"✅ SOLID":"⚠️ MARGINAL";
+  score=Math.max(0,Math.min(score,123));
+  const grade=score>=108?"🏆 SUPREME★★★★":score>=96?"🏆 SUPREME★★★":score>=84?"⚡ SUPREME★★":score>=72?"🔥 SUPREME★":score>=58?"🔥 ELITE":score>=50?"✅ SOLID":"⚠️ MARGINAL";
   return{score:score.toFixed(1),grade};
 }
 
@@ -469,6 +539,9 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg,isCrypto){
     const volumeSpike=hasVolumeSpike(sig,candles,sigIdx,20,tfCfg.volSpikeMult);
     const momentumBurst=calcMomentumBurst(candles,sigIdx);
     const zoneRevisit=calcZoneRevisit(candles,bBot,bTop);
+    const wyckoff=detectWyckoff(candles,direction);
+    const fib=calcFib786(candles,direction);
+    const cycle=math?math.cycle:null;
 
     const bodyGapPct=(bodyGap/bH)*100,isPathB=bodyGapPct<35;
 
@@ -520,6 +593,7 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg,isCrypto){
     if(score<4.5){console.log(`  GWP ${direction} ${tfCfg.label} age=${age}: score=${score.toFixed(1)} below threshold`);continue;}
 
     const fmt=v=>Number(v).toFixed(dec);
+    const tp4=fib.level786?fmt(fib.level786):null;
     const reEntry=isPathB?fmt(direction==="BEAR"?entry+Math.abs(entry-sl)*0.8:entry-Math.abs(entry-sl)*0.8):null;
     console.log(`  ✅ GWP [${tfCfg.label}]: ${direction} age=${age} ${grade} score=${score.toFixed(1)} R:R=${rr.toFixed(2)} SL=${fmt(sl)} (${(Math.abs(entry-sl)/entry*100).toFixed(3)}%)`);
 
@@ -536,6 +610,9 @@ function detectGWP(candles,vp,avwap,math,dec,tfCfg,isCrypto){
       avwap:avwap?fmt(avwap):null,
       vp:{val:fmt(bBot),mid:fmt(bMid),top:fmt(bTop),poc:fmt(vp.poc)},
       checks,reEntry,signalTime:new Date(sig.t).toUTCString(),
+      wyckoff,fib,tp4,
+      cycleLabel:cycle?cycle.label:"⬜ CYCLE: —",
+      cycleGate:cycle?cycle.contraction:false,
     };
   }
   return null;
@@ -674,6 +751,10 @@ function formatTripleSignal(r4h,r1h,r15m,pair,c4h,c1h,c15m,ms4h,ms1h,ms15m){
     `🏆 <b>TP2:</b>     <code>${r4h.tp2}</code>  (+${r4h.tp2Pct}% — 40% · BE)\n`+
     `💎 <b>TP3:</b>     <code>${r4h.tp3}</code>  (+${r4h.tp3Pct}% — 20% runner)\n`+
     `📐 <b>R:R:</b>     ${r4h.rr}:1  |  💼 Risk: $${riskUSD.toFixed(2)} Pos: $${posUSD.toFixed(0)} (${CONFIG.LEVERAGE}×)\n\n`+
+    `\n━━━━━ 🔬 THEORY ━━━━━\n`+
+    `  ${r4h.wyckoff?r4h.wyckoff.label:"⬜ WYK: —"}\n`+
+    `  ${r4h.cycleLabel}${r4h.cycleGate?" ✅ REVERSAL GATE":" ⚠️ MONITOR"}\n`+
+    `  ${r4h.fib?r4h.fib.label:"⬜ EW: —"}\n\n`+
     `━━━━━ ✅ 4H ━━━━━\n${check4h}\n`+
     `\n━━━━━ ✅ 1H ━━━━━\n${check1h}\n`+
     `\n━━━━━ ✅ 15M ━━━━━\n${check15m}\n\n`+
@@ -714,6 +795,10 @@ function formatConfluenceSignal(r4h,r1h,pair,conv4h,conv1h,ms4h,ms1h){
     `💎 <b>TP3:</b>     <code>${r4h.tp3}</code>  (+${r4h.tp3Pct}% — 20% runner)\n`+
     `📐 <b>R:R:</b>     ${r4h.rr}:1 (4H)  |  ${r1h.rr}:1 (1H)\n`+
     `💼 <b>Risk:</b>    $${riskUSD.toFixed(2)} Pos: $${posUSD.toFixed(0)} (${CONFIG.LEVERAGE}×)\n\n`+
+    `\n━━━━━ 🔬 THEORY ━━━━━\n`+
+    `  ${r4h.wyckoff?r4h.wyckoff.label:"⬜ WYK: —"}\n`+
+    `  ${r4h.cycleLabel}${r4h.cycleGate?" ✅ REVERSAL GATE":" ⚠️ MONITOR"}\n`+
+    `  ${r4h.fib?r4h.fib.label:"⬜ EW: —"}\n\n`+
     `━━━━━ ✅ 4H ━━━━━\n${check4h}\n`+
     `\n━━━━━ ✅ 1H ━━━━━\n${check1h}\n\n`+
     `⏰ ${new Date().toUTCString()}\n<i>${V}</i>`
@@ -739,10 +824,16 @@ function formatSingleSignal(r,pair,conv,ms,label){
     `🏆 <b>TP2:</b>    <code>${r.tp2}</code>  (+${r.tp2Pct}% — VAL Mid)\n`+
     `💎 <b>TP3:</b>    <code>${r.tp3}</code>  (+${r.tp3Pct}% — runner)\n`+
     `📐 <b>R:R:</b>    ${r.rr}:1\n`+
-    `💼 <b>Risk:</b>   $${riskUSD.toFixed(2)} Pos: $${posUSD.toFixed(0)} (${CONFIG.LEVERAGE}×)\n\n`+
+    `💼 <b>Risk:</b>   $${riskUSD.toFixed(2)} Pos: $${posUSD.toFixed(0)} (${CONFIG.LEVERAGE}×)\n`+
+    (r.tp4?`📐 <b>TP4:</b>    <code>${r.tp4}</code>  (+EW 78.6% runner)\n`:"")+
+    `\n━━━━━ 🔬 THEORY ━━━━━\n`+
+    `  ${r.wyckoff?r.wyckoff.label:"⬜ WYK: —"}\n`+
+    `  ${r.cycleLabel}${r.cycleGate?" ✅ REVERSAL GATE":" ⚠️ MONITOR"}\n`+
+    `  ${r.fib?r.fib.label:"⬜ EW: —"}\n`+
+    `\n━━━━━ 📊 LEVELS ━━━━━\n`+
     `📊 Band: <code>${r.vp.val}–${r.vp.top}</code>  Mid: <code>${r.vp.mid}</code>  POC: <code>${r.vp.poc}</code>\n`+
-    `Wick: ${r.wickDepthPct}%  Gap: ${r.bodyGapPct}%${r.avwap?`  AVWAP: <code>${r.avwap}</code>`:""}\n\n`+
-    `✅ <b>Checklist</b>\n${check}\n\n`+
+    `Wick: ${r.wickDepthPct}%  Gap: ${r.bodyGapPct}%${r.avwap?`  AVWAP: <code>${r.avwap}</code>`:""}\n`+
+    `\n━━━━━ ✅ CHECKLIST ━━━━━\n${check}\n\n`+
     `⏰ ${new Date().toUTCString()}\n<i>${V}</i>`
   );
 }
@@ -765,7 +856,7 @@ async function sendWeeklySummary(){
   msg+=`\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
 }
 async function sendHealth(){
-  let msg=`💚 <b>GWP Forex v6.1 ELITE MAX — HEALTH</b>\n\n`;
+  let msg=`💚 <b>GWP Forex v7.0 ELITE MAX — HEALTH</b>\n\n`;
   for(const pair of CONFIG.PAIRS){
     let price="?";
     try{const c=pair.source==="kucoin"?await fetchKuCoin(pair.kucoinSymbol,"H1",2):await fetchTwelveData(pair.twelveSymbol,"H1",2);if(c&&c.length)price=c[c.length-1].close.toFixed(pair.dec);}catch(e){}
@@ -783,7 +874,7 @@ async function sendStatus(){
   let w;try{w=JSON.parse(getProp("F6_W_"+getWeekKey())||"{}");}catch(e){w={};}
   const openCount=Object.keys(state).filter(k=>k.startsWith("FPOS6_")).length;
   await tgSend(
-    `📡 <b>GWP Forex v6.1 ELITE MAX — ONLINE</b> ✅\n\n`+
+    `📡 <b>GWP Forex v7.0 ELITE MAX — ONLINE</b> ✅\n\n`+
     `Pairs: ${CONFIG.PAIRS.map(p=>p.symbol).join(", ")}\n`+
     `TFs: 4H + 1H + 15M (Triple Engine)\n`+
     `Gates: 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n`+
@@ -804,7 +895,7 @@ async function sendPositions(){
 }
 async function sendHelp(){
   await tgSend(
-    `👻 <b>GWP FOREX v6.1 ELITE MAX™</b>\n`+
+    `👻 <b>GWP FOREX v7.0 ELITE MAX™</b>\n`+
     `<b>Money Printing Machine — 24/7 Always On</b>\n\n`+
     `<b>Commands:</b>\n`+
     `/scan — full scan (4H+1H+15M)\n`+
@@ -878,7 +969,7 @@ async function handleCommand(cmd){
 
 // ── MAIN RUNNER ────────────────────────────────────────────────────────────────
 async function runBot(){
-  console.log(`\n═══ GWP FOREX v6.1 ELITE MAX ═══ ${new Date().toISOString()}`);
+  console.log(`\n═══ GWP FOREX v7.0 ELITE MAX ═══ ${new Date().toISOString()}`);
   console.log(`  Running 24/7 — ${getForexSession()}`);
   if(!CONFIG.TWELVE_DATA_KEY)console.error("⚠️  TWELVE_DATA_KEY not set — forex pairs will fail.");
 
@@ -1015,7 +1106,7 @@ async function runBot(){
 (async()=>{
   loadState();
   const mode=process.argv[2]||"scan";
-  console.log(`GWP Forex v6.1 ELITE MAX | mode: ${mode} | ${new Date().toISOString()}`);
+  console.log(`GWP Forex v7.0 ELITE MAX | mode: ${mode} | ${new Date().toISOString()}`);
   console.log(`Running 24/7 — SL buffer fixed — Bear bias removed`);
   if(!CONFIG.TWELVE_DATA_KEY)console.error("⚠️  TWELVE_DATA_KEY not set — forex pairs will fail.");
 
