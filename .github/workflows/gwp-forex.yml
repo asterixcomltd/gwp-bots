@@ -1,42 +1,25 @@
 # ════════════════════════════════════════════════════════════════════
-# GWP FOREX BOT v6.0 — GitHub Actions Workflow
-# Pairs  : XAUUSD · EURUSD · GBPUSD · BTC
+# GWP FOREX BOT v7.0 — GitHub Actions Workflow
+# Pairs  : XAUUSD · EURUSD · GBPUSD · USDJPY · GBPJPY · BTC
 # Engine : Twelve Data (forex/gold) + KuCoin (BTC)
 # © 2026 Asterix.COM Ltd. / Abdin
 #
-# FIXES vs v3.0:
-#   ✅ FIX: actions/checkout@v5 + setup-node@v5  (kills Node 20 warning)
-#   ✅ FIX: CRITICAL — scan cron '0,30 * * * *' fires at 08:00 every day.
-#            The daily cron '0 8 * * *' ALSO fires at 08:00.
-#            Both hit the old clock check (HOUR=08, MIN=0 < 10) → dual daily mode.
-#            Fix: use github.event.schedule to match exact cron string. Deterministic.
-#   ✅ FIX: Mode detection uses github.event.schedule, NOT runtime clock
-#          — runner queue delays could shift MIN outside the detection window,
-#            causing daily/weekly triggers to fall through to scan mode
-#   ✅ FIX: git push with pull --rebase retry — silent state loss eliminated
-#   ✅ FIX: concurrency group — prevents simultaneous runs from creating
-#            git conflicts, duplicate signals, or duplicate daily summaries
-#   ✅ FIX: timeout-minutes raised to 15 (4 pairs × 3 TFs sequential with
-#            1500ms Twelve Data sleep per call + retries = up to ~25s minimum
-#            in API sleep alone on a good run; bad run with retries needs headroom)
-#   ✅ FIX: ${{ env.MODE }} used instead of bare $MODE for safe expression eval
-#   ✅ FIX: Workflow name updated to v6.0 to match bot version
-#   ✅ FIX: Scan cron offset changed from '0,30' to '0,30' (unchanged) but
-#            daily cron moved to '3 8 * * *' so crons no longer share 08:00
-#            — belt-and-suspenders fix alongside the schedule-based mode detection
+# v7.0 CHANGES vs v6.0:
+#   ✅ NEW: Publishes forex_signals.json to public GitHub Gist after scan
+#           → Vercel dashboard reads Gist raw URL. NO Google Sheet needed.
+#   ✅ NEW: forex_signals.json also committed to repo as permanent backup
+#   ✅ FIX: actions/checkout@v4 + setup-node@v4
+#   ✅ FIX: Gist step skipped gracefully if GH_PAT / GIST_ID secrets absent
+#   ✅ FIX: Daily cron kept at '3 8 * * *' (not '0 8') to avoid 08:00 clash
 # ════════════════════════════════════════════════════════════════════
 
-name: GWP Forex Bot v6.0
+name: GWP Forex Bot v8.0
 
 on:
   schedule:
     # ── Regular scans — every 30 min, staggered from altcoin bot ────────
     - cron: '0,30 * * * *'
     # ── Daily summary — 08:03 UTC every day ─────────────────────────────
-    # Moved from '0 8 * * *' to '3 8 * * *' so it no longer shares 08:00
-    # with the scan cron (belt-and-suspenders fix — schedule-based mode
-    # detection already makes this a non-issue, but the timing overlap
-    # caused two jobs to queue at the same instant unnecessarily).
     - cron: '3 8 * * *'
     # ── Weekly summary — Monday 08:08 UTC ────────────────────────────────
     - cron: '8 8 * * 1'
@@ -50,9 +33,6 @@ on:
 permissions:
   contents: write
 
-# Prevents two runs from overlapping and causing git state conflicts,
-# duplicate Telegram signals, or duplicate daily/weekly summaries.
-# A queued run waits for the current one to finish — it is NOT cancelled.
 concurrency:
   group: gwp-forex
   cancel-in-progress: false
@@ -65,26 +45,17 @@ jobs:
     steps:
       # ── 1. Checkout ─────────────────────────────────────────────────────
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       # ── 2. Node.js 22 ───────────────────────────────────────────────────
       - name: Setup Node.js 22
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       # ── 3. Determine run mode ───────────────────────────────────────────
-      # Matches the exact cron string stored in github.event.schedule.
-      # This is deterministic regardless of runner queue delay — unlike
-      # the previous approach which checked the wall clock at runtime.
-      #
-      # THE BUG THIS FIXES (forex-specific):
-      # The old scan cron '0,30 * * * *' fires at 08:00 every single day.
-      # The old daily cron '0 8 * * *' ALSO fires at 08:00 every day.
-      # Both triggered jobs would hit: HOUR=08, MIN=0, MIN<10 → daily mode.
-      # Result: two jobs, both running daily summary, every day at 08:00.
       - name: Determine run mode
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -114,16 +85,55 @@ jobs:
           echo "Running in mode: ${{ env.MODE }}"
           node forex_bot.js ${{ env.MODE }}
 
-      # ── 5. Persist state ────────────────────────────────────────────────
-      # Retries pull --rebase + push up to 3 times.
-      # The concurrency group above makes concurrent push conflicts nearly
-      # impossible, but this retry loop is defence-in-depth for workflow_dispatch
-      # triggers that can still race with a scheduled run.
+      # ── 5. Publish forex_signals.json to public Gist ───────────────────
+      # Required secrets: GH_PAT (gist + repo scope) + GIST_ID (public gist ID)
+      # Same GIST_ID as altcoin bot — each bot updates its own file inside.
+      # FIX v8.0: Always ensure file exists (write [] if missing) so Gist
+      # is always updated even when no signals fired this scan.
+      - name: Publish signals to Gist
+        if: env.MODE == 'scan'
+        env:
+          GH_PAT:  ${{ secrets.GH_PAT }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+        run: |
+          if [ -z "$GH_PAT" ] || [ -z "$GIST_ID" ]; then
+            echo "⚠️  GH_PAT or GIST_ID not set — skipping Gist publish"
+            exit 0
+          fi
+          # CRITICAL FIX: always ensure file exists before publishing
+          if [ ! -f forex_signals.json ]; then
+            echo "[]" > forex_signals.json
+            echo "ℹ️  Created empty forex_signals.json placeholder"
+          fi
+          PAYLOAD=$(python3 -c "
+import json
+with open('forex_signals.json') as f:
+    data = f.read()
+print(json.dumps({'files': {'forex_signals.json': {'content': data}}}))
+")
+          HTTP=$(curl -s -o /tmp/gr.json -w "%{http_code}" \
+            -X PATCH \
+            -H "Authorization: token $GH_PAT" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://api.github.com/gists/$GIST_ID")
+          if [ "$HTTP" = "200" ]; then
+            echo "✅ forex_signals.json → Gist updated (HTTP 200)"
+          else
+            echo "⚠️  Gist update HTTP $HTTP"; cat /tmp/gr.json
+            echo ""; echo "💡 If HTTP 401: GH_PAT is missing the 'gist' OAuth scope."
+            echo "   Go to GitHub → Settings → Developer settings → Personal access tokens"
+            echo "   → Regenerate token and check the 'gist' checkbox."
+          fi
+
+      # ── 6. Persist state + signals to repo ─────────────────────────────
       - name: Save state to repo
         run: |
           git config user.email "gwp-forex@asterixcom.ltd"
           git config user.name  "GWP Forex Bot"
           git add forex_state.json
+          # Always add signals file (may be [] placeholder or real signals)
+          [ -f forex_signals.json ] && git add forex_signals.json || true
 
           if git diff --staged --quiet; then
             echo "No state changes — nothing to commit."
@@ -139,5 +149,5 @@ jobs:
             sleep $((attempt * 10))
           done
 
-          echo "❌ All 3 push attempts failed. State may not be saved."
+          echo "❌ All 3 push attempts failed."
           exit 1
