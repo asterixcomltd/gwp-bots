@@ -1,8 +1,14 @@
 # ════════════════════════════════════════════════════════════════════
-# GWP ALTCOIN BOT v8.0 — GitHub Actions Workflow
+# GWP ALTCOIN BOT v8.1 — GitHub Actions Workflow
 # Pairs  : DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH · LINK · ARB · INJ
 # Engine : KuCoin Public REST — no auth key needed
 # © 2026 Asterix.COM Ltd. / Abdin
+#
+# v8.1 CHANGES vs v8.0:
+#   ✅ FIX: FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true added at job level
+#           → Silences Node.js 20 deprecation warning on actions/checkout@v4
+#             and actions/setup-node@v4. Required before June 2nd 2026
+#             when Node.js 24 becomes the forced default.
 #
 # v8.0 CHANGES vs v7.0:
 #   ✅ NEW: Publishes altcoin_signals.json to public GitHub Gist after scan
@@ -15,7 +21,7 @@
 #   ✅ FIX: git add uses safe guard (|| true) for state file
 # ════════════════════════════════════════════════════════════════════
 
-name: GWP Altcoin Bot v8.0
+name: GWP Altcoin Bot v8.1
 
 on:
   schedule:
@@ -43,6 +49,8 @@ jobs:
   run-altcoin-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       # ── 1. Checkout ─────────────────────────────────────────────────────
