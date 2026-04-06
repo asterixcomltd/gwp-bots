@@ -773,81 +773,32 @@ function checklistBlock(checks){
   return checks.map((c,i)=>`${c.pass?"✅":"⬜"}  ${c.item}`).join("\n");
 }
 
+// ── COMPACT SIGNAL FORMAT v8.0 ────────────────────────────────────────────────
+// Replaces verbose layout with a clean, scannable card.
+// All core data preserved: direction, conviction, R:R, entry/SL/TPs, key tags, MS.
 function formatSingleSignal(r,symbol,conv,ms,_label,d1Bias='NEUTRAL'){
   const isBull=r.direction==="BULL";
   const dirEmoji=isBull?"🟢":"🔴";
-  const dirWord =isBull?"LONG  ▲":"SHORT  ▼";
-  const tradeType=getTradeType(r.tf,false,false);
-  const riskUSD=CONFIG.CAPITAL*CONFIG.RISK_PCT/100,posUSD=riskUSD*CONFIG.LEVERAGE;
-  const ageNote=r.age>0?`\n⏱  <i>${r.age} bar${r.age>1?"s":""} ago · ${r.signalTime}</i>`:"";
-  const conf=confBox(r);
-  const biasNote=d1Bias!=='NEUTRAL'?`  ·  📅 D1: <b>${d1Bias}</b>`:"";
-  const pbNote=r.isPathB?`\n⚠️  <b>PATH B</b> — sweep zone · Re-enter: <code>${r.reEntry}</code>`:"";
-  const tp4Note=r.tp4?`\n📐  <b>TP4</b>      <code>${r.tp4}</code>   (EW 78.6% runner)`:"";
+  const dir=isBull?"LONG ▲":"SHORT ▼";
+  const pairLabel=symLabel(symbol)+"/USDT";
+  const tags=confBox(r);
+  const tp4Note=r.tp4?`  ·  <b>TP4</b> <code>${r.tp4}</code>`:"";
+  const pbNote=r.isPathB?`\n⚠️  <b>PATH B</b>  Re-enter: <code>${r.reEntry}</code>`:"";
+  const biasNote=d1Bias!=="NEUTRAL"?`  ·  D1: <b>${d1Bias}</b>`:"";
+  const ageNote=r.age>0?`  ·  <i>${r.age}b ago</i>`:"";
   return(
     `\n`+
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`+
-    `👻  <b>GWP SIGNAL  ·  ${symLabel(symbol)}/USDT</b>\n`+
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`+
-    `\n`+
-    `${dirEmoji}  <b>${dirWord}</b>   ${tradeType}   [${r.tfLabel}]\n`+
-    `\n`+
-    `⚡  Conviction:  <b>${conv.score} / 105</b>   —   ${conv.grade}\n`+
-    `🏅  Grade:  <b>${r.grade}</b>   ·   Score: <b>${r.score}/8</b>${ageNote}\n`+
-    `🕐  ${getSessionLabel()}${biasNote}\n`+
-    (conf?`\n🔆  ${conf}\n`:"")+
+    `🎯  <b>GWP · ${pairLabel} · ${dir} [${r.tfLabel}]</b>\n`+
+    `${dirEmoji}  <b>${conv.score}/105</b>  ·  ${conv.grade}  ·  R:R <b>${r.rr}:1</b>${ageNote}${biasNote}\n`+
+    `─────────────────────────────\n`+
+    `<b>ENTRY</b>  <code>${r.entry}</code>   <b>SL</b>  <code>${r.sl}</code>  (-${r.slPct}%)\n`+
+    `<b>TP1</b>  <code>${r.tp1}</code>  ·  <b>TP2</b>  <code>${r.tp2}</code>  ·  <b>TP3</b>  <code>${r.tp3}</code>${tp4Note}\n`+
+    `─────────────────────────────\n`+
+    (tags?`🔑  ${tags}\n`:"")+
+    `  ${ms?ms.label:"⬜ UNCONFIRMED"}   ${msLine(ms,r.direction)}\n`+
     `${pbNote}\n`+
-    `\n`+
-    `─────────────────────────────\n`+
-    `💼  <b>TRADE LEVELS</b>\n`+
-    `─────────────────────────────\n`+
-    `\n`+
-    `🎯  <b>ENTRY</b>       <code>${r.entry}</code>\n`+
-    `🛑  <b>STOP</b>        <code>${r.sl}</code>     <b>-${r.slPct}%</b>\n`+
-    `\n`+
-    `✅  <b>TP1</b>         <code>${r.tp1}</code>     +${r.tp1Pct}%  · 40% exit\n`+
-    `🏆  <b>TP2</b>         <code>${r.tp2}</code>     +${r.tp2Pct}%  · 40% / BE\n`+
-    `💎  <b>TP3</b>         <code>${r.tp3}</code>     +${r.tp3Pct}%  · 20% runner\n`+
-    `${tp4Note}\n`+
-    `\n`+
-    `📐  <b>R:R</b>   <b>${r.rr} : 1</b>\n`+
-    `💼  Risk: $${riskUSD.toFixed(2)}   ·   Pos: $${posUSD.toFixed(0)}   (${CONFIG.LEVERAGE}×)\n`+
-    `\n`+
-    `─────────────────────────────\n`+
-    `🏛  <b>MARKET STRUCTURE</b>\n`+
-    `─────────────────────────────\n`+
-    `\n`+
-    `  ${ms?ms.label:"⬜ UNCONFIRMED"}\n`+
-    `  ${msLine(ms,r.direction)}\n`+
-    `\n`+
-    `─────────────────────────────\n`+
-    `📊  <b>VAL BAND  ·  LEVELS</b>\n`+
-    `─────────────────────────────\n`+
-    `\n`+
-    `  Band      <code>${r.vp.val}  –  ${r.vp.top}</code>\n`+
-    `  Mid       <code>${r.vp.mid}</code>   ← target\n`+
-    `  POC       <code>${r.vp.poc}</code>\n`+
-    (r.avwap?`  AVWAP    <code>${r.avwap}</code>\n`:"")+
-    `  Wick:  ${r.wickDepthPct}%   ·   Gap:  ${r.bodyGapPct}%\n`+
-    `\n`+
-    `─────────────────────────────\n`+
-    `🔬  <b>THEORY  ·  ANALYSIS</b>\n`+
-    `─────────────────────────────\n`+
-    `\n`+
-    `  ${r.wyckoff?r.wyckoff.label:"⬜ WYK: —"}\n`+
-    `  ${r.cycleLabel}\n`+
-    `  ${r.fib?r.fib.label:"⬜ EW: —"}\n`+
-    `\n`+
-    `─────────────────────────────\n`+
-    `✅  <b>CHECKLIST  (${r.checks.filter(c=>c.pass).length}/${r.checks.length})</b>\n`+
-    `─────────────────────────────\n`+
-    `\n`+
-    `${checklistBlock(r.checks)}\n`+
-    `\n`+
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`+
     `⏰  ${new Date().toUTCString()}\n`+
-    `<i>${V}</i>\n`+
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+    `<i>${V}</i>`
   );
 }
 
