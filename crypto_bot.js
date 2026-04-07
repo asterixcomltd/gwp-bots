@@ -1,6 +1,6 @@
 "use strict";
 // ════════════════════════════════════════════════════════════════════════════
-// GHOST WICK PROTOCOL — CRYPTO EDITION  v8.0  MONEY PRINTING MACHINE ELITE MAX™
+// GHOST WICK PROTOCOL — CRYPTO EDITION  v8.1  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
 // Exchange : KuCoin (Public REST API — no auth key needed)
@@ -8,6 +8,14 @@
 // Platform : GitHub Actions (Node.js 22+) · crypto_state.json persistence
 //
 // © 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
+//
+// v8.1 CHANGES (on top of v8.0):
+//   ✅ FIX: Secondary TP dedup keys (ATPD8_) added to checkOpenPositions
+//           — Double-barrier against TP1/TP2 repeat spam
+//           — tp1hit flag + independent timestamp key: BOTH must be clear
+//             for a TP alert to fire. Guards against any future state
+//             persistence failure.
+//   ✅ FIX: resetCooldowns() now also clears ATPD8_ dedup keys
 //
 // v8.0 CHANGES (on top of v7.0):
 //   ✅ FIX: CRYPTO_MIN_SL_PCT 0.35 → 1.2 (CRITICAL — hairline SL was killing trades)
@@ -20,13 +28,6 @@
 //   ✅ FIX: minRR H4: 1.8 → 2.0 (higher quality setups only)
 //   ✅ REMOVED: EMA-50 trend bias — lagging, not institutional
 //   ✅ REMOVED: RSI bonus/penalty — lagging, replaced by Kalman+ZScore+Wyckoff
-//   ✅ CHART ANALYSIS — ETH/USDT signal confirmed:
-//      - D1: Below 2900 VAL band, at 1900–2000 support zone ✅
-//      - 4H: CHoCH→BEAR confirmed, BOS↓, LiqSwp↑ ✅
-//      - 1H: Accumulating at VAL 2025–2036, AVWAP ~2064 trap zone ✅
-//      - SHORT entry 2058-2069 zone with SL 2069-2080 is correctly identified ✅
-//      - TP2 2030 (VAL Mid) ✅ TP3 1987 ✅ (now extended to 1960 with 3.0×)
-//   ✅ VERSION: All display strings updated to v8.0
 // ════════════════════════════════════════════════════════════════════════════
 
 const https = require("https");
@@ -94,6 +95,10 @@ const CONFIG = {
 
   // v8.0: ATR floor — SL must be ≥ this multiple of ATR from entry
   ATR_SL_FLOOR_MULT: 1.5,
+
+  // v8.1: TP hit dedup window — 4 hours prevents repeat TP alerts even if
+  // state file fails to persist across runs
+  TP_HIT_DEDUP_MS: 14400000,
 };
 
 const V = "GWP Crypto v8.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
@@ -265,7 +270,6 @@ function runMathEngine(candles){
 
 // ── D1 CONTEXT FILTER ─────────────────────────────────────────────────────────
 // v8.0: Daily close vs daily AVWAP = institutional directional anchor
-// Confirms where smart money is positioned on the daily chart
 function getD1Bias(d1Candles) {
   if(!d1Candles||d1Candles.length<10) return 'NEUTRAL';
   const lookback = d1Candles.slice(-20);
@@ -448,7 +452,6 @@ function analyzeMarketStructure(candles,direction,tfCfg){
 
 // ── CONVICTION ENGINE ─────────────────────────────────────────────────────────
 // v8.0: RSI removed. EMA bias removed. Symmetric BULL/BEAR scoring.
-// D1 context bonus added. Vol+AVWAP gate in detectGWP (pre-filter).
 function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d1Bias='NEUTRAL'){
   let score=0;
 
@@ -478,8 +481,8 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
 
     // Z-Score — SYMMETRIC: BULL and BEAR get identical bonus
     const z=math.zScore;
-    if(gwp.direction==="BULL"&&z.extremeLow)  score+=7;  // v8.0: raised 6→7
-    if(gwp.direction==="BEAR"&&z.extremeHigh) score+=7;  // symmetric with BULL
+    if(gwp.direction==="BULL"&&z.extremeLow)  score+=7;
+    if(gwp.direction==="BEAR"&&z.extremeHigh) score+=7;
     if(gwp.direction==="BULL"&&z.mildLow)     score+=3;
     if(gwp.direction==="BEAR"&&z.mildHigh)    score+=3;
 
@@ -508,7 +511,7 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
   // SINE-WAVE CYCLE GATE — contraction = cycle exhaustion = GWP reversal window (+8)
   if(math&&math.cycle&&math.cycle.contraction) score+=8;
 
-  // MARKET STRUCTURE (0–30) — ADDITIVE, no penalty (v6.1+ behaviour)
+  // MARKET STRUCTURE (0–30) — ADDITIVE, no penalty
   if(ms){
     if(ms.choch&&ms.choch.detected){
       if((gwp.direction==="BULL"&&ms.choch.toBull)||(gwp.direction==="BEAR"&&ms.choch.toBear))score+=14;
@@ -522,7 +525,6 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
   }
 
   // v8.0: D1 BIAS ALIGNMENT BONUS (+6)
-  // Counter-trend into D1 AVWAP = price returning to institutional value
   if(d1Bias==='BEAR'&&gwp.direction==='BULL') score+=6;
   if(d1Bias==='BULL'&&gwp.direction==='BEAR') score+=6;
 
@@ -586,7 +588,6 @@ function detectGWP(candles,vp,avwap,math,tfCfg){
     const bodyGapPct=(bodyGap/bH)*100,isPathB=bodyGapPct<35;
 
     // v8.0: INSTITUTIONAL GATE — at least Vol spike OR AVWAP trap must pass
-    // Pure GWP wick with zero institutional confirmation = noise, not signal
     if(!volumeSpike&&!avwapTrap){
       console.log(`  GWP ${direction} ${tfCfg.label} age=${age}: REJECTED — no vol spike AND no AVWAP trap`);
       continue;
@@ -703,6 +704,12 @@ function storePosition(symbol,r,conv,tfKey){
   }));
   appendSignalToFile(symbol, r, conv, tfKey);
 }
+
+// ── OPEN POSITION MONITOR ─────────────────────────────────────────────────────
+// v8.1 FIX: Secondary TP dedup keys (ATPD8_) prevent repeat TP alerts.
+// Two-barrier system: position.tp1hit flag AND a standalone timestamp key
+// must BOTH be clear before a TP1 alert fires. If git push fails and the
+// state file reverts, the dedup key provides an additional window of protection.
 async function checkOpenPositions(){
   const posKeys=Object.keys(state).filter(k=>k.startsWith("APOS8_"));
   for(const key of posKeys){
@@ -716,8 +723,28 @@ async function checkOpenPositions(){
     const dp=v=>v<0.01?6:v<1?5:v<10?4:v<1000?3:2;
     const f=n=>Number(n).toFixed(dp(Math.abs(n)));
     let msg=null;
-    if(!p.tp1hit&&(isL?price>=p.tp1:price<=p.tp1)){p.tp1hit=true;msg=`🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
-    if(!p.tp2hit&&(isL?price>=p.tp2:price<=p.tp2)){p.tp2hit=true;msg=`🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;}
+
+    // ── v8.1: Secondary TP dedup keys ─────────────────────────────────────────
+    // ATPD8_<posKey>_1 / _2 store timestamps of last TP alert sent.
+    // Check both the position flag AND the standalone dedup key.
+    const tp1DedupKey=`ATPD8_${key}_1`;
+    const tp2DedupKey=`ATPD8_${key}_2`;
+    const tp1DedupTs =parseInt(getProp(tp1DedupKey)||"0");
+    const tp2DedupTs =parseInt(getProp(tp2DedupKey)||"0");
+    const tp1Sent    =p.tp1hit||(tp1DedupTs>0&&(Date.now()-tp1DedupTs)<CONFIG.TP_HIT_DEDUP_MS);
+    const tp2Sent    =p.tp2hit||(tp2DedupTs>0&&(Date.now()-tp2DedupTs)<CONFIG.TP_HIT_DEDUP_MS);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if(!tp1Sent&&(isL?price>=p.tp1:price<=p.tp1)){
+      p.tp1hit=true;
+      setProp(tp1DedupKey,Date.now().toString()); // v8.1: secondary dedup key
+      msg=`🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;
+    }
+    if(!tp2Sent&&(isL?price>=p.tp2:price<=p.tp2)){
+      p.tp2hit=true;
+      setProp(tp2DedupKey,Date.now().toString()); // v8.1: secondary dedup key
+      msg=`🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;
+    }
     if(p.tp2hit&&(isL?price>=p.tp3:price<=p.tp3)){msg=`🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,true);}
     if(isL?price<=p.sl:price>=p.sl){const pbN=p.isPathB?`\n⚡ Path B re-entry: <code>${p.reEntry||"zone"}</code>`:"";msg=`❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,false);}
     if(msg){await tgSend(msg);if(p.state==="CLOSED")delProp(key);else setProp(key,JSON.stringify(p));}else{setProp(key,JSON.stringify(p));}
@@ -741,8 +768,6 @@ async function trackClose(symbol,direction,pnlPct,isWin){
 function symLabel(s){return s.replace("-USDT","");}
 
 // ── SIGNAL FORMATTERS v8.0 ───────────────────────────────────────────────────
-// Professional boxed layout — catchy, spaced, institutionally clean
-
 function getTradeType(tfKey,isConfluence,isTriple){
   if(isTriple)     return "🔥🔥🔥 INSTITUTIONAL PRIME";
   if(isConfluence) return "🔥🔥 CONFLUENCE SWING";
@@ -774,8 +799,6 @@ function checklistBlock(checks){
 }
 
 // ── COMPACT SIGNAL FORMAT v8.0 ────────────────────────────────────────────────
-// Replaces verbose layout with a clean, scannable card.
-// All core data preserved: direction, conviction, R:R, entry/SL/TPs, key tags, MS.
 function formatSingleSignal(r,symbol,conv,ms,_label,d1Bias='NEUTRAL'){
   const isBull=r.direction==="BULL";
   const dirEmoji=isBull?"🟢":"🔴";
@@ -1032,8 +1055,9 @@ async function sendHelp(){
   );
 }
 async function resetCooldowns(){
-  let n=0;for(const k of Object.keys(state)){if(k.startsWith("acd8_")||k.startsWith("APOS8_")||k.startsWith("ACB8_")||k.startsWith("ACBL8_")||k.startsWith("ADUP8_")){delProp(k);n++;}}
-  await tgSend(`✅ Cleared ${n} cooldowns/positions/dedups/circuit-breakers.\n\n<i>${V}</i>`);
+  // v8.1: also clears ATPD8_ TP dedup keys
+  let n=0;for(const k of Object.keys(state)){if(k.startsWith("acd8_")||k.startsWith("APOS8_")||k.startsWith("ACB8_")||k.startsWith("ACBL8_")||k.startsWith("ADUP8_")||k.startsWith("ATPD8_")){delProp(k);n++;}}
+  await tgSend(`✅ Cleared ${n} cooldowns/positions/dedups/circuit-breakers/tp-guards.\n\n<i>${V}</i>`);
 }
 
 // ── SINGLE PAIR SCAN ──────────────────────────────────────────────────────────
@@ -1101,7 +1125,7 @@ async function runBot(){
       const c4h  = await fetchKlines(symbol,"H4", TF_CONFIG.H4.vpLookback+20);
       const c1h  = await fetchKlines(symbol,"H1", TF_CONFIG.H1.vpLookback+20);
       const c15m = await fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+20);
-      const cd1  = await fetchKlines(symbol,"D1", 30);   // v8.0: D1 context
+      const cd1  = await fetchKlines(symbol,"D1", 30);
       if(!c4h||c4h.length<30){console.log("  No 4H data");continue;}
 
       const d1Bias = getD1Bias(cd1);
