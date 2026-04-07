@@ -715,7 +715,7 @@ async function checkOpenPositions(){
     let p;try{p=JSON.parse(getProp(key));}catch(e){continue;}
     if(!p||p.state!=="OPEN")continue;
     let candles=null;
-    candles=await fetchTwelveData(p.twelveSymbol,"M15",3);
+    candles=await fetchTwelveData(p.twelveSymbol,"M15",10);
     if(!candles||!candles.length)continue;
     const price=candles[candles.length-1].close,isL=p.direction==="BULL";
     const pnl=((isL?(price-p.entry)/p.entry:(p.entry-price)/p.entry)*100).toFixed(3);
@@ -973,7 +973,7 @@ async function sendHealth(){
   let msg=`💚 <b>GWP Forex v8.0 ELITE MAX — HEALTH</b>\n\n`;
   for(const pair of CONFIG.PAIRS){
     let price="?";
-    try{const c=await fetchTwelveData(pair.twelveSymbol,"H1",2);if(c&&c.length)price=c[c.length-1].close.toFixed(pair.dec);}catch(e){}
+    try{const c=await fetchTwelveData(pair.twelveSymbol,"H1",10);if(c&&c.length)price=c[c.length-1].close.toFixed(pair.dec);}catch(e){}
     const cb=isCircuitBroken(pair.symbol)?" ⛔CB":"";
     msg+=`${price!=="?"?"✅":"❌"} ${pair.symbol}: ${price!=="?"?"$"+price:"NO DATA"}${cb}\n`;
   }
