@@ -12,7 +12,7 @@ Two production-grade Node.js bots running on GitHub Actions. They deliver instit
 
 | Bot | File | Exchange | Pairs |
 |---|---|---|---|
-| GWP Altcoin | `altcoin_bot.js` | KuCoin | DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH · LINK · ARB · INJ |
+| GWP Crypto | `crypto_bot.js` | KuCoin | DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH · LINK · ARB · INJ |
 | GWP Forex | `forex_bot.js` | Twelve Data + KuCoin | XAUUSD · EURUSD · GBPUSD · USDJPY · GBPJPY · BTC |
 
 ---
@@ -45,7 +45,7 @@ GitHub Actions (cron)
   (compact card)         (JSON → Dashboard)
        │
        ▼
-  altcoin_state.json / forex_state.json
+  crypto_state.json / forex_state.json
   (committed to repo — persistent memory)
 ```
 
@@ -63,7 +63,7 @@ TP1  2083.08  ·  TP2  2030.56  ·  TP3  1820.45
 🔑  🪤 AVWAP TRAP  ·  ⚡ MOM BURST  ·  📊 VOL SPIKE
   BOS BEAR ↓   💧 LiqSwp↑ ✅
 ⏰  Mon, 07 Apr 2026 08:15:00 GMT
-GWP Altcoin v8.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin
+GWP Crypto v8.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin
 ```
 
 Confluence and Triple-TF signals retain full extended format with all sections.
@@ -96,8 +96,8 @@ Confluence and Triple-TF signals retain full extended format with all sections.
 
 | Secret | Used by | Description |
 |---|---|---|
-| `ALTCOIN_TG_TOKEN` | Altcoin bot | Telegram bot token for altcoin channel |
-| `ALTCOIN_CHAT_ID` | Altcoin bot | Telegram chat/channel ID |
+| `CRYPTO_TG_TOKEN` | Crypto bot | Telegram bot token for crypto channel |
+| `CRYPTO_CHAT_ID` | Crypto bot | Telegram chat/channel ID |
 | `FOREX_TG_TOKEN` | Forex bot | Telegram bot token for forex channel |
 | `FOREX_CHAT_ID` | Forex bot | Telegram chat/channel ID |
 | `TWELVE_DATA_KEY` | Forex bot | Twelve Data API key (forex/gold OHLCV) |
@@ -110,7 +110,7 @@ Confluence and Triple-TF signals retain full extended format with all sections.
 
 | Bot | Regular scan | Daily summary | Weekly summary |
 |---|---|---|---|
-| Altcoin | `:15` and `:45` every hour | 08:02 UTC daily | Monday 08:07 UTC |
+| Crypto | `:15` and `:45` every hour | 08:02 UTC daily | Monday 08:07 UTC |
 | Forex | `:00` and `:30` every hour | 08:03 UTC daily | Monday 08:08 UTC |
 
 Both bots support `workflow_dispatch` with `mode` input: `scan / daily / weekly / health`
@@ -123,12 +123,12 @@ The web dashboard (`index.html`) reads signal data from a public GitHub Gist. Ea
 
 ```
 Gist files:
-  altcoin_signals.json  ← written by altcoin_bot
+  crypto_signals.json  ← written by crypto_bot
   forex_signals.json    ← written by forex_bot
 ```
 
 To set up:
-1. Create a public Gist at https://gist.github.com — add a placeholder file named `altcoin_signals.json` with content `[]`
+1. Create a public Gist at https://gist.github.com — add a placeholder file named `crypto_signals.json` with content `[]`
 2. Copy the Gist ID from the URL (the long hex string after your username)
 3. Add it as `GIST_ID` in repo secrets
 4. Generate a PAT at **GitHub → Settings → Developer settings → Personal access tokens (classic)**
@@ -143,11 +143,11 @@ To set up:
 ```
 repo root/
 ├── .github/workflows/
-│   ├── gwp-altcoin.yml       ← Altcoin bot workflow (v8.0)
+│   ├── gwp-crypto.yml       ← Crypto bot workflow (v8.0)
 │   └── gwp-forex.yml         ← Forex bot workflow (v8.0)
-├── altcoin_bot.js            ← Altcoin signal engine (v8.0)
-├── altcoin_state.json        ← Altcoin bot persistent state (auto-committed)
-├── altcoin_signals.json      ← Latest altcoin signals (auto-committed + Gist)
+├── crypto_bot.js            ← Crypto signal engine (v8.0)
+├── crypto_state.json        ← Crypto bot persistent state (auto-committed)
+├── crypto_signals.json      ← Latest crypto signals (auto-committed + Gist)
 ├── forex_bot.js              ← Forex signal engine (v8.0)
 ├── forex_state.json          ← Forex bot persistent state (auto-committed)
 ├── forex_signals.json        ← Latest forex signals (auto-committed + Gist)
