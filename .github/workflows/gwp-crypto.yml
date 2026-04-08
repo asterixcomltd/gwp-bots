@@ -1,8 +1,17 @@
 # ════════════════════════════════════════════════════════════════════
-# GWP CRYPTO BOT v8.3 — GitHub Actions Workflow
+# GWP CRYPTO BOT v3.0 — GitHub Actions Workflow
 # Pairs  : DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH · LINK · ARB · INJ
 # Engine : KuCoin Public REST — no auth key needed
 # © 2026 Asterix.COM Ltd. / Abdin
+#
+# v3.0 CHANGES vs v8.3:
+#   ✅ Bot: D1 bias fixed (aligned=+6, counter=−4)
+#   ✅ Bot: LIQ SWEEP duplicate removed from single signal format
+#   ✅ Bot: D1 bias note now shows ✅ or ⚠️ CT context
+#   ✅ Bot: firedDir lock prevents opposite-direction signals same scan
+#   ✅ Bot: httpGet 15s timeout — no more KuCoin hangs
+#   ✅ Bot: Promise.all() parallel TF fetches — ~4× faster scan
+#   ✅ YML: Node.js 22 confirmed (Node 20 deprecated on GitHub Actions)
 #
 # v8.3 CHANGES vs v8.2:
 #   ✅ FIX: "Save state to repo" completely rewritten
@@ -32,7 +41,7 @@
 #   ✅ FIX: Gist step skipped gracefully if GH_PAT / GIST_ID secrets absent
 # ════════════════════════════════════════════════════════════════════
 
-name: GWP Crypto Bot v8.2
+name: GWP Crypto Bot v3.0
 
 on:
   schedule:
