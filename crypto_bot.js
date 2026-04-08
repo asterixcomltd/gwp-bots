@@ -76,7 +76,7 @@ const CONFIG = {
   TELEGRAM_TOKEN : process.env.CRYPTO_TG_TOKEN || "",
   CHAT_ID        : process.env.CRYPTO_CHAT_ID  || "",
 
-  PAIRS: ["DEXE-USDT","UNI-USDT","SUSHI-USDT","SOL-USDT","AVAX-USDT","BTC-USDT","ETH-USDT","LINK-USDT","ARB-USDT","INJ-USDT"],
+  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","SUSHI-USDT","BTC-USDT","LINK-USDT"],  // v3.0: 7 pairs (removed ETH,AVAX,ARB,INJ; added COMP)
 
   CAPITAL:5, RISK_PCT:1.5, LEVERAGE:20,
   VP_ROWS:24, MIN_WICK_DEPTH_PCT:0.12, MIN_BODY_GAP_PCT:0.08,
@@ -1010,7 +1010,7 @@ async function sendWeeklySummary(){
   msg+=`\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
 }
 async function sendHealth(){
-  let msg=`💚 <b>GWP Crypto v8.0 ELITE MAX — HEALTH</b>\n\n`;
+  let msg=`💚 <b>GWP Crypto v3.0 ELITE MAX — HEALTH</b>\n\n`;
   for(const symbol of CONFIG.PAIRS){
     let price="?";
     try{const c=await fetchKlines(symbol,"H1",2);if(c&&c.length)price=c[c.length-1].close;}catch(e){}
@@ -1027,7 +1027,7 @@ async function sendStatus(){
   let w;try{w=JSON.parse(getProp("A8_W_"+getWeekKey())||"{}");}catch(e){w={};}
   const openCount=Object.keys(state).filter(k=>k.startsWith("APOS8_")).length;
   await tgSend(
-    `📡 <b>GWP Crypto v8.0 ELITE MAX — ONLINE</b> ✅\n\n`+
+    `📡 <b>GWP Crypto v3.0 ELITE MAX — ONLINE</b> ✅\n\n`+
     `Pairs: ${CONFIG.PAIRS.map(s=>s.replace("-USDT","")).join(", ")}\n`+
     `TFs: 4H + 1H + 15M (Triple Engine)\n`+
     `Gates: 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n`+
@@ -1053,7 +1053,7 @@ async function sendHelp(){
     `<b>Money Printing Machine — 24/7 Always On</b>\n\n`+
     `<b>Commands:</b>\n`+
     `/scan — full scan (4H+1H+15M)\n`+
-    `/${CONFIG.PAIRS.map(s=>s.replace("-USDT","").toLowerCase()).join(" · /")}\n`+
+    `/dexe · /uni · /comp · /sol · /sushi · /btc · /link\n`+
     `/daily · /weekly · /health · /positions · /status · /reset · /help\n\n`+
     `<b>v8.0 Engine:</b>\n`+
     `▸ 👻 GWP — VAL band wick (king)\n`+
@@ -1275,7 +1275,7 @@ async function runBot(){
   loadState();
   const mode=process.argv[2]||"scan";
   console.log(`GWP Crypto v8.0 ELITE MAX | mode: ${mode} | ${new Date().toISOString()}`);
-  console.log(`Running 24/7 | No lagging indicators | ATR SL floor | Vol+AVWAP gate | SL min 1.2%`);
+  console.log(`Pairs: ${CONFIG.PAIRS.join(", ")} | 24/7 | No lagging indicators | ATR SL floor | Vol+AVWAP gate | SL min 1.2%`);
 
   const updates=await pollTelegram();
   if(updates&&updates.length){for(const u of updates){if(u.message&&u.message.text){console.log(`Command: ${u.message.text}`);await handleCommand(u.message.text);}}}
