@@ -1,6 +1,6 @@
 "use strict";
 // ════════════════════════════════════════════════════════════════════════════
-// GHOST WICK PROTOCOL — CRYPTO EDITION  v8.1  MONEY PRINTING MACHINE ELITE MAX™
+// GHOST WICK PROTOCOL — CRYPTO EDITION  v3.0  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
 // Exchange : KuCoin (Public REST API — no auth key needed)
@@ -8,6 +8,14 @@
 // Platform : GitHub Actions (Node.js 22+) · crypto_state.json persistence
 //
 // © 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
+//
+// v3.0 CHANGES (on top of v8.1):
+//   ✅ FIX 1: D1 bias BACKWARDS — counter-trend was getting +6. Fix: aligned=+6, counter=−4
+//   ✅ FIX 2: LIQ SWEEP shown twice (ms.label + msLine) — removed ms.label from single format
+//   ✅ FIX 3: D1 bias note showed bare "D1: BEAR" — now shows ✅ or ⚠️ CT context
+//   ✅ FIX 4: Opposite-direction signals could fire same scan — added firedDir lock
+//   ✅ SPEED 1: httpGet had NO TIMEOUT — added 15s req.destroy() timeout
+//   ✅ SPEED 2: 40 sequential KuCoin fetches → Promise.all() per symbol (~4× faster)
 //
 // v8.1 CHANGES (on top of v8.0):
 //   ✅ FIX: Secondary TP dedup keys (ATPD8_) added to checkOpenPositions
@@ -101,7 +109,7 @@ const CONFIG = {
   TP_HIT_DEDUP_MS: 14400000,
 };
 
-const V = "GWP Crypto v8.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Crypto v3.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "crypto_state.json");
@@ -147,7 +155,11 @@ function appendSignalToFile(symbol, r, conv, tfKey) {
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 function httpGet(url) {
   return new Promise((res, rej) => {
-    https.get(url, r => { let d=""; r.on("data",c=>d+=c); r.on("end",()=>res(d)); }).on("error",rej);
+    const opts=new URL(url);
+    const req=https.get({hostname:opts.hostname,path:opts.pathname+opts.search},
+      r=>{let d="";r.on("data",c=>d+=c);r.on("end",()=>res(d));});
+    req.on("error",rej);
+    req.setTimeout(15000,()=>{req.destroy(new Error("Timeout"));});
   });
 }
 function httpPost(hostname, pth, body) {
@@ -524,9 +536,11 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
     if(ms.fvg&&ms.fvg.present)score+=3;
   }
 
-  // v8.0: D1 BIAS ALIGNMENT BONUS (+6)
-  if(d1Bias==='BEAR'&&gwp.direction==='BULL') score+=6;
-  if(d1Bias==='BULL'&&gwp.direction==='BEAR') score+=6;
+  // v3.0: D1 BIAS — aligned=+6, counter-trend=−4 (FIX: was backwards)
+  if(d1Bias==='BULL'&&gwp.direction==='BULL') score+=6;
+  if(d1Bias==='BEAR'&&gwp.direction==='BEAR') score+=6;
+  if(d1Bias==='BULL'&&gwp.direction==='BEAR') score-=4;
+  if(d1Bias==='BEAR'&&gwp.direction==='BULL') score-=4;
 
   // CONFLUENCE BOOSTS
   if(isTriple)  score+=CONFIG.TRIPLE_TF_BOOST;
@@ -807,7 +821,8 @@ function formatSingleSignal(r,symbol,conv,ms,_label,d1Bias='NEUTRAL'){
   const tags=confBox(r);
   const tp4Note=r.tp4?`  ·  <b>TP4</b> <code>${r.tp4}</code>`:"";
   const pbNote=r.isPathB?`\n⚠️  <b>PATH B</b>  Re-enter: <code>${r.reEntry}</code>`:"";
-  const biasNote=d1Bias!=="NEUTRAL"?`  ·  D1: <b>${d1Bias}</b>`:"";
+  const _isAl=(d1Bias==='BULL'&&r.direction==='BULL')||(d1Bias==='BEAR'&&r.direction==='BEAR');
+  const biasNote=d1Bias!=='NEUTRAL'?`  ·  D1: <b>${d1Bias}</b> ${_isAl?'✅':'⚠️ CT'}`:''  ;
   const ageNote=r.age>0?`  ·  <i>${r.age}b ago</i>`:"";
   return(
     `\n`+
@@ -818,7 +833,7 @@ function formatSingleSignal(r,symbol,conv,ms,_label,d1Bias='NEUTRAL'){
     `<b>TP1</b>  <code>${r.tp1}</code>  ·  <b>TP2</b>  <code>${r.tp2}</code>  ·  <b>TP3</b>  <code>${r.tp3}</code>${tp4Note}\n`+
     `─────────────────────────────\n`+
     (tags?`🔑  ${tags}\n`:"")+
-    `  ${ms?ms.label:"⬜ UNCONFIRMED"}   ${msLine(ms,r.direction)}\n`+
+    `  ${msLine(ms,r.direction)||"🟡 MS: UNCONFIRMED"}\n`+
     `${pbNote}\n`+
     `⏰  ${new Date().toUTCString()}\n`+
     `<i>${V}</i>`
@@ -1122,10 +1137,13 @@ async function runBot(){
       console.log(`\n▶ ${symbol}`);
       if(isCircuitBroken(symbol)){console.log("  ⛔ Circuit breaker");continue;}
 
-      const c4h  = await fetchKlines(symbol,"H4", TF_CONFIG.H4.vpLookback+20);
-      const c1h  = await fetchKlines(symbol,"H1", TF_CONFIG.H1.vpLookback+20);
-      const c15m = await fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+20);
-      const cd1  = await fetchKlines(symbol,"D1", 30);
+      // v3.0 SPEED: parallel TF fetches (~4x faster)
+      const [c4h,c1h,c15m,cd1]=await Promise.all([
+        fetchKlines(symbol,"H4", TF_CONFIG.H4.vpLookback+20),
+        fetchKlines(symbol,"H1", TF_CONFIG.H1.vpLookback+20),
+        fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+20),
+        fetchKlines(symbol,"D1", 30),
+      ]);
       if(!c4h||c4h.length<30){console.log("  No 4H data");continue;}
 
       const d1Bias = getD1Bias(cd1);
@@ -1154,6 +1172,9 @@ async function runBot(){
 
       console.log(`  4H:${r4h?r4h.direction+" "+r4h.score:"—"}  1H:${r1h?r1h.direction+" "+r1h.score:"—"}  15M:${r15m?r15m.direction+" "+r15m.score:"—"}`);
 
+      // v3.0: directional lock — prevents SOL SHORT [4H] + SOL LONG [1H] same scan
+      let firedDir=null;
+
       // ─ TRIPLE CONFLUENCE ──────────────────────────────────────────────────
       if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction){
         const dir=r4h.direction;
@@ -1168,6 +1189,7 @@ async function runBot(){
             storePosition(symbol,r4h,conv4h,"H4");storePosition(symbol,r1h,conv1h,"H1");
             setCooldown(symbol,dir,"H4");setCooldown(symbol,dir,"H1");setCooldown(symbol,dir,"M15");
             markFired(symbol,dir,"TRIPLE");
+            firedDir=dir;
             trackFired(symbol,r4h,"TRIPLE");fired++;continue;
           }
         }
@@ -1187,13 +1209,14 @@ async function runBot(){
             storePosition(symbol,r4h,conv4h,"H4");storePosition(symbol,r1h,conv1h,"H1");
             setCooldown(symbol,dir,"H4");setCooldown(symbol,dir,"H1");
             markFired(symbol,dir,"CONF");
+            firedDir=dir;
             trackFired(symbol,r4h,"CONFLUENCE");fired++;continue;
           }
         }
       }
 
       // ─ 4H SOLO ────────────────────────────────────────────────────────────
-      if(r4h){
+      if(r4h&&(!firedDir||r4h.direction===firedDir)){
         if(isOnCooldown(symbol,r4h.direction,"H4")){console.log("  🔒 4H cooldown");}
         else{
           const conv=computeConviction(r4h,m4h,ms4h,"H4",false,false,d1Bias);
@@ -1202,13 +1225,14 @@ async function runBot(){
             await tgSend(formatSingleSignal(r4h,symbol,conv,ms4h,"",d1Bias));
             storePosition(symbol,r4h,conv,"H4");setCooldown(symbol,r4h.direction,"H4");
             markFired(symbol,r4h.direction,"H4");
+            firedDir=r4h.direction;
             trackFired(symbol,r4h,"H4");fired++;
           }else{console.log(`  ⚠️ 4H conv ${conv.score} below ${TF_CONFIG.H4.minConviction}`);}
         }
       }
 
       // ─ 1H SOLO ────────────────────────────────────────────────────────────
-      if(r1h){
+      if(r1h&&(!firedDir||r1h.direction===firedDir)){
         if(isOnCooldown(symbol,r1h.direction,"H1")){console.log("  🔒 1H cooldown");}
         else{
           const conv=computeConviction(r1h,m1h,ms1h,"H1",false,false,d1Bias);
