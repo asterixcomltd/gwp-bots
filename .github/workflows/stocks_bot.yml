@@ -1,0 +1,105 @@
+# ════════════════════════════════════════════════════════════════════
+# GWP STOCKS BOT v3.0 — GitHub Actions Workflow
+# REPO: gwp-bots (merged — alongside crypto + forex)
+# Stocks: TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI
+# Engine: Yahoo Finance (no key needed)
+# © 2026 Asterix.COM Ltd. / Abdin
+#
+# MIGRATION FROM gwp_stocks_bot → gwp-bots:
+#   Files to copy into gwp-bots root:
+#     stocks_bot.js, stocks_state.json, stocks_signals.json
+#   Secrets to add to gwp-bots (already present: GH_PAT, GIST_ID):
+#     STOCKS_TG_TOKEN, STOCKS_CHAT_ID
+#
+# KEY DIFFERENCES from old stocks_bot.yml:
+#   ✅ Git push state (replaces GitHub Actions cache — no TP1 repeat)
+#   ✅ Publishes stocks_signals.json to shared Gist (feeds web dashboard)
+#   ✅ Node.js 22 | actions/checkout@v5 | actions/setup-node@v5
+#   ✅ concurrency: gwp-stocks (no parallel runs)
+#   ✅ Daily summary cron: 08:04 UTC
+#   ✅ Weekly summary: Monday 08:09 UTC
+# ════════════════════════════════════════════════════════════════════
+
+name: GWP Stocks Bot v3.0
+
+on:
+  schedule:
+    - cron: "10,40 * * * *"      # Every 30 min — staggered from crypto(:15/:45) and forex(:00/:30)
+    - cron: "4 8 * * *"           # Daily summary — 08:04 UTC
+    - cron: "9 8 * * 1"           # Weekly summary — Monday 08:09 UTC
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode: scan / daily / weekly / health"
+        required: false
+        default: "scan"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gwp-stocks
+  cancel-in-progress: false
+
+jobs:
+  run-stocks-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Node.js 22 ────────────────────────────────────────────────────────
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      # ── 3. Determine run mode ────────────────────────────────────────────────
+      - name: Determine run mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "MODE=${{ github.event.inputs.mode }}" >> $GITHUB_ENV
+          elif [ "${{ github.event.schedule }}" = "9 8 * * 1" ]; then
+            echo "MODE=weekly" >> $GITHUB_ENV
+          elif [ "${{ github.event.schedule }}" = "4 8 * * *" ]; then
+            echo "MODE=daily" >> $GITHUB_ENV
+          else
+            echo "MODE=scan" >> $GITHUB_ENV
+          fi
+
+      # ── 4. Run the bot ───────────────────────────────────────────────────────
+      - name: Run GWP Stocks Bot
+        env:
+          STOCKS_TG_TOKEN: ${{ secrets.STOCKS_TG_TOKEN }}
+          STOCKS_CHAT_ID:  ${{ secrets.STOCKS_CHAT_ID }}
+          GH_PAT:          ${{ secrets.GH_PAT }}
+          GIST_ID:         ${{ secrets.GIST_ID }}
+        run: node stocks_bot.js ${{ env.MODE }}
+
+      # ── 5. Persist state + signals to repo (git push — no cache) ────────────
+      # Same strategy as gwp-crypto.yml v8.3 — prevents TP1 HIT repeating.
+      - name: Save state to repo
+        run: |
+          git config user.email "gwp-stocks@asterixcom.ltd"
+          git config user.name  "GWP Stocks Bot"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          cp stocks_state.json   /tmp/bot_stocks_state.json   2>/dev/null || true
+          cp stocks_signals.json /tmp/bot_stocks_signals.json 2>/dev/null || true
+          git fetch origin main --quiet
+          git reset --hard origin/main
+          cp /tmp/bot_stocks_state.json   stocks_state.json   2>/dev/null || true
+          cp /tmp/bot_stocks_signals.json stocks_signals.json 2>/dev/null || true
+          git add stocks_state.json stocks_signals.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "✅ No state changes — nothing to commit."
+            exit 0
+          fi
+          git commit -m "state(stocks): $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+          git push origin main
+          echo "✅ State committed and pushed."
