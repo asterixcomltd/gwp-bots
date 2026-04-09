@@ -1212,7 +1212,7 @@ async function sendWeeklySummary(){
   msg+=`\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
 }
 async function sendHealth(){
-  let msg=`💚 <b>GWP Forex v8.0 ELITE MAX — HEALTH</b>\n\n`;
+  let msg=`💚 <b>GWP Forex v3.1 ELITE MAX — HEALTH</b>\n\n`;
   for(const pair of CONFIG.PAIRS){
     let price="?";
     try{const c=await fetchTwelveData(pair.twelveSymbol,"H1",10);if(c&&c.length)price=c[c.length-1].close.toFixed(pair.dec);}catch(e){}
@@ -1224,13 +1224,13 @@ async function sendHealth(){
   msg+=`📊 Twelve Data key: ${CONFIG.TWELVE_DATA_KEY?"✅ SET":"❌ MISSING"}\n`;
   msg+=`📅 Last scan: ${state.lastScanTime||"never"}\n`;
   msg+=`🔥 Last fired: ${state.lastScanFired||0} signals\n`;
-  msg+=`⚙️ v8.0: No lagging indicators | ATR SL floor | Vol+AVWAP gate\n\n<i>${V}</i>`;await tgSend(msg);
+  msg+=`⚙️ v3.1: Zone-aware · Structural TP1 · Session vol · Macro blackout · 12-Fix Institutional\n\n<i>${V}</i>`;await tgSend(msg);
 }
 async function sendStatus(){
   let w;try{w=JSON.parse(getProp("F8_W_"+getWeekKey())||"{}");}catch(e){w={};}
   const openCount=Object.keys(state).filter(k=>k.startsWith("FPOS8_")).length;
   await tgSend(
-    `📡 <b>GWP Forex v8.0 ELITE MAX — ONLINE</b> ✅\n\n`+
+    `📡 <b>GWP Forex v3.1 ELITE MAX — ONLINE</b> ✅\n\n`+
     `Pairs: ${CONFIG.PAIRS.map(p=>p.symbol).join(", ")}\n`+
     `TFs: 4H + 1H + 15M (Triple Engine)\n`+
     `Gates: 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n`+
@@ -1252,7 +1252,7 @@ async function sendPositions(){
 }
 async function sendHelp(){
   await tgSend(
-    `👻 <b>GWP FOREX v8.0 ELITE MAX™</b>\n`+
+    `👻 <b>GWP FOREX v3.1 ELITE MAX™</b>\n`+
     `<b>Money Printing Machine — 24/7 Always On</b>\n\n`+
     `<b>Commands:</b>\n`+
     `/scan — full scan (4H+1H+15M)\n`+
@@ -1331,7 +1331,7 @@ async function handleCommand(cmd){
 
 // ── MAIN RUNNER ────────────────────────────────────────────────────────────────
 async function runBot(){
-  console.log(`\n═══ GWP FOREX v8.0 ELITE MAX ═══ ${new Date().toISOString()}`);
+  console.log(`\n═══ GWP FOREX v3.1 ELITE MAX ═══ ${new Date().toISOString()}`);
   console.log(`  Running 24/7 — ${getForexSession()}`);
   if(!CONFIG.TWELVE_DATA_KEY)console.error("⚠️  TWELVE_DATA_KEY not set — forex pairs will fail.");
 
@@ -1486,7 +1486,7 @@ async function runBot(){
 (async()=>{
   loadState();
   const mode=process.argv[2]||"scan";
-  console.log(`GWP Forex v8.0 ELITE MAX | mode: ${mode} | ${new Date().toISOString()}`);
+  console.log(`GWP Forex v3.1 ELITE MAX | mode: ${mode} | ${new Date().toISOString()}`);
   console.log(`Running 24/7 | No lagging indicators | ATR SL floor | Vol+AVWAP gate | BTC removed`);
   if(!CONFIG.TWELVE_DATA_KEY)console.error("⚠️  TWELVE_DATA_KEY not set — forex pairs will fail.");
 
