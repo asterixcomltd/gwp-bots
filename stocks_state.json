@@ -3,15 +3,14 @@
   "scd1_H4_PLTR_BEAR": "1775657773602",
   "SDUP1_H4_PLTR_BEAR": "1775657773602",
   "S1_D_2026-04-08": "[{\"sym\":\"PLTR\",\"dir\":\"BEAR\",\"grade\":\"GWP\",\"tf\":\"H4\",\"mode\":\"H4\",\"rr\":\"2.00\",\"ts\":1775657773602},{\"sym\":\"PLTR\",\"dir\":\"BULL\",\"grade\":\"GWP\",\"tf\":\"H1\",\"mode\":\"H1\",\"rr\":\"2.00\",\"ts\":1775668740998},{\"sym\":\"COIN\",\"dir\":\"BEAR\",\"grade\":\"GWP\",\"tf\":\"H4\",\"mode\":\"H4\",\"rr\":\"2.00\",\"ts\":1775685415447}]",
-  "S1_W_2026_W15": "{\"signals\":6}",
-  "lastScanTime": "2026-04-09T12:44:26.859Z",
+  "S1_W_2026_W15": "{\"signals\":6,\"losses\":1,\"pnl\":-9.621}",
+  "lastScanTime": "2026-04-09T14:59:13.969Z",
   "lastScanFired": 0,
   "S1_started_2026-04-08": "1",
   "tg_offset": 47236465,
-  "SPOS1_PLTR_BULL_H1": "{\"symbol\":\"PLTR\",\"direction\":\"BULL\",\"entry\":144.47,\"sl\":140.072,\"tp1\":145.208,\"tp2\":153.266,\"tp3\":157.665,\"rr\":\"2.00\",\"grade\":\"GWP\",\"tf\":\"H1\",\"conviction\":\"64.0\",\"isPathB\":false,\"reEntry\":\"144.7589\",\"state\":\"OPEN\",\"tp1hit\":false,\"tp2hit\":false,\"ts\":1775668740998}",
   "scd1_H1_PLTR_BULL": "1775668740998",
   "SDUP1_H1_PLTR_BULL": "1775668740998",
-  "SPOS1_COIN_BEAR_H4": "{\"symbol\":\"COIN\",\"direction\":\"BEAR\",\"entry\":175.34,\"sl\":198.038,\"tp1\":172.616,\"tp2\":129.944,\"tp3\":107.246,\"rr\":\"2.00\",\"grade\":\"GWP\",\"tf\":\"H4\",\"conviction\":\"60.0\",\"isPathB\":true,\"reEntry\":\"174.9893\",\"state\":\"OPEN\",\"tp1hit\":false,\"tp2hit\":false,\"ts\":1775734504134}",
+  "SPOS1_COIN_BEAR_H4": "{\"symbol\":\"COIN\",\"direction\":\"BEAR\",\"entry\":175.34,\"sl\":198.038,\"tp1\":172.616,\"tp2\":129.944,\"tp3\":107.246,\"rr\":\"2.00\",\"grade\":\"GWP\",\"tf\":\"H4\",\"conviction\":\"60.0\",\"isPathB\":true,\"reEntry\":\"174.9893\",\"state\":\"OPEN\",\"tp1hit\":true,\"tp2hit\":false,\"ts\":1775734504134}",
   "scd1_H4_COIN_BEAR": "1775734504134",
   "SDUP1_H4_COIN_BEAR": "1775734504134",
   "S1_started_2026-04-09": "1",
@@ -21,5 +20,6 @@
   "S1_D_2026-04-09": "[{\"sym\":\"TSLA\",\"dir\":\"BULL\",\"grade\":\"GWP\",\"tf\":\"H4\",\"mode\":\"H4\",\"rr\":\"2.00\",\"ts\":1775734499443},{\"sym\":\"NVDA\",\"dir\":\"BEAR\",\"grade\":\"GWP\",\"tf\":\"H4\",\"mode\":\"H4\",\"rr\":\"2.00\",\"ts\":1775734501061},{\"sym\":\"COIN\",\"dir\":\"BEAR\",\"grade\":\"GWP\",\"tf\":\"H4\",\"mode\":\"H4\",\"rr\":\"2.00\",\"ts\":1775734504134}]",
   "SPOS1_NVDA_BEAR_H4": "{\"symbol\":\"NVDA\",\"direction\":\"BEAR\",\"entry\":181.14,\"sl\":193.518,\"tp1\":179.601,\"tp2\":156.385,\"tp3\":144.007,\"rr\":\"2.00\",\"grade\":\"GWP\",\"tf\":\"H4\",\"conviction\":\"77.0\",\"isPathB\":false,\"reEntry\":\"180.7777\",\"state\":\"OPEN\",\"tp1hit\":false,\"tp2hit\":false,\"ts\":1775734501060}",
   "scd1_H4_NVDA_BEAR": "1775734501061",
-  "SDUP1_H4_NVDA_BEAR": "1775734501061"
+  "SDUP1_H4_NVDA_BEAR": "1775734501061",
+  "SCBL1_PLTR": "1"
 }
