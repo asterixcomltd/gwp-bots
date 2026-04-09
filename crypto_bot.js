@@ -126,7 +126,7 @@ const CONFIG = {
   TP_HIT_DEDUP_MS: 14400000,
 };
 
-const V = "GWP Crypto v3.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Crypto v3.1 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "crypto_state.json");

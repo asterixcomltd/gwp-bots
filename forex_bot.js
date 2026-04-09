@@ -119,7 +119,7 @@ const CONFIG = {
   ATR_SL_FLOOR_MULT: 1.5,
 };
 
-const V = "GWP Forex v3.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Forex v3.1 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "forex_state.json");

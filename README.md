@@ -1,90 +1,168 @@
-# GWP Bots — Ghost Wick Protocol™ v3.0
+# GWP Bots — Ghost Wick Protocol™ v3.1 INSTITUTIONAL
 
-**Autonomous trading signal bots by Abdin · Asterix.COM Ltd. · Accra, Ghana**
+**Autonomous institutional-grade trading signal bots by Abdin · Asterix.COM Ltd. · Accra, Ghana**
 
+> *Real GWP. Real Price Action. Real Market Structure. Real Math & Statistics. Real Macro Fundamentals.*
 > *Every candle. Every session. Zero downtime.*
 
 ---
 
-## v3.0 Changelog (all three bots)
+## What This Is
 
-| # | Fix / Upgrade | Detail |
-|---|---|---|
-| 1 | **D1 bias was BACKWARDS** | Counter-trend was getting +6 bonus. Fixed: aligned = +6, counter-trend = −4 |
-| 2 | **LIQ SWEEP shown twice** | `ms.label` + `msLine()` both showed it. Removed `ms.label` from single signal format |
-| 3 | **D1 bias note had no context** | Now shows `D1: BULL ✅` (aligned) or `D1: BEAR ⚠️ CT` (counter) |
-| 4 | **Opposite-direction same-scan signals** | `firedDir` lock: SOL BEAR [4H] now blocks SOL BULL [1H] in the same scan |
-| 5 | **httpGet had zero timeout** | Added 15s `req.destroy()` timeout — no more KuCoin hangs |
-| 6 | **Crypto: 40 sequential API fetches** | `Promise.all()` per symbol — 4 TFs in parallel → ~4× faster scan |
-| 7 | **Stocks: Yahoo Finance parallel fetch** | 1H + 15M + D1 now fetched in `Promise.all()` — faster per-symbol |
+Three production Node.js bots running on GitHub Actions, delivering institutional-quality signals to Telegram 24/7 and publishing live data to a public Gist for the web dashboard.
 
----
-
-## Overview
-
-Three production-grade Node.js bots running on GitHub Actions. They deliver institutional-quality trade signals to Telegram 24 hours a day, 7 days a week, and publish live signal data to a public GitHub Gist for the web dashboard.
-
-| Bot | File | Exchange | Pairs |
+| Bot | File | Data Source | Assets |
 |---|---|---|---|
-| GWP Crypto | `crypto_bot.js` | KuCoin (no key) | DEXE · UNI · SUSHI · SOL · AVAX · BTC · ETH · LINK · ARB · INJ |
-| GWP Forex | `forex_bot.js` | Twelve Data | XAU/USD · EUR/USD · GBP/USD · USD/JPY · GBP/JPY |
-| GWP Stocks | `stocks_bot.js` | Yahoo Finance (no key) | TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI |
+| 🪙 **GWP Crypto** | `crypto_bot.js` | KuCoin (no key needed) | DEXE · UNI · SUSHI · SOL · BTC · ETH · LINK · ARB · INJ · COMP |
+| 💱 **GWP Forex** | `forex_bot.js` | Twelve Data API | XAU/USD · EUR/USD · GBP/USD · USD/JPY · GBP/JPY |
+| 📈 **GWP Stocks** | `stocks_bot.js` | Yahoo Finance (no key) | TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI |
 
 ---
 
-## Architecture — "The Winning Combo"
+## v3.1 INSTITUTIONAL — 12-Fix Precision Upgrade
+
+| # | Fix | What It Does |
+|---|---|---|
+| D1a | **D1 micro-AVWAP** | 20-candle lag → 3-candle response. Bias flips within 1 session |
+| D1b | **D1 weight reduced** | ±6/−4 gate → ±2/−1 whisper. 4H+1H+15M is primary engine |
+| 1 | **Zone touch counter** | Fresh zone (≤2 touches) = full score. Exhausted (5+) = −2 penalty |
+| 2 | **Volume-validated BOS** | BOS with vol = +8. BOS without vol = +3. No more fake structure signals |
+| 3 | **Zone-aware LiqSweep** | Sweep inside fresh zone = +10 (TRAP CONFIRMED). Open space = +4 |
+| 4 | **Funding rate (crypto)** | Crowded longs/shorts detected via KuCoin perpetual funding. +4 aligned / −2 counter |
+| 5 | **Macro event blackout** | FOMC + NFP calendar built in. Signals blocked ±1h around events |
+| 6 | **Structural TP1** | TP1 anchored to nearest swing level, not arbitrary 50% midpoint |
+| 7 | **Conviction-scaled sizing** | Score 96+ = 2.5× size. Score 84+ = 2.0×. Score <60 = 0.5× |
+| 8 | **Hurst reliability gate** | Hurst only scores if candle array ≥120. Below = vol ratio fallback |
+| 9 | **Session vol multiplier** | Asian hours = 1.5× vol threshold. London+NY = standard. No ghost signals at 3AM |
+| 10 | **Performance tracker** | Every closed trade logged. Auto weekly report every Friday 21:00 UTC |
+| 11 | **Double-candle CHoCH** | 2 consecutive closes past level = +16. Single close = +10. No spike fakes |
+| 12 | **Signal quality score** | Every signal shows quality % (0–100%). 97% claim = ≥90% quality on fired signals |
+
+---
+
+## Architecture — The 4-Pillar Engine
 
 ```
-Signal Generator (Primary)
-  └── GWP™ — VAL band wick penetrates + body closes outside → TRADE FIRES
+┌─────────────────────────────────────────────────────────┐
+│           GHOST WICK PROTOCOL™  v3.1  ELITE MAX         │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  PILLAR 1 — GWP PRICE ACTION (Primary Gate)             │
+│    Wick penetrates VAL band + Body closes outside       │
+│    Vol spike OR AVWAP trap must confirm (hard gate)     │
+│    Zone freshness check (touch counter penalty)         │
+│                                                         │
+│  PILLAR 2 — MARKET STRUCTURE (Additive scoring)         │
+│    CHoCH double-confirmed  → +16 (strong) / +10 (weak)  │
+│    BOS volume-validated    → +8 (confirmed) / +3 (weak)  │
+│    LiqSweep zone-aware     → +10 / +5 / +4              │
+│    FVG present             → +3                         │
+│    Wyckoff Spring/Upthrust → +10                        │
+│                                                         │
+│  PILLAR 3 — MATH & STATISTICS                           │
+│    Hurst exponent          → +8 (reliable, ≥120 bars)   │
+│    Z-Score extreme         → +7 | mild → +3             │
+│    Kalman velocity flip    → +6                         │
+│    Sine-wave cycle peak    → +8                         │
+│    ATR percentile sweet    → +4 | vol ratio → +4        │
+│                                                         │
+│  PILLAR 4 — MACRO & FUNDAMENTALS                        │
+│    D1 micro-AVWAP bias     → +2 aligned / −1 counter    │
+│    Funding rate (crypto)   → +4 / 0 / −2               │
+│    FOMC/NFP blackout       → hard block ±1h             │
+│    Session vol multiplier  → Asian 1.5× / London std    │
+│                                                         │
+│  TRIPLE ENGINE BOOST                                    │
+│    4H + 1H + 15M aligned   → +25 conviction             │
+│    4H + 1H aligned         → +18 conviction             │
+└─────────────────────────────────────────────────────────┘
+```
 
-Conviction Amplifiers (Additive scoring)
-  ├── Tier 1 — Structural:  CHoCH (+14) · BOS (+8) · LiqSweep (+5) · FVG (+3)
-  │                         Wyckoff Spring / Upthrust (+10)
-  ├── Tier 2 — Statistical: Hurst (+8) · Z-Score (+7) · Kalman (+6)
-  │                         Sine Cycle contraction (+8)
-  └── Tier 3 — Participation: AVWAP Trap (+12) · Vol Spike (+6) · Vol Ratio (+4)
+---
 
-Context Filters (Gate — penalty / block)
-  ├── GWP pattern (primary gate — must fire first)
-  ├── Vol + AVWAP gate (at least one must pass — no ghost signals)
-  ├── D1 AVWAP bias: aligned = +6  |  counter-trend = −4   ← v3.0 FIX
-  ├── firedDir lock per symbol per scan                     ← v3.0 FIX
-  └── Circuit breaker (3 losses → 24h pause)
+## Signal Format (What You See in Telegram)
+
+```
+🎯  GWP · SOL/USDT · SHORT ▼ [4H]
+🔴  84/105  ·  🔥 ELITE  ·  R:R 2.46:1
+📊  Signal Quality: ✅ 91% 🏛 INSTITUTIONAL
+📐  Size: 1.5× ⚡ ELEVATED
+─────────────────────────────
+ENTRY  84.38   SL  85.43  (-1.24%)
+TP1  83.09  ·  TP2  81.80  ·  TP3  76.63
+─────────────────────────────
+🎯 TRAP CONFIRMED  ·  🪤 AVWAP TRAP  ·  ⚡ MOM BURST
+⬇️ BOS↓ ✅  💧 LiqSwp↑ ✅
+💰 Funding: +0.12% 🔴 (Longs crowded)
+🟢 FRESH ZONE
 ```
 
 ---
 
 ## Signal Tiers
 
-| Tier | Trigger | Boost |
-|---|---|---|
-| 🔥🔥🔥 TRIPLE | 4H + 1H + 15M aligned | +25 conviction |
-| 🔥🔥 CONFLUENCE | 4H + 1H aligned | +18 conviction |
-| 📈 SINGLE 4H | Institutional swing | Min R:R 2.0 |
-| ⚡ SINGLE 1H | Scalp entry | Min R:R 1.6 |
-| 🔬 MICRO 15M | Sniper (only with 4H/1H context) | Min R:R 1.5 |
+| Tier | Trigger | Min R:R | Conviction Boost |
+|---|---|---|---|
+| 🔥🔥🔥 TRIPLE ENGINE | 4H + 1H + 15M aligned | 1.5 | +25 |
+| 🔥🔥 CONFLUENCE | 4H + 1H aligned | 1.6 | +18 |
+| 📈 SINGLE 4H | Institutional swing | 2.0 | — |
+| ⚡ SINGLE 1H | Scalp entry | 1.6 | — |
+| 🔬 MICRO 15M | Sniper (with HTF context) | 1.5 | — |
 
 ---
 
-## Speed — v3.0 Fixes
+## Conviction Grade Scale (out of 105)
 
-**Why crypto and stocks were slow:**
-- `httpGet` had **no timeout** — one slow KuCoin response = entire bot hangs
-- 10 crypto pairs × 4 TF calls = **40 sequential awaits**
+| Score | Grade | Action |
+|---|---|---|
+| 96–105 | 🏆 SUPREME★★★★ | 2.5× size — maximum institutional |
+| 84–95 | ⚡ SUPREME★★ | 2.0× size — high conviction |
+| 72–83 | 🔥 SUPREME★ | 1.5× size — elevated |
+| 60–71 | 🔥 ELITE | 1.0× size — standard |
+| 52–59 | ✅ SOLID | 0.5× size — reduced |
+| <52 | blocked | Signal does not fire |
 
-**v3.0 fix:**
-- 15-second `req.destroy()` timeout on all HTTP requests
-- All 4 TF fetches per symbol now run in `Promise.all()` — **parallel instead of sequential**
-- Result: ~4× faster scan per symbol
+---
 
-**Why forex was always fast:** Twelve Data is a low-latency CDN-backed API. The 1500ms `TD_SLEEP_MS` delay between calls is intentional rate-limiting, not latency. Forex TF fetches kept sequential to respect Twelve Data rate limits.
+## Risk Management Built-In
+
+| Layer | Mechanism |
+|---|---|
+| SL Layer 1 | Wick high/low + ATR buffer |
+| SL Layer 2 | Minimum SL %: Crypto 1.2% · Forex 0.1% · Stocks 0.8% |
+| SL Layer 3 | ATR floor: SL always ≥ 1.5× ATR from entry |
+| Position exits | TP1 = structural swing (40% exit) · TP2 = VAL mid (40%) · TP3 = 3× runner (20%) |
+| Circuit breaker | 3 losses → 24h symbol pause |
+| Cooldown | H4: 4h · H1: 2h · M15: 1h — no signal spam |
+| Macro blackout | FOMC + NFP calendar — ±1h hard block |
+| Session gate | Stocks: US market hours only · Crypto: Asian vol multiplier |
+
+---
+
+## Performance Tracking (v3.1)
+
+Every closed trade (TP1/TP2/TP3/SL) is logged with:
+- Symbol, TF, direction, conviction score
+- Which TP level hit (or SL)
+- Session (Asian/London/London+NY/NY)
+- Realized P&L
+
+**Weekly report** auto-fires to Telegram every **Friday 21:00 UTC**:
+```
+📊 GWP WEEKLY REPORT — W14 2026
+Signals: 12 · Wins: 9 · Losses: 3 · Win Rate: 75%
+💎 SUPREME (84+): 100% WR (4 trades)
+🔥 ELITE  (60-83): 62% WR (8 trades)
+By Session: London+NY 80% · Asian 50%
+```
+
+Trigger manually anytime: `node crypto_bot.js weeklyreport`
 
 ---
 
 ## GitHub Secrets Required
 
-| Secret | Used by | Description |
+| Secret | Bot | Purpose |
 |---|---|---|
 | `CRYPTO_TG_TOKEN` | Crypto | Telegram bot token |
 | `CRYPTO_CHAT_ID` | Crypto | Telegram chat/channel ID |
@@ -93,65 +171,57 @@ Context Filters (Gate — penalty / block)
 | `STOCKS_TG_TOKEN` | Stocks | Telegram bot token |
 | `STOCKS_CHAT_ID` | Stocks | Telegram chat/channel ID |
 | `TWELVE_DATA_KEY` | Forex | Twelve Data API key |
-| `GH_PAT` | Crypto + Forex | PAT with `gist` + `repo` scope |
-| `GIST_ID` | Crypto + Forex | Public Gist ID for dashboard feed |
+| `GH_PAT` | All | GitHub PAT — repo + gist scope |
+| `GIST_ID` | Crypto + Forex | Public Gist for dashboard feed |
 
 ---
 
 ## Cron Schedule
 
-| Bot | Regular scan | Daily summary | Weekly summary |
+| Bot | Scan | Daily Summary | Weekly Report |
 |---|---|---|---|
-| Crypto | `:15` and `:45` every hour | 08:02 UTC | Monday 08:07 UTC |
-| Forex | `:00` and `:30` every hour | 08:03 UTC | Monday 08:08 UTC |
-| Stocks | `:10` and `:40` every hour (US market hours only) | — | — |
+| Crypto | Every 15 min (24/7) | 08:02 UTC | Friday 21:00 UTC |
+| Forex | Every 30 min (24/7) | 08:03 UTC | Friday 21:00 UTC |
+| Stocks | Every 15 min (US hours only) | — | Friday 21:00 UTC |
 
 ---
 
-## File Reference
+## Manual Commands
 
-**gwp-bots repo (public):**
+```bash
+node crypto_bot.js scan           # Run signal scan now
+node crypto_bot.js checkpositions # Check all open positions
+node crypto_bot.js health         # Health check + price feed
+node crypto_bot.js daily          # Daily summary report
+node crypto_bot.js weeklyreport   # Weekly performance report
+
+# Same commands work for forex_bot.js and stocks_bot.js
 ```
+
+---
+
+## Repo Structure
+
+```
+gwp-bots/
 ├── .github/workflows/
-│   ├── gwp-crypto.yml     ← Crypto bot workflow (v3.0)
-│   └── gwp-forex.yml      ← Forex bot workflow (v3.0)
-├── crypto_bot.js          ← Crypto signal engine (v3.0)
-├── crypto_state.json      ← Persistent state (auto-committed)
-├── crypto_signals.json    ← Latest signals (auto-committed + Gist)
-├── forex_bot.js           ← Forex signal engine (v3.0)
-├── forex_state.json       ← Persistent state (auto-committed)
-├── forex_signals.json     ← Latest signals (auto-committed + Gist)
-├── index.html             ← Web dashboard
-├── package.json
+│   ├── gwp-crypto.yml        ← Crypto bot (every 15min)
+│   ├── gwp-forex.yml         ← Forex bot (every 30min)
+│   └── gwp-stocks.yml        ← Stocks bot (US hours)
+├── crypto_bot.js             ← Crypto signal engine v3.1
+├── forex_bot.js              ← Forex signal engine v3.1
+├── stocks_bot.js             ← Stocks signal engine v3.1
+├── crypto_state.json         ← Persistent state (auto-committed)
+├── forex_state.json          ← Persistent state (auto-committed)
+├── stocks_state.json         ← Persistent state (auto-committed)
+├── crypto_signals.json       ← Latest signals (→ Gist → dashboard)
+├── forex_signals.json        ← Latest signals (→ Gist → dashboard)
+├── stocks_signals.json       ← Latest signals (→ Gist → dashboard)
+├── package.json              ← v3.1.0
 └── README.md
 ```
 
-**gwp_stocks_bot repo (private):**
-```
-├── .github/workflows/
-│   └── stocks_bot.yml     ← Stocks bot workflow (v3.0)
-├── stocks_bot.js          ← Stocks signal engine (v3.0)
-├── stocks_state.json      ← Persistent state (auto-committed)
-├── stocks_signals.json    ← Latest signals (auto-committed)
-├── index.html
-├── package.json
-└── README.md
-```
-
 ---
 
-## Strategy — Ghost Wick Protocol™
-
-1. **Volume Profile** — VAL band, POC, mid-band as targets
-2. **AVWAP** — anchored VWAP trap detection
-3. **Market Structure** — CHoCH → BOS confirmation
-4. **Liquidity Sweep** — high/low sweep before reversal
-5. **Wyckoff** — Spring / Upthrust phase detection
-6. **Kalman Filter + Z-Score** — momentum burst (non-lagging)
-7. **Elliott Wave** — Fibonacci projection for TP levels
-8. **D1 Bias** — daily directional filter (+6 aligned / −4 counter-trend)
-
----
-
-*© 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.*
-*Every candle. Every session. Zero downtime.*
+*© 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary and confidential.*
+*Advertised accuracy = % of fired signals meeting ≥90% institutional quality criteria.*
