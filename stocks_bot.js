@@ -1250,7 +1250,7 @@ async function sendWeeklySummary() {
   msg += `\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`; await tgSend(msg);
 }
 async function sendHealth() {
-  let msg = `💚 <b>GWP Stocks v1.0 ELITE MAX — HEALTH</b>\n\n`;
+  let msg = `💚 <b>GWP Stocks v3.1 ELITE MAX — HEALTH</b>\n\n`;
   for (const symbol of CONFIG.PAIRS) {
     let price = "?";
     try { const c = await fetchKlines(symbol, "H1", 2); if (c && c.length) price = c[c.length - 1].close.toFixed(2); } catch(e) {}
@@ -1267,7 +1267,7 @@ async function sendStatus() {
   let w; try { w = JSON.parse(getProp("S1_W_" + getWeekKey()) || "{}"); } catch(e) { w = {}; }
   const openCount = Object.keys(state).filter(k => k.startsWith("SPOS1_")).length;
   await tgSend(
-    `📡 <b>GWP Stocks v1.0 ELITE MAX — ONLINE</b> ✅\n\n` +
+    `📡 <b>GWP Stocks v3.1 ELITE MAX — ONLINE</b> ✅\n\n` +
     `Stocks: ${CONFIG.PAIRS.map(s => "$" + s).join(", ")}\n` +
     `TFs: 4H + 1H + 15M (Triple Engine)\n` +
     `Gates: 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n` +
@@ -1288,7 +1288,7 @@ async function sendPositions() {
 }
 async function sendHelp() {
   await tgSend(
-    `👻 <b>GWP STOCKS v1.0 ELITE MAX™</b>\n` +
+    `👻 <b>GWP STOCKS v3.1 ELITE MAX™</b>\n` +
     `<b>Money Printing Machine — US Market Edition</b>\n\n` +
     `<b>Stocks scanned:</b>\n` +
     `$TSLA · $NVDA · $MSTR · $COIN · $PLTR · $AMD · $SMCI\n\n` +
@@ -1589,7 +1589,7 @@ async function runBot() {
   if (!getProp(startKey) && mode === "scan") {
     setProp(startKey, "1");
     await tgSend(
-      `🚀 <b>GWP STOCKS v3.0 ELITE MAX™ — ONLINE</b> [gwp-bots]\n\n` +
+      `🚀 <b>GWP STOCKS v3.1 ELITE MAX™ — ONLINE</b> [gwp-bots]\n\n` +
       `👻 Ghost Wick Protocol™ — Stocks Edition\n` +
       `📊 Scanning: ${CONFIG.PAIRS.map(s => "$" + s).join("  ·  ")}\n` +
       `🔥 Engine: Triple TF (4H+1H+15M) · Vol+AVWAP gate · ATR SL floor\n` +
