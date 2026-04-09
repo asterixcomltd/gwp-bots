@@ -125,7 +125,7 @@ const CONFIG = {
   GIST_ID: process.env.GIST_ID || "",
 };
 
-const V = "GWP Stocks v3.0 | Elite Max™ | Asterix.COM | Abdin";
+const V = "GWP Stocks v3.1 | Elite Max™ | Asterix.COM | Abdin";
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "stocks_state.json");
