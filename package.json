@@ -1,15 +1,24 @@
 {
   "name": "gwp-bots",
-  "version": "3.0.0",
-  "description": "Ghost Wick Protocol — Forex + Altcoin Bots (Asterix.COM Ltd.)",
-  "main": "forex_bot.js",
+  "version": "3.1.0",
+  "description": "Ghost Wick Protocol™ — Crypto + Forex + Stocks Bots (Asterix.COM Ltd.) ELITE MAX",
+  "main": "crypto_bot.js",
   "scripts": {
-    "forex": "node forex_bot.js scan",
-    "altcoin": "node altcoin_bot.js scan",
-    "forex:daily": "node forex_bot.js daily",
-    "altcoin:daily": "node altcoin_bot.js daily",
-    "forex:health": "node forex_bot.js health",
-    "altcoin:health": "node altcoin_bot.js health"
+    "crypto":          "node crypto_bot.js scan",
+    "crypto:daily":    "node crypto_bot.js daily",
+    "crypto:check":    "node crypto_bot.js checkpositions",
+    "crypto:health":   "node crypto_bot.js health",
+    "crypto:report":   "node crypto_bot.js weeklyreport",
+    "forex":           "node forex_bot.js scan",
+    "forex:daily":     "node forex_bot.js daily",
+    "forex:check":     "node forex_bot.js checkpositions",
+    "forex:health":    "node forex_bot.js health",
+    "forex:report":    "node forex_bot.js weeklyreport",
+    "stocks":          "node stocks_bot.js scan",
+    "stocks:daily":    "node stocks_bot.js daily",
+    "stocks:check":    "node stocks_bot.js checkpositions",
+    "stocks:health":   "node stocks_bot.js health",
+    "stocks:report":   "node stocks_bot.js weeklyreport"
   },
   "engines": {
     "node": ">=18.0.0"

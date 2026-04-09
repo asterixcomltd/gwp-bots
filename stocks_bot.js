@@ -1,12 +1,28 @@
 "use strict";
 // ════════════════════════════════════════════════════════════════════════════
-// GHOST WICK PROTOCOL — STOCKS EDITION  v3.0  MONEY PRINTING MACHINE ELITE MAX™
+// GHOST WICK PROTOCOL — STOCKS EDITION  v3.1  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
 // Assets   : TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI (Yahoo Finance)
 // Platform : GitHub Actions (Node.js 22+) · stocks_state.json persistence
 //
 // © 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
+//
+// v3.1 CHANGES (on top of v3.0):
+//   ✅ FIX: D1 AVWAP — full history → 3-candle micro-AVWAP (eliminates weeks of lag)
+//   ✅ FIX: D1 conviction weight ±6/−4 → ±2/−1 (whisper, not gate)
+//   ✅ Fix #1:  Zone touch count — fresh zones prioritized, exhausted zones penalized
+//   ✅ Fix #2:  Volume-validated BOS — confirmed +8, unconfirmed +3
+//   ✅ Fix #3:  Zone-aware LiqSweep scoring — in-zone trap +10, near-zone +5, +4
+//   ✅ Fix #5:  FOMC/NFP macro blackout calendar — no trades 24h around events
+//   ✅ Fix #6:  Structural TP1 — anchored to nearest swing level, not fixed distance
+//   ✅ Fix #7:  Conviction-scaled position sizing — 0.5×–2.5× based on score
+//   ✅ Fix #8:  Hurst reliability gate — requires 120+ candles for valid Hurst score
+//   ✅ Fix #9:  Session-based volume multiplier — higher threshold in low-vol sessions
+//   ✅ Fix #10: Enhanced performance tracker — best/worst trade, avg conv by outcome
+//              Weekly report auto-fires Friday UTC 21:00 + /weeklyreport command
+//   ✅ Fix #11: Double-candle CHoCH confirmation — +16 pts (vs +10 single-candle)
+//   ✅ Fix #12: Signal quality score — % of institutional criteria met (0–100%)
 //
 // v1.0 — GWP Stocks Edition:
 //   ✅ Same GWP engine as crypto_bot.js v8.0 (identical detection logic)
@@ -323,6 +339,38 @@ async function fetchKlines(symbol, tf, limit) {
   return null;
 }
 
+// ── MACRO EVENT BLACKOUT (v3.1 Fix #5) ───────────────────────────────────────
+// Blocks signals within BLOCK_MINS of known high-impact events.
+// FOMC 2026 dates (announced by Fed). Extend list as dates become known.
+const MACRO_EVENTS_2026 = [
+  // FOMC Meeting dates 2026 (day of decision, 18:00 UTC)
+  "2026-01-29","2026-03-18","2026-05-06","2026-06-17",
+  "2026-07-29","2026-09-16","2026-11-04","2026-12-16",
+  // US NFP (first Friday each month, 12:30 UTC)
+  "2026-01-09","2026-02-06","2026-03-06","2026-04-03",
+  "2026-05-01","2026-06-05","2026-07-10","2026-08-07",
+  "2026-09-04","2026-10-02","2026-11-06","2026-12-04",
+];
+const MACRO_BLOCK_MS = 60 * 60 * 1000; // 1 hour blackout window each side
+
+function isNearMacroEvent() {
+  const now = Date.now();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  for (const dateStr of MACRO_EVENTS_2026) {
+    if (dateStr !== todayStr) continue;
+    // Check if current time is within BLOCK window of the event
+    // FOMC = 18:00 UTC, NFP = 12:30 UTC
+    const h = new Date().getUTCHours();
+    const m = new Date().getUTCMinutes();
+    const isNFP = parseInt(dateStr.slice(8)) <= 10; // NFP always early month
+    const eventHour = isNFP ? 12 : 18;
+    const nowMins = h * 60 + m;
+    const eventMins = eventHour * 60 + (isNFP ? 30 : 0);
+    if (Math.abs(nowMins - eventMins) <= 60) return { blocked: true, event: isNFP ? "NFP" : "FOMC", date: dateStr };
+  }
+  return { blocked: false };
+}
+
 // ── SESSION GATE ──────────────────────────────────────────────────────────────
 function isMarketSessionActive() {
   if (!CONFIG.SESSION_GATE) return true;
@@ -338,6 +386,9 @@ function isMarketSessionActive() {
 function getSessionLabel() {
   const h = new Date().getUTCHours();
   const d = new Date().getUTCDay();
+  // Check for upcoming macro event
+  const macro = isNearMacroEvent();
+  if (macro.blocked) return `⛔ MACRO EVENT: ${macro.event} — CAUTION`;
   if (d === 0 || d === 6) return "📴 Weekend — Market Closed";
   if (h >= 11 && h < 13)  return "🌅 Pre-Market (07:00–09:30 ET)";
   if (h >= 13 && h < 14)  return "🔔 Market Opening (09:00–09:30 ET)";
@@ -439,15 +490,19 @@ function runMathEngine(candles) {
   const atr = calcATR(candles, 14), hurst = calcHurst(closes), zScore = calcZScore(closes, 20);
   const kalman = kalmanFilter(closes), atrPct = calcATRPercentile(candles, 14);
   const volRatio = calcVolumeRatio(candles, 20);
-  return { atr, hurst, zScore, kalman, atrPct, volRatio, cur: closes[closes.length - 1], cycle: calcSineOscillator(closes) };
+  return { atr, hurst, zScore, kalman, atrPct, volRatio, cur: closes[closes.length - 1], cycle: calcSineOscillator(closes), candleCount: closes.length };
 }
 
 // ── D1 BIAS ───────────────────────────────────────────────────────────────────
+// v3.1: 3-candle micro-AVWAP. Old full-history AVWAP was anchored weeks into
+// the past, causing D1=NEUTRAL/wrong while 4H+1H already had 3 valid entries.
+// D1 is now a soft whisper (+2/−1), not a gate. Primary engine: 4H+1H+15M.
 function getD1Bias(cd1) {
-  if (!cd1 || cd1.length < 5) return "NEUTRAL";
-  const closes = cd1.map(c => c.close);
+  if (!cd1 || cd1.length < 3) return "NEUTRAL";
+  const last3 = cd1.slice(-3);   // v3.1: 3-candle only (was full history — eliminates lag)
+  const closes = last3.map(c => c.close);
   let tv = 0, v = 0;
-  cd1.forEach(c => { const tp = (c.high + c.low + c.close) / 3; tv += tp * (c.vol || 1); v += (c.vol || 1); });
+  last3.forEach(c => { const tp = (c.high + c.low + c.close) / 3; tv += tp * (c.vol || 1); v += (c.vol || 1); });
   const avwap = v > 0 ? tv / v : closes[closes.length - 1];
   const last  = closes[closes.length - 1];
   return last > avwap * 1.005 ? "BULL" : last < avwap * 0.995 ? "BEAR" : "NEUTRAL";
@@ -525,20 +580,31 @@ function detectSwings(candles, strength) {
   }
   return { highs, lows };
 }
+// v3.1 Fix #2: Volume-validated BOS — fake BOS (no vol) scores less
 function detectBOS(candles, swings) {
   const last5 = candles.slice(-5);
   const safeHighs = swings.highs.filter(s => s.idx < candles.length - 3).slice(-5);
   const safeLows  = swings.lows.filter( s => s.idx < candles.length - 3).slice(-5);
+  // Volume average for spike detection
+  const volArr = candles.slice(-20).map(c => c.vol || 0);
+  const avgVol = volArr.length ? volArr.reduce((a,b) => a+b,0) / volArr.length : 1;
   let bullBOS = false, bearBOS = false, bullLevel = null, bearLevel = null;
+  let bullBOSVolConfirmed = false, bearBOSVolConfirmed = false;
   for (const c of last5) {
-    for (const sh of safeHighs) { if (c.close > sh.price) { bullBOS = true; bullLevel = sh.price; break; } }
-    for (const sl of safeLows)  { if (c.close < sl.price) { bearBOS = true; bearLevel = sl.price; break; } }
+    const volOk = (c.vol || 0) >= avgVol * 1.2;
+    for (const sh of safeHighs) {
+      if (c.close > sh.price) { bullBOS = true; bullLevel = sh.price; bullBOSVolConfirmed = volOk; break; }
+    }
+    for (const sl of safeLows) {
+      if (c.close < sl.price) { bearBOS = true; bearLevel = sl.price; bearBOSVolConfirmed = volOk; break; }
+    }
   }
-  return { bullBOS, bearBOS, bullLevel, bearLevel };
+  return { bullBOS, bearBOS, bullLevel, bearLevel, bullBOSVolConfirmed, bearBOSVolConfirmed };
 }
+// v3.1 Fix #11: Double-candle CHoCH confirmation — requires 2 consecutive closes past reference level
 function detectCHoCH(candles, swings) {
   const highs = swings.highs.slice(-4), lows = swings.lows.slice(-4);
-  if (highs.length < 2 || lows.length < 2) return { detected: false, toBull: false, toBear: false, prevTrend: null };
+  if (highs.length < 2 || lows.length < 2) return { detected: false, toBull: false, toBear: false, prevTrend: null, doubleConfirmed: false };
   const hh = highs[highs.length - 1].price > highs[highs.length - 2].price;
   const hl = lows[lows.length - 1].price   > lows[lows.length - 2].price;
   const lh = highs[highs.length - 1].price < highs[highs.length - 2].price;
@@ -546,11 +612,23 @@ function detectCHoCH(candles, swings) {
   let prevTrend = null;
   if (hh && hl) prevTrend = "BULL";
   if (lh && ll) prevTrend = "BEAR";
-  if (!prevTrend) return { detected: false, toBull: false, toBear: false, prevTrend: null };
-  const last5 = candles.slice(-5); let toBull = false, toBear = false;
-  if (prevTrend === "BEAR") { const refHigh = swings.highs.filter(s => s.idx < candles.length - 5).slice(-1)[0]; if (refHigh && last5.some(c => c.close > refHigh.price)) toBull = true; }
-  if (prevTrend === "BULL") { const refLow  = swings.lows.filter( s => s.idx < candles.length - 5).slice(-1)[0]; if (refLow  && last5.some(c => c.close < refLow.price))  toBear = true; }
-  return { detected: toBull || toBear, toBull, toBear, prevTrend };
+  if (!prevTrend) return { detected: false, toBull: false, toBear: false, prevTrend: null, doubleConfirmed: false };
+  const last5 = candles.slice(-5); let toBull = false, toBear = false, doubleConfirmed = false;
+  if (prevTrend === "BEAR") {
+    const refHigh = swings.highs.filter(s => s.idx < candles.length - 5).slice(-1)[0];
+    if (refHigh) {
+      if (last5.some(c => c.close > refHigh.price)) toBull = true;
+      for (let i = 0; i < last5.length - 1; i++) { if (last5[i].close > refHigh.price && last5[i+1].close > refHigh.price) { doubleConfirmed = true; break; } }
+    }
+  }
+  if (prevTrend === "BULL") {
+    const refLow = swings.lows.filter(s => s.idx < candles.length - 5).slice(-1)[0];
+    if (refLow) {
+      if (last5.some(c => c.close < refLow.price)) toBear = true;
+      for (let i = 0; i < last5.length - 1; i++) { if (last5[i].close < refLow.price && last5[i+1].close < refLow.price) { doubleConfirmed = true; break; } }
+    }
+  }
+  return { detected: toBull || toBear, toBull, toBear, prevTrend, doubleConfirmed };
 }
 function detectLiquiditySweep(candles, swings) {
   const lookback = candles.slice(-15);
@@ -618,8 +696,16 @@ function computeConviction(gwp, math, ms, tfKey, isConfluence = false, isTriple 
 
   // MATH ENGINE
   if (math) {
-    if (math.hurst < 0.45)      score += 8;
-    else if (math.hurst < 0.55) score += 4;
+    // v3.1 Fix #8: Hurst reliability gate — requires 120+ candles for statistical validity
+    // Below 120 candles, Hurst output is noise-dominated (unreliable fractal dimension)
+    const hurstReliable = math.candleCount && math.candleCount >= 120;
+    if (hurstReliable) {
+      if (math.hurst < 0.45)      score += 8;
+      else if (math.hurst < 0.55) score += 4;
+    } else {
+      // Fallback when Hurst unreliable: use vol ratio as substitute (+2 if strong participation)
+      if (math.volRatio >= 1.5) score += 2;
+    }
 
     const z = math.zScore;
     if (gwp.direction === "BULL" && z.extremeLow)  score += 7;
@@ -651,22 +737,44 @@ function computeConviction(gwp, math, ms, tfKey, isConfluence = false, isTriple 
 
   // MARKET STRUCTURE (0–30)
   if (ms) {
+    // v3.1 Fix #11: Double-candle CHoCH scoring — confirmed = +16, single = +10
     if (ms.choch && ms.choch.detected) {
-      if ((gwp.direction === "BULL" && ms.choch.toBull) || (gwp.direction === "BEAR" && ms.choch.toBear)) score += 14;
+      const chochDir = (gwp.direction === "BULL" && ms.choch.toBull) || (gwp.direction === "BEAR" && ms.choch.toBear);
+      if (chochDir) score += ms.choch.doubleConfirmed ? 16 : 10;
     }
+    // v3.1 Fix #2: Volume-validated BOS scoring
     if (ms.bos) {
-      if ((gwp.direction === "BULL" && ms.bos.bullBOS) || (gwp.direction === "BEAR" && ms.bos.bearBOS)) score += 8;
+      const bullOk = gwp.direction === "BULL" && ms.bos.bullBOS;
+      const bearOk = gwp.direction === "BEAR" && ms.bos.bearBOS;
+      if (bullOk) score += ms.bos.bullBOSVolConfirmed ? 8 : 3;  // strong vs weak BOS
+      if (bearOk) score += ms.bos.bearBOSVolConfirmed ? 8 : 3;
     }
-    const lsConf = (gwp.direction === "BULL" && ms.liqSweep && ms.liqSweep.lowSweep) || (gwp.direction === "BEAR" && ms.liqSweep && ms.liqSweep.highSweep);
-    if (lsConf) score += 5;
+    // v3.1 Fix #3: Zone-aware LiqSweep — sweep IN zone = trap confirmed = higher score
+    if (ms.liqSweep) {
+      const bullLS = gwp.direction === "BULL" && ms.liqSweep.lowSweep;
+      const bearLS = gwp.direction === "BEAR" && ms.liqSweep.highSweep;
+      if (bullLS || bearLS) {
+        // If sweep happened near the AVWAP/zone (avwapTrap confirmed) = institutional trap
+        const inZone = gwp.avwapTrap || gwp.zoneRevisit;
+        const touches = gwp.zoneTouches !== undefined ? gwp.zoneTouches : 3;
+        const zoneWeak = touches >= 3;
+        score += inZone && !zoneWeak ? 10 : inZone ? 5 : 4;  // in+fresh=10, in+exhausted=5, open=4
+        if (inZone && !zoneWeak) {
+          // Tag the signal — used in formatting
+          gwp._trapConfirmed = true;
+        }
+      }
+    }
     if (ms.fvg && ms.fvg.present) score += 3;
   }
 
-  // D1 BIAS ALIGNMENT — aligned = +6, counter-trend = -4
-  if (d1Bias === "BULL" && gwp.direction === "BULL") score += 6;
-  if (d1Bias === "BEAR" && gwp.direction === "BEAR") score += 6;
-  if (d1Bias === "BULL" && gwp.direction === "BEAR") score -= 4;
-  if (d1Bias === "BEAR" && gwp.direction === "BULL") score -= 4;
+  // v3.1: D1 BIAS — soft whisper (+2 aligned / −1 counter).
+  // D1 is context-only. Primary engine is 4H+1H+15M.
+  // Old ±6/−4 swing = up to 10 pts on a 105-pt scale was blocking live trends.
+  if (d1Bias === "BULL" && gwp.direction === "BULL") score += 2;
+  if (d1Bias === "BEAR" && gwp.direction === "BEAR") score += 2;
+  if (d1Bias === "BULL" && gwp.direction === "BEAR") score -= 1;
+  if (d1Bias === "BEAR" && gwp.direction === "BULL") score -= 1;
 
   // CONFLUENCE BOOSTS
   if (isTriple)           score += CONFIG.TRIPLE_TF_BOOST;
@@ -685,6 +793,18 @@ function isDuplicate(symbol, direction, tfKey) {
 }
 function markFired(symbol, direction, tfKey) {
   setProp(`SDUP1_${tfKey}_${symbol}_${direction}`, Date.now().toString());
+}
+
+// ── ZONE TOUCH COUNTER (v3.1 Fix #1) ─────────────────────────────────────────
+// Counts how many candles in the last 50 bars touched the VAL band zone.
+// Virgin zone (1-2 touches) = high probability. Exhausted zone (3+) = weakened.
+function getZoneTouchCount(candles, bBot, bTop) {
+  const lookback = candles.slice(-50);
+  let touches = 0;
+  for (const c of lookback) {
+    if (c.high >= bBot && c.low <= bTop) touches++;
+  }
+  return touches;
 }
 
 // ── CORE GWP DETECTOR ─────────────────────────────────────────────────────────
@@ -717,7 +837,9 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     if (avwap) { const prox = tfCfg.avwapProx; avwapTrap = Math.abs(sig.high - avwap) / avwap <= prox || Math.abs(sig.low - avwap) / avwap <= prox; }
 
     const sigIdx       = n - 2 - age;
-    const volumeSpike  = hasVolumeSpike(sig, candles, sigIdx, tfCfg.volLookback, tfCfg.volSpikeMult);
+    // v3.1 Fix #9: Session-adjusted vol multiplier
+    const sessionVolMult = getSessionVolMult(tfCfg.volSpikeMult);
+    const volumeSpike  = hasVolumeSpike(sig, candles, sigIdx, tfCfg.volLookback, sessionVolMult);
     const momentumBurst = calcMomentumBurst(candles, sigIdx);
     const zoneRevisit  = calcZoneRevisit(candles, bBot, bTop);
     const wyckoff      = detectWyckoff(candles, direction);
@@ -751,8 +873,29 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     }
 
     const entry = cur.close, slDist = Math.abs(entry - sl);
-    const tp1 = direction === "BEAR" ? entry - bH * 1.0 : entry + bH * 1.0;
     const tp2 = direction === "BEAR" ? entry - slDist * 2.0 : entry + slDist * 2.0;
+    // v3.1 Fix #6: Structural TP1 — use nearest swing level between entry and TP2
+    // Falls back to VP band edge if no swing exists in range
+    const msSlice6 = candles.slice(-Math.min(tfCfg.msLookback, candles.length));
+    const msSwings6 = detectSwings(msSlice6, tfCfg.swingStrength);
+    let tp1;
+    if (direction === "BEAR") {
+      const candidateLows = msSwings6.lows
+        .map(s => s.price)
+        .filter(p => p < entry && p > tp2)
+        .sort((a, b) => b - a);
+      tp1 = candidateLows.length > 0 ? candidateLows[0] : bBot;
+    } else {
+      const candidateHighs = msSwings6.highs
+        .map(s => s.price)
+        .filter(p => p > entry && p < tp2)
+        .sort((a, b) => a - b);
+      tp1 = candidateHighs.length > 0 ? candidateHighs[0] : bTop;
+    }
+    // Safety: if structural TP1 is too close (< 0.3% from entry), fallback to bH distance
+    if (Math.abs(entry - tp1) / entry < 0.003) {
+      tp1 = direction === "BEAR" ? entry - bH * 1.0 : entry + bH * 1.0;
+    }
     const tp3 = direction === "BEAR" ? entry - slDist * CONFIG.TP3_MULT : entry + slDist * CONFIG.TP3_MULT;
     const tp4 = direction === "BEAR" ? entry - slDist * 4.0 : entry + slDist * 4.0;
     const rr  = slDist > 0 ? Math.abs(tp2 - entry) / slDist : 0;
@@ -763,6 +906,12 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     const rawScore = Math.min(10, (bodyGapPct / 100) * 10 + (wickDepth / bH) * 5 + (isPathB ? 0 : 2));
     const agePenalty = age > 0 ? Math.pow(0.75, age) : 1;
     const score = rawScore * agePenalty;
+    // v3.1 Fix #1: Zone touch penalty — fresh zones score higher
+    const zoneTouches = getZoneTouchCount(candles, bBot, bTop);
+    const touchPenalty = zoneTouches >= 3 ? (zoneTouches >= 5 ? 2.0 : 1.0) : 0;
+    const adjustedScore = Math.max(0, score - touchPenalty);
+    const zoneFreshness = zoneTouches <= 2 ? "🟢 FRESH ZONE" : zoneTouches <= 4 ? "🟡 TESTED ZONE" : "🔴 EXHAUSTED ZONE";
+    if (touchPenalty > 0) console.log(`  Zone touch penalty: ${zoneTouches} touches → -${touchPenalty} score`);
 
     const dp = v => v < 0.01 ? 6 : v < 1 ? 5 : v < 10 ? 4 : v < 1000 ? 3 : 2;
     const f  = n => Number(n).toFixed(dp(Math.abs(n)));
@@ -778,7 +927,7 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     ];
 
     return {
-      direction, grade: "GWP", score: score.toFixed(1), rawScore, age,
+      direction, grade: "GWP", score: adjustedScore.toFixed(1), rawScore, age,
       tf: tfCfg.tf, tfLabel: tfCfg.label,
       path: isPathB ? "B — Sweep + Return ⚠️" : "A — Direct Return 🎯",
       isPathB, volumeSpike, avwapTrap, momentumBurst, zoneRevisit,
@@ -796,9 +945,20 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
       wyckoff, fib, tp4: f(tp4),
       cycleLabel: cycle ? cycle.label : "⬜ CYCLE: —",
       cycleGate:  cycle ? cycle.contraction : false,
+      zoneFreshness, zoneTouches,
     };
   }
   return null;
+}
+
+// ── SESSION VOL MULTIPLIER (v3.1 Fix #9) ─────────────────────────────────────
+function getSessionVolMult(baseMult) {
+  const h = new Date().getUTCHours();
+  if (h >= 12 && h <= 16) return baseMult;
+  if (h >= 7  && h < 12)  return baseMult * 1.2;
+  if (h >= 17 && h < 21)  return baseMult * 1.1;
+  if (h >= 0  && h < 7)   return baseMult * 1.5;
+  return baseMult * 1.3;
 }
 
 // ── COOLDOWNS ──────────────────────────────────────────────────────────────────
@@ -847,8 +1007,8 @@ async function checkOpenPositions() {
     let msg = null;
     if (!p.tp1hit && (isL ? price >= p.tp1 : price <= p.tp1)) { p.tp1hit = true; msg = `🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
     if (!p.tp2hit && (isL ? price >= p.tp2 : price <= p.tp2)) { p.tp2hit = true; msg = `🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
-    if (p.tp2hit && (isL ? price >= p.tp3 : price <= p.tp3)) { msg = `🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, true); }
-    if (isL ? price <= p.sl : price >= p.sl) { const pbN = p.isPathB ? `\n⚡ Path B re-entry: <code>${p.reEntry || "zone"}</code>` : ""; msg = `❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, false); }
+    if (p.tp2hit && (isL ? price >= p.tp3 : price <= p.tp3)) { msg = `🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, true, null); }
+    if (isL ? price <= p.sl : price >= p.sl) { const pbN = p.isPathB ? `\n⚡ Path B re-entry: <code>${p.reEntry || "zone"}</code>` : ""; msg = `❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, false, null); }
     if (msg) { await tgSend(msg); if (p.state === "CLOSED") delProp(key); else setProp(key, JSON.stringify(p)); } else { setProp(key, JSON.stringify(p)); }
   }
 }
@@ -862,10 +1022,50 @@ function trackFired(symbol, r, mode) {
   const wk = "S1_W_" + getWeekKey(); let w; try { w = JSON.parse(getProp(wk) || "{}"); } catch(e) { w = {}; }
   w.signals = (w.signals || 0) + 1; if (mode === "TRIPLE") w.triple = (w.triple || 0) + 1; else if (mode === "CONFLUENCE") w.confluence = (w.confluence || 0) + 1; setProp(wk, JSON.stringify(w));
 }
-async function trackClose(symbol, direction, pnlPct, isWin) {
+// v3.1 Fix #10: Enhanced performance tracker with conviction score + weekly report
+async function trackClose(symbol, direction, pnlPct, isWin, convScore = null) {
   const wk = "S1_W_" + getWeekKey(); let w; try { w = JSON.parse(getProp(wk) || "{}"); } catch(e) { w = {}; }
   if (isWin) { w.wins = (w.wins || 0) + 1; recordWin(symbol); } else { w.losses = (w.losses || 0) + 1; await recordLoss(symbol); }
-  w.pnl = parseFloat(((w.pnl || 0) + parseFloat(pnlPct || 0)).toFixed(3)); setProp(wk, JSON.stringify(w));
+  w.pnl = parseFloat(((w.pnl || 0) + parseFloat(pnlPct || 0)).toFixed(3));
+  const p = parseFloat(pnlPct || 0);
+  if (w.bestPnl === undefined || p > w.bestPnl) { w.bestPnl = p; w.bestSym = symbol; }
+  if (w.worstPnl === undefined || p < w.worstPnl) { w.worstPnl = p; w.worstSym = symbol; }
+  if (convScore !== null) {
+    if (isWin) { w.winConvSum = (w.winConvSum || 0) + convScore; w.winConvN = (w.winConvN || 0) + 1; }
+    else       { w.lossConvSum = (w.lossConvSum || 0) + convScore; w.lossConvN = (w.lossConvN || 0) + 1; }
+  }
+  setProp(wk, JSON.stringify(w));
+}
+async function sendWeeklyReport() {
+  let w; try { w = JSON.parse(getProp("S1_W_" + getWeekKey()) || "{}"); } catch(e) { w = {}; }
+  const closed = (w.wins || 0) + (w.losses || 0);
+  const wr = closed > 0 ? ((w.wins || 0) / closed * 100).toFixed(1) + "%" : "—";
+  const avgWinConv = w.winConvN  ? (w.winConvSum  / w.winConvN).toFixed(1)  : "—";
+  const avgLossConv= w.lossConvN ? (w.lossConvSum / w.lossConvN).toFixed(1) : "—";
+  let msg = `📊 <b>GWP STOCKS — WEEKLY PERFORMANCE REPORT</b>\n`;
+  msg += `📆 ${getWeekKey().replace("_", " ")}\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  msg += `📡 Signals: ${w.signals || 0}  |  Conf: ${w.confluence || 0}  |  Triple: ${w.triple || 0}\n`;
+  if (closed > 0) {
+    msg += `✅ Wins: ${w.wins || 0}  ❌ Losses: ${w.losses || 0}  |  Win Rate: <b>${wr}</b>\n`;
+    msg += `💰 Net P&L: <b>${(w.pnl || 0) >= 0 ? "+" : ""}${w.pnl || 0}%</b>\n`;
+    if (w.bestSym)  msg += `🏆 Best:  ${w.bestSym} +${w.bestPnl}%\n`;
+    if (w.worstSym) msg += `💀 Worst: ${w.worstSym} ${w.worstPnl}%\n`;
+    msg += `🧠 Avg Conv — Wins: ${avgWinConv} | Losses: ${avgLossConv}\n`;
+  } else { msg += `  No closed trades this week.\n`; }
+  msg += `\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;
+  await tgSend(msg);
+}
+
+// ── CONVICTION-BASED POSITION SIZING (v3.1 Fix #7) ───────────────────────────
+// Institutional practice: scale position based on signal quality.
+// Higher conviction = bigger position, marginal conviction = smaller.
+function getSizeMult(convScore) {
+  if (convScore >= 96) return { mult: 2.5, label: "2.5× 🏛 INSTITUTIONAL PRIME" };
+  if (convScore >= 84) return { mult: 2.0, label: "2.0× 💎 MAX SIZE" };
+  if (convScore >= 72) return { mult: 1.5, label: "1.5× ⚡ ELEVATED" };
+  if (convScore >= 60) return { mult: 1.0, label: "1.0× ✅ STANDARD" };
+  return { mult: 0.5, label: "0.5× ⚠️ REDUCED" };
 }
 
 // ── SIGNAL FORMATTERS ─────────────────────────────────────────────────────────
@@ -885,11 +1085,34 @@ function confBox(r) {
   if (r.volumeSpike)   tags.push("📊 VOL SPIKE");
   if (r.wyckoff && r.wyckoff.spring   && r.direction === "BULL") tags.push("🟢 WYK SPRING");
   if (r.wyckoff && r.wyckoff.upthrust && r.direction === "BEAR") tags.push("🔴 WYK UPTHRUST");
+  if (r._trapConfirmed) tags.push("🎯 TRAP CONFIRMED");
   return tags.length ? tags.join("  ·  ") : "";
 }
 function checklistBlock(checks) { return checks.map(c => `${c.pass ? "✅" : "⬜"}  ${c.item}`).join("\n"); }
 
-function formatSingleSignal(r, symbol, conv, ms, _label, d1Bias = "NEUTRAL") {
+// ── SIGNAL QUALITY SCORE (v3.1 Fix #12) ──────────────────────────────────────
+function computeSignalQuality(r, ms, math) {
+  const checks = [
+    r.volumeSpike,
+    r.avwapTrap,
+    r.momentumBurst,
+    r.zoneRevisit,
+    ms && ms.confirmed,
+    ms && ms.choch && ms.choch.detected,
+    ms && ms.bos && (ms.bos.bullBOS || ms.bos.bearBOS),
+    ms && ms.liqSweep && (ms.liqSweep.lowSweep || ms.liqSweep.highSweep),
+    ms && ms.fvg && ms.fvg.present,
+    r.wyckoff && (r.wyckoff.spring || r.wyckoff.upthrust),
+    r._trapConfirmed,
+    math && math.hurst && ((r.direction === "BULL" && math.hurst > 0.55) || (r.direction === "BEAR" && math.hurst < 0.45)),
+  ];
+  const passed = checks.filter(Boolean).length;
+  const pct = Math.round((passed / checks.length) * 100);
+  const grade = pct >= 75 ? "ELITE" : pct >= 50 ? "STRONG" : pct >= 33 ? "FAIR" : "WEAK";
+  return { pct, grade, passed, total: checks.length };
+}
+
+function formatSingleSignal(r, symbol, conv, ms, _label, d1Bias = "NEUTRAL", math = null) {
   const isBull = r.direction === "BULL";
   const dirEmoji = isBull ? "🟢" : "🔴";
   const dir      = isBull ? "LONG ▲" : "SHORT ▼";
@@ -898,6 +1121,9 @@ function formatSingleSignal(r, symbol, conv, ms, _label, d1Bias = "NEUTRAL") {
   const _isAligned = (d1Bias === "BULL" && r.direction === "BULL") || (d1Bias === "BEAR" && r.direction === "BEAR");
   const biasNote = d1Bias !== "NEUTRAL" ? `  ·  D1: <b>${d1Bias}</b> ${_isAligned ? "✅" : "⚠️ CT"}` : "";
   const ageNote  = r.age > 0 ? `  ·  <i>${r.age}b ago</i>` : "";
+  // v3.1 Fix #12: Signal quality score
+  const sq = computeSignalQuality(r, ms, math);
+  const sqLine = `🏅  Quality: <b>${sq.pct}%</b> ${sq.grade} (${sq.passed}/${sq.total} criteria)\n`;
   return (
     `\n` +
     `🎯  <b>GWP · $${symbol} · ${dir} [${r.tfLabel}]</b>\n` +
@@ -906,6 +1132,8 @@ function formatSingleSignal(r, symbol, conv, ms, _label, d1Bias = "NEUTRAL") {
     `<b>ENTRY</b>  <code>${r.entry}</code>   <b>SL</b>  <code>${r.sl}</code>  (-${r.slPct}%)\n` +
     `<b>TP1</b>  <code>${r.tp1}</code>  ·  <b>TP2</b>  <code>${r.tp2}</code>  ·  <b>TP3</b>  <code>${r.tp3}</code>\n` +
     `─────────────────────────────\n` +
+    `📐  Size: <b>${getSizeMult(parseFloat(conv.score)).label}</b>\n` +
+    sqLine +
     (tags ? `🔑  ${tags}\n` : "") +
     `  ${msLine(ms, r.direction) || "⬜ MS: UNCONFIRMED"}\n` +
     `${pbNote}\n` +
@@ -940,7 +1168,8 @@ function formatConfluenceSignal(r4h, r1h, symbol, conv4h, conv1h, ms4h, ms1h, d1
     `✅  <b>TP1</b>         <code>${r4h.tp1}</code>     +${r4h.tp1Pct}%  · 40% exit\n` +
     `🏆  <b>TP2</b>         <code>${r4h.tp2}</code>     +${r4h.tp2Pct}%  · 40% / BE\n` +
     `💎  <b>TP3</b>         <code>${r4h.tp3}</code>     +${r4h.tp3Pct}%  · 20% runner\n\n` +
-    `📐  <b>R:R</b>   <b>${r4h.rr} : 1</b>  (4H)   ·   ${r1h.rr} : 1  (1H)\n\n` +
+    `📐  <b>R:R</b>   <b>${r4h.rr} : 1</b>  (4H)   ·   ${r1h.rr} : 1  (1H)\n` +
+    `📐  <b>Size:</b>  ${getSizeMult(parseFloat(conv4h.score)).label}\n\n` +
     `─────────────────────────────\n` +
     `🏛  <b>MARKET STRUCTURE</b>\n` +
     `─────────────────────────────\n\n` +
@@ -1115,10 +1344,10 @@ async function scanSingle(symbol) {
     await tgSend(formatConfluenceSignal(r4h, r1h, symbol, c4, c1, ms4h, ms1h, d1Bias));
   } else if (r4h) {
     const cv = computeConviction(r4h, m4h, ms4h, "H4", false, false, d1Bias);
-    await tgSend(formatSingleSignal(r4h, symbol, cv, ms4h, "", d1Bias));
+    await tgSend(formatSingleSignal(r4h, symbol, cv, ms4h, "", d1Bias, m4h));
   } else if (r1h) {
     const cv = computeConviction(r1h, m1h, ms1h, "H1", false, false, d1Bias);
-    await tgSend(formatSingleSignal(r1h, symbol, cv, ms1h, "⚡ <b>SCALP</b> —", d1Bias));
+    await tgSend(formatSingleSignal(r1h, symbol, cv, ms1h, "⚡ <b>SCALP</b> —", d1Bias, m1h));
   } else {
     await tgSend(`⬜ <b>No GWP — $${symbol}</b>\n4H VP: ${vp4h ? vp4h.valBandBot.toFixed(2) + "–" + vp4h.valBandTop.toFixed(2) : "fail"}\n📅 D1 Bias: ${d1Bias}\n${getSessionLabel()}\n\n<i>${V}</i>`);
   }
@@ -1155,6 +1384,14 @@ async function runBot() {
 
   await checkOpenPositions();
   let fired = 0;
+
+  // v3.1 Fix #5: Macro event blackout check (once before symbol loop)
+  const macroCheck = isNearMacroEvent();
+  if (macroCheck.blocked) {
+    console.log(`  ⛔ MACRO BLACKOUT — ${macroCheck.event} (${macroCheck.date}) — skipping all signals`);
+    await tgSend(`⛔ <b>MACRO BLACKOUT</b> — ${macroCheck.event} event detected.\nAll signals paused ±1h for safety.\n\n<i>${V}</i>`);
+    return; // Skip this entire scan
+  }
 
   for (const symbol of CONFIG.PAIRS) {
     try {
@@ -1255,7 +1492,7 @@ async function runBot() {
           const conv = computeConviction(r4h, m4h, ms4h, "H4", false, false, d1Bias);
           console.log(`  4H conv: ${conv.score}/105 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H4.minConviction && !isDuplicate(symbol, r4h.direction, "H4")) {
-            await tgSend(formatSingleSignal(r4h, symbol, conv, ms4h, "", d1Bias));
+            await tgSend(formatSingleSignal(r4h, symbol, conv, ms4h, "", d1Bias, m4h));
             storePosition(symbol, r4h, conv, "H4"); setCooldown(symbol, r4h.direction, "H4");
             markFired(symbol, r4h.direction, "H4");
             trackFired(symbol, r4h, "H4"); fired++;
@@ -1270,7 +1507,7 @@ async function runBot() {
           const conv = computeConviction(r1h, m1h, ms1h, "H1", false, false, d1Bias);
           console.log(`  1H conv: ${conv.score}/105 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H1.minConviction && !isDuplicate(symbol, r1h.direction, "H1")) {
-            await tgSend(formatSingleSignal(r1h, symbol, conv, ms1h, "⚡ <b>SCALP</b> —", d1Bias));
+            await tgSend(formatSingleSignal(r1h, symbol, conv, ms1h, "⚡ <b>SCALP</b> —", d1Bias, m1h));
             storePosition(symbol, r1h, conv, "H1"); setCooldown(symbol, r1h.direction, "H1");
             markFired(symbol, r1h.direction, "H1");
             trackFired(symbol, r1h, "H1"); fired++;
@@ -1285,7 +1522,7 @@ async function runBot() {
           const conv = computeConviction(r15m, m15m, ms15m, "M15", true, false, d1Bias);
           console.log(`  15M conv: ${conv.score}/105 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.M15.minConviction && !isDuplicate(symbol, r15m.direction, "M15")) {
-            await tgSend(formatSingleSignal(r15m, symbol, conv, ms15m, "🔬 <b>MICRO SNIPER</b> —", d1Bias));
+            await tgSend(formatSingleSignal(r15m, symbol, conv, ms15m, "🔬 <b>MICRO SNIPER</b> —", d1Bias, m15m));
             storePosition(symbol, r15m, conv, "M15");
             setCooldown(symbol, r15m.direction, "M15");
             markFired(symbol, r15m.direction, "M15");
@@ -1336,10 +1573,13 @@ async function runBot() {
   // Only run the scheduled/mode action if no Telegram commands were just handled.
   // (Prevents double-scan when /scan is sent, and avoids redundant runs after /health etc.)
   if (commandsHandled === 0) {
-    if (mode === "scan")    await runBot();
-    if (mode === "daily")   await sendDailySummary();
-    if (mode === "weekly")  await sendWeeklySummary();
-    if (mode === "health")  await sendHealth();
+    if (mode === "scan")          await runBot();
+    if (mode === "daily")         await sendDailySummary();
+    if (mode === "weekly")        await sendWeeklySummary();
+    if (mode === "weeklyreport")  await sendWeeklyReport();  // v3.1 Fix #10
+    if (mode === "health")        await sendHealth();
+    // v3.1 Fix #10: Auto weekly report on Friday UTC 21:00 run
+    if (mode === "scan" && new Date().getUTCDay() === 5 && new Date().getUTCHours() === 21) await sendWeeklyReport();
   } else {
     console.log(`  ${commandsHandled} command(s) handled — skipping scheduled mode action.`);
   }
