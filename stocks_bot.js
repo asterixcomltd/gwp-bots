@@ -270,8 +270,8 @@ async function fetchYahooCandles(symbol, interval, limit, retry = 0) {
   // Map our TF names to Yahoo intervals and appropriate range
   const intervalMap = { "15m": "15m", "1h": "60m", "1d": "1d" };
   const rangeMap    = {
-    "15m": "5d",   // 5 days of 15m = ~130 bars (market hours only)
-    "60m": "60d",  // 60 days of 1h = ~390 bars
+    "15m": "1mo",  // 1 month of 15m = ~520 bars (enough for Hurst 120+ candles)
+    "60m": "3mo",  // 3 months of 1h = ~780 bars (enough for Hurst via 4H aggregation)
     "1d":  "6mo",  // 6 months of daily
   };
 
@@ -905,7 +905,7 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
       tp1 = direction === "BEAR" ? entry - Math.abs(entry - tp2) * 0.35 : entry + Math.abs(entry - tp2) * 0.35;
     }
     let rr = slDist > 0 ? Math.abs(tp2 - entry) / slDist : 0;
-    if (rr < tfCfg.minRR) { tp1 = direction === "BEAR" ? bBot : bTop; rr = slDist > 0 ? Math.abs(tp1 - entry) / slDist : 0; }
+    if (rr < tfCfg.minRR) { tp1 = direction === "BEAR" ? bBot : bTop; rr = slDist > 0 ? Math.abs(tp2 - entry) / slDist : 0; }
     if (rr < tfCfg.minRR) { console.log(`  GWP ${direction} ${tfCfg.label} age=${age}: RR=${rr.toFixed(2)} < ${tfCfg.minRR}`); continue; }
     const tp3 = direction === "BEAR" ? entry - Math.abs(entry - tp2) * CONFIG.TP3_MULT : entry + Math.abs(entry - tp2) * CONFIG.TP3_MULT;
     const tp4 = direction === "BEAR" ? entry - Math.abs(entry - tp2) * 2.0 : entry + Math.abs(entry - tp2) * 2.0;
@@ -1169,8 +1169,8 @@ function formatConfluenceSignal(r4h, r1h, symbol, conv4h, conv1h, ms4h, ms1h, d1
     `🔥🔥  <b>CONFLUENCE  ·  $${symbol}</b>  🔥🔥\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `${dirEmoji}  <b>${dirWord}</b>   🔥🔥 CONFLUENCE SWING   [4H+1H]\n\n` +
-    `⚡  Conviction 4H:  <b>${conv4h.score} / 105</b>   —   ${conv4h.grade}\n` +
-    `⚡  Conviction 1H:  <b>${conv1h.score} / 105</b>\n` +
+    `⚡  Conviction 4H:  <b>${conv4h.score} / 123</b>   —   ${conv4h.grade}\n` +
+    `⚡  Conviction 1H:  <b>${conv1h.score} / 123</b>\n` +
     `🕐  ${getSessionLabel()}${biasNote}\n` +
     (conf ? `\n🔆  ${conf}\n` : "") +
     `${pbNote}\n\n` +
@@ -1215,9 +1215,9 @@ function formatTripleSignal(r4h, r1h, r15m, symbol, c4h, c1h, c15m, ms4h, ms1h, 
     `<b>★★ INSTITUTIONAL PRIME — GWP STOCKS v1.0 ★★</b>\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `${dirEmoji}  <b>${dirWord}</b>   🔥🔥🔥 INSTITUTIONAL PRIME   [4H+1H+15M]\n\n` +
-    `⚡  Conviction 4H:   <b>${c4h.score} / 105</b>   —   ${c4h.grade}\n` +
-    `⚡  Conviction 1H:   <b>${c1h.score} / 105</b>\n` +
-    `⚡  Conviction 15M:  <b>${c15m.score} / 105</b>\n` +
+    `⚡  Conviction 4H:   <b>${c4h.score} / 123</b>   —   ${c4h.grade}\n` +
+    `⚡  Conviction 1H:   <b>${c1h.score} / 123</b>\n` +
+    `⚡  Conviction 15M:  <b>${c15m.score} / 123</b>\n` +
     `🕐  ${getSessionLabel()}${biasNote}\n` +
     (conf ? `\n🔆  ${conf}\n` : "") +
     `\n─────────────────────────────\n` +
@@ -1334,9 +1334,9 @@ async function resetCooldowns() {
 // ── SINGLE PAIR SCAN ──────────────────────────────────────────────────────────
 async function scanSingle(symbol) {
   try {
-  const c4h  = await fetchKlines(symbol, "H4",  TF_CONFIG.H4.vpLookback + 20);
-  const c1h  = await fetchKlines(symbol, "H1",  TF_CONFIG.H1.vpLookback + 20);
-  const c15m = await fetchKlines(symbol, "M15", TF_CONFIG.M15.vpLookback + 20);
+  const c4h  = await fetchKlines(symbol, "H4",  TF_CONFIG.H4.vpLookback + 50);
+  const c1h  = await fetchKlines(symbol, "H1",  TF_CONFIG.H1.vpLookback + 80);
+  const c15m = await fetchKlines(symbol, "M15", TF_CONFIG.M15.vpLookback + 100);
   const cd1  = await fetchKlines(symbol, "D1",  30);
   const d1Bias = getD1Bias(cd1);
   const vp4h  = c4h  ? computeVolumeProfile(c4h,  TF_CONFIG.H4.vpLookback)  : null;
@@ -1425,7 +1425,7 @@ async function runBot() {
       if (!c1h_raw || c1h_raw.length < 40) { console.log(`  No 1H data for ${symbol}`); continue; }
 
       const c4h  = build4HCandles(c1h_raw);
-      const c1h  = c1h_raw.slice(-80);
+      const c1h  = c1h_raw.slice(-140); // v3.1.2: 140 bars for Hurst (was 80)
 
       if (!c4h || c4h.length < 30) { console.log("  Not enough 4H bars"); continue; }
 

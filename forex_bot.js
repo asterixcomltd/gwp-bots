@@ -65,7 +65,7 @@ const TF_CONFIG = {
     vpLookback:100, avwapLookback:30,
     minRR:2.0,          // v8.0: raised 1.8 → 2.0
     minConviction:52, cooldownHrs:4,
-    atrBufMult:0.55, maxAge:2, avwapProx:0.003,
+    atrBufMult:0.55, maxAge:2, avwapProx:0.005,
     msLookback:80, swingStrength:3, volSpikeMult:1.2,
     minSlPct:0.10,
   },
@@ -73,7 +73,7 @@ const TF_CONFIG = {
     tf:"H1", label:"1H",
     vpLookback:60, avwapLookback:20,
     minRR:1.6, minConviction:52, cooldownHrs:2,
-    atrBufMult:0.65, maxAge:1, avwapProx:0.004,
+    atrBufMult:0.65, maxAge:1, avwapProx:0.006,
     msLookback:60, swingStrength:3, volSpikeMult:1.3,
     minSlPct:0.15,
   },
@@ -81,7 +81,7 @@ const TF_CONFIG = {
     tf:"M15", label:"15M",
     vpLookback:40, avwapLookback:12,
     minRR:1.5, minConviction:54, cooldownHrs:1,
-    atrBufMult:0.60, maxAge:1, avwapProx:0.005,
+    atrBufMult:0.60, maxAge:1, avwapProx:0.008,
     msLookback:40, swingStrength:2, volSpikeMult:1.5,
     minSlPct:0.10,
   },
@@ -397,7 +397,11 @@ function hasVolumeSpike(sigCandle, allCandles, sigIdx, lookback, mult) {
   const start=Math.max(0,sigIdx-lookback),vols=allCandles.slice(start,sigIdx).map(c=>c.vol||0);
   if(!vols.length) return true;
   const avg=vols.reduce((a,b)=>a+b,0)/vols.length;
-  return avg===0?true:(sigCandle.vol||0)>=avg*mult;
+  if(avg===0) return true;
+  // Volume data quality: if all candles report near-identical volume, data is unreliable (e.g. forex tick vol default) — bypass
+  const uniqueVols=new Set(vols.map(v=>Math.round(v)));
+  if(uniqueVols.size<=3) return true;
+  return (sigCandle.vol||0)>=avg*mult;
 }
 
 // ── MARKET STRUCTURE ENGINE ───────────────────────────────────────────────────
@@ -1075,8 +1079,8 @@ function formatConfluenceSignal(r4h,r1h,pair,conv4h,conv1h,ms4h,ms1h,d1Bias){
     `\n`+
     `${dirEmoji}  <b>${dirWord}</b>   🔥🔥 CONFLUENCE SWING   [4H+1H]\n`+
     `\n`+
-    `⚡  Conviction 4H:  <b>${conv4h.score} / 105</b>   —   ${conv4h.grade}\n`+
-    `⚡  Conviction 1H:  <b>${conv1h.score} / 105</b>\n`+
+    `⚡  Conviction 4H:  <b>${conv4h.score} / 123</b>   —   ${conv4h.grade}\n`+
+    `⚡  Conviction 1H:  <b>${conv1h.score} / 123</b>\n`+
     `🕐  ${getForexSession()}${biasNote}\n`+
     (conf?`\n🔆  ${conf}\n`:"")+
     `${pbNote}\n`+
@@ -1151,9 +1155,9 @@ function formatTripleSignal(r4h,r1h,r15m,pair,c4h,c1h,c15m,ms4h,ms1h,ms15m,d1Bia
     `\n`+
     `${dirEmoji}  <b>${dirWord}</b>   🔥🔥🔥 INSTITUTIONAL PRIME   [4H+1H+15M]\n`+
     `\n`+
-    `⚡  Conviction 4H:   <b>${c4h.score} / 105</b>   —   ${c4h.grade}\n`+
-    `⚡  Conviction 1H:   <b>${c1h.score} / 105</b>\n`+
-    `⚡  Conviction 15M:  <b>${c15m.score} / 105</b>\n`+
+    `⚡  Conviction 4H:   <b>${c4h.score} / 123</b>   —   ${c4h.grade}\n`+
+    `⚡  Conviction 1H:   <b>${c1h.score} / 123</b>\n`+
+    `⚡  Conviction 15M:  <b>${c15m.score} / 123</b>\n`+
     `🕐  ${getForexSession()}${biasNote}\n`+
     (conf?`\n🔆  ${conf}\n`:"")+
     `\n`+
@@ -1369,9 +1373,9 @@ async function runBot(){
       if(isCircuitBroken(pair.symbol)){console.log("  ⛔ Circuit breaker");continue;}
 
       const [c4h, c1h, c15m, cd1] = await Promise.all([
-        fetchCandles(pair,"H4", TF_CONFIG.H4.vpLookback+20),
-        fetchCandles(pair,"H1", TF_CONFIG.H1.vpLookback+20),
-        fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20),
+        fetchCandles(pair,"H4", TF_CONFIG.H4.vpLookback+50),
+        fetchCandles(pair,"H1", TF_CONFIG.H1.vpLookback+80),
+        fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+100),
         fetchCandles(pair,"D1", 30),
       ]);
       if(!c4h||c4h.length<30){console.log("  No 4H data");continue;}

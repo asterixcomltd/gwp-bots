@@ -123,7 +123,7 @@ const CONFIG = {
   DEDUP_WINDOW_MS: 3600000,
 
   // v8.0: CRYPTO_MIN_SL_PCT raised 0.35 → 1.2 (CRITICAL FIX — hairline SL)
-  CRYPTO_MIN_SL_PCT: 1.2,
+  CRYPTO_MIN_SL_PCT: 2.0,  // v3.1.2: raised 1.2 → 2.0 (1.2% too tight for SOL/DEXE volatility)
 
   // v8.0: ATR floor — SL must be ≥ this multiple of ATR from entry
   ATR_SL_FLOOR_MULT: 1.5,
@@ -1132,8 +1132,8 @@ function formatConfluenceSignal(r4h,r1h,symbol,conv4h,conv1h,ms4h,ms1h,d1Bias){
     `\n`+
     `${dirEmoji}  <b>${dirWord}</b>   🔥🔥 CONFLUENCE SWING   [4H+1H]\n`+
     `\n`+
-    `⚡  Conviction 4H:  <b>${conv4h.score} / 105</b>   —   ${conv4h.grade}\n`+
-    `⚡  Conviction 1H:  <b>${conv1h.score} / 105</b>\n`+
+    `⚡  Conviction 4H:  <b>${conv4h.score} / 123</b>   —   ${conv4h.grade}\n`+
+    `⚡  Conviction 1H:  <b>${conv1h.score} / 123</b>\n`+
     `🕐  ${getSessionLabel()}${biasNote}\n`+
     (conf?`\n🔆  ${conf}\n`:"")+
     `${pbNote}\n`+
@@ -1209,9 +1209,9 @@ function formatTripleSignal(r4h,r1h,r15m,symbol,c4h,c1h,c15m,ms4h,ms1h,ms15m,d1B
     `\n`+
     `${dirEmoji}  <b>${dirWord}</b>   🔥🔥🔥 INSTITUTIONAL PRIME   [4H+1H+15M]\n`+
     `\n`+
-    `⚡  Conviction 4H:   <b>${c4h.score} / 105</b>   —   ${c4h.grade}\n`+
-    `⚡  Conviction 1H:   <b>${c1h.score} / 105</b>\n`+
-    `⚡  Conviction 15M:  <b>${c15m.score} / 105</b>\n`+
+    `⚡  Conviction 4H:   <b>${c4h.score} / 123</b>   —   ${c4h.grade}\n`+
+    `⚡  Conviction 1H:   <b>${c1h.score} / 123</b>\n`+
+    `⚡  Conviction 15M:  <b>${c15m.score} / 123</b>\n`+
     `🕐  ${getSessionLabel()}${biasNote}\n`+
     (conf?`\n🔆  ${conf}\n`:"")+
     `\n`+
@@ -1354,9 +1354,9 @@ async function resetCooldowns(){
 
 // ── SINGLE PAIR SCAN ──────────────────────────────────────────────────────────
 async function scanSingle(symbol){
-  const c4h=await fetchKlines(symbol,"H4",TF_CONFIG.H4.vpLookback+20);
-  const c1h=await fetchKlines(symbol,"H1",TF_CONFIG.H1.vpLookback+20);
-  const c15m=await fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+20);
+  const c4h=await fetchKlines(symbol,"H4",TF_CONFIG.H4.vpLookback+50);
+  const c1h=await fetchKlines(symbol,"H1",TF_CONFIG.H1.vpLookback+80);
+  const c15m=await fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+100);
   const cd1=await fetchKlines(symbol,"D1",30);
   const d1Bias=getD1Bias(cd1);
   const vp4h=c4h?computeVolumeProfile(c4h,TF_CONFIG.H4.vpLookback):null;
@@ -1424,9 +1424,9 @@ async function runBot(){
 
       // v3.0 SPEED: parallel TF fetches (~4x faster)
       const [c4h,c1h,c15m,cd1]=await Promise.all([
-        fetchKlines(symbol,"H4", TF_CONFIG.H4.vpLookback+20),
-        fetchKlines(symbol,"H1", TF_CONFIG.H1.vpLookback+20),
-        fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+20),
+        fetchKlines(symbol,"H4", TF_CONFIG.H4.vpLookback+50),
+        fetchKlines(symbol,"H1", TF_CONFIG.H1.vpLookback+80),
+        fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+100),
         fetchKlines(symbol,"D1", 30),
       ]);
       if(!c4h||c4h.length<30){console.log("  No 4H data");continue;}
