@@ -51,7 +51,7 @@ const TF_CONFIG = {
 };
 
 const CONFIG = {
-  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","SUSHI-USDT","BTC-USDT","LINK-USDT"],
+  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","SUSHI-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT"],
   CAPITAL: 5, RISK_PCT: 1.5, LEVERAGE: 20,
   VP_ROWS: 24, MIN_WICK_DEPTH_PCT: 0.12, MIN_BODY_GAP_PCT: 0.08,
   VOLUME_FILTER: true,
@@ -66,6 +66,7 @@ const CONFIG = {
 const PAIR_VOL_MULT = {
   "BTC-USDT":0.8, "SOL-USDT":1.5, "DEXE-USDT":1.8, "UNI-USDT":1.3,
   "COMP-USDT":1.3, "SUSHI-USDT":1.6, "LINK-USDT":1.2,
+  "ETH-USDT":0.9, "NEAR-USDT":1.4,
 };
 
 // ─── HTTP ────────────────────────────────────────────────────────────────────
