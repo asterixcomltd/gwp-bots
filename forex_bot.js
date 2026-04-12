@@ -64,7 +64,7 @@ const TF_CONFIG = {
     tf:"H4", label:"4H",
     vpLookback:100, avwapLookback:30,
     minRR:1.5,          // v3.3: lowered 2.0 → 1.5 (backtest: R:R gate was killing valid signals)
-    minConviction:52, cooldownHrs:4,
+    minConviction:60, cooldownHrs:4,  // v3.4: raised 52 → 60
     atrBufMult:0.55, maxAge:2, avwapProx:0.005,
     msLookback:80, swingStrength:3, volSpikeMult:1.2,
     minSlPct:0.10,
@@ -72,7 +72,7 @@ const TF_CONFIG = {
   H1: {
     tf:"H1", label:"1H",
     vpLookback:60, avwapLookback:20,
-    minRR:1.4, minConviction:52, cooldownHrs:2,  // v3.3: minRR 1.6 → 1.4
+    minRR:1.4, minConviction:60, cooldownHrs:2,  // v3.4: conv 52 → 60
     atrBufMult:0.65, maxAge:1, avwapProx:0.006,
     msLookback:60, swingStrength:3, volSpikeMult:1.3,
     minSlPct:0.15,
@@ -80,7 +80,7 @@ const TF_CONFIG = {
   M15: {
     tf:"M15", label:"15M",
     vpLookback:40, avwapLookback:12,
-    minRR:1.5, minConviction:54, cooldownHrs:1,
+    minRR:1.5, minConviction:62, cooldownHrs:1,  // v3.4: conv 54 → 62
     atrBufMult:0.60, maxAge:1, avwapProx:0.008,
     msLookback:40, swingStrength:2, volSpikeMult:1.5,
     minSlPct:0.10,
@@ -315,25 +315,15 @@ function runMathEngine(candles){
 }
 
 // ── D1 CONTEXT FILTER ─────────────────────────────────────────────────────────
-// v3.1: 3-candle micro-AVWAP — responds within 1 session of structural flip.
-// Returns: 'BULL' | 'BEAR' | 'NEUTRAL'
-// 20-candle (20-day) was lagging so badly it fired NEUTRAL/wrong bias while
-// 4H+1H already printed 3 valid entries. D1 is now a soft whisper, not a gate.
+// v3.4: 1-candle D1 bias — uses only yesterday's daily candle direction.
+// 3-candle AVWAP lagged 1-2 days on reversals. 1-candle reacts instantly.
+// Strong body = clear bias. Doji/small body = NEUTRAL.
 function getD1Bias(d1Candles) {
-  if(!d1Candles||d1Candles.length<3) return 'NEUTRAL';
-  // v3.1: 3-candle micro-AVWAP (was 20 — eliminates 10+ day lag)
-  const lookback = d1Candles.slice(-3);
-  let tv=0,v=0;
-  lookback.forEach(c=>{const tp=(c.high+c.low+c.close)/3;tv+=tp*c.vol;v+=c.vol;});
-  const avwap = v>0?tv/v:null;
-  if(!avwap) return 'NEUTRAL';
-  const lastClose = d1Candles[d1Candles.length-1].close;
-  // Also check last 3 days trend via swing structure
-  const last3 = d1Candles.slice(-4);
-  const recentTrendUp = last3[last3.length-1].close > last3[0].close;
-  if(lastClose > avwap*1.002 && recentTrendUp)  return 'BULL';
-  if(lastClose < avwap*0.998 && !recentTrendUp) return 'BEAR';
-  return 'NEUTRAL';
+  if(!d1Candles||d1Candles.length<2) return 'NEUTRAL';
+  const yesterday = d1Candles[d1Candles.length - 1];
+  const bodyPct = Math.abs(yesterday.close - yesterday.open) / yesterday.open;
+  if(bodyPct < 0.003) return 'NEUTRAL';
+  return yesterday.close > yesterday.open ? 'BULL' : 'BEAR';
 }
 
 // ── WYCKOFF MARKET CYCLE ANALYSIS ────────────────────────────────────────────
@@ -631,11 +621,11 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
     if(ms.fvg&&ms.fvg.present)score+=3;
   }
 
-  // D1 BIAS — heavier scoring: aligned = +6, counter-trend = -6
-  if(d1Bias==='BULL'&&gwp.direction==='BULL') score+=6;
-  if(d1Bias==='BEAR'&&gwp.direction==='BEAR') score+=6;
-  if(d1Bias==='BULL'&&gwp.direction==='BEAR') score-=6;
-  if(d1Bias==='BEAR'&&gwp.direction==='BULL') score-=6;
+  // v3.4: D1 BIAS — aligned +8, counter −12 (soft gate via 1-candle D1)
+  if(d1Bias==='BULL'&&gwp.direction==='BULL') score+=8;
+  if(d1Bias==='BEAR'&&gwp.direction==='BEAR') score+=8;
+  if(d1Bias==='BULL'&&gwp.direction==='BEAR') score-=12;
+  if(d1Bias==='BEAR'&&gwp.direction==='BULL') score-=12;
 
   // Feature 5: Session-aware conviction
   const h=new Date().getUTCHours();
@@ -753,30 +743,10 @@ function detectGWP(candles,vp,avwap,math,dec,pairSymbol,tfCfg,isCrypto){
     // ─────────────────────────────────────────────────────────────────────────
 
     const tp2=bMid;
-    // v3.1 Fix #6: Structural TP1 — use nearest swing level between entry and TP2
-    // Falls back to VP band edge if no swing exists in range
-    const msSlice = candles.slice(-Math.min(tfCfg.msLookback, candles.length));
-    const msSwings = detectSwings(msSlice, tfCfg.swingStrength);
+    // v3.4: TP1 at 40% of entry→TP2 distance (backtest: closer TP1 → more BE stops → higher WR)
     let tp1;
-    if (direction === "BEAR") {
-      // Find nearest swing low between entry (exclusive) and tp2 (inclusive)
-      const candidateLows = msSwings.lows
-        .map(s => s.price)
-        .filter(p => p < entry && p > tp2)
-        .sort((a, b) => b - a); // descending — nearest to entry first
-      tp1 = candidateLows.length > 0 ? candidateLows[0] : bBot; // fallback to VAL band edge
-    } else {
-      // Find nearest swing high between entry and tp2
-      const candidateHighs = msSwings.highs
-        .map(s => s.price)
-        .filter(p => p > entry && p < tp2)
-        .sort((a, b) => a - b); // ascending — nearest to entry first
-      tp1 = candidateHighs.length > 0 ? candidateHighs[0] : bTop;
-    }
-    // Safety: if structural TP1 is too close (< 0.3% from entry), fallback to 35% of TP2 distance
-    if (Math.abs(entry - tp1) / entry < 0.003) {
-      tp1 = direction === "BEAR" ? entry - Math.abs(entry - tp2) * 0.35 : entry + Math.abs(tp2 - entry) * 0.35;
-    }
+    const tp2Dist = Math.abs(entry - tp2);
+    tp1 = direction === "BEAR" ? entry - tp2Dist * 0.40 : entry + tp2Dist * 0.40;
     const risk=Math.abs(entry-sl);if(risk<=0)continue;
     let rr=Math.abs(entry-tp2)/risk;
     if(rr<tfCfg.minRR){tp1=direction==="BEAR"?bBot:bTop;rr=Math.abs(entry-tp2)/risk;}
@@ -1466,6 +1436,8 @@ async function runBot(){
 
       // v3.0: directional lock
       let firedDir=null;
+
+      // v3.4: D1 counter-trend handled by soft conviction penalty (-12), not hard block
 
       // ─ TRIPLE CONFLUENCE ──────────────────────────────────────────────────
       if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction){
