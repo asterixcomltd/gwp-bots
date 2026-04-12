@@ -70,7 +70,7 @@ const TF_CONFIG = {
   H4: {
     tf:"H4", label:"4H",
     vpLookback:100, avwapLookback:30,
-    minRR:1.5, minConviction:60, cooldownHrs:4,  // v3.4: conv 52 → 60
+    minRR:1.5, minConviction:68, cooldownHrs:3,  // v3.5: raised 60 → 68 (backtest: conv 60-69 had 0% WR); cooldown 4h → 3h
     atrBufMult:0.55, maxAge:2, avwapProx:0.003,
     volLookback:20, msLookback:80, swingStrength:3,
     volSpikeMult:1.2,
@@ -78,7 +78,7 @@ const TF_CONFIG = {
   H1: {
     tf:"H1", label:"1H",
     vpLookback:60, avwapLookback:20,
-    minRR:1.4, minConviction:60, cooldownHrs:2,  // v3.4: conv 54 → 60
+    minRR:1.4, minConviction:58, cooldownHrs:2,  // v3.5: lowered 60 → 58 (backtest: H1 profitable at 58+)
     atrBufMult:0.65, maxAge:1, avwapProx:0.004,
     volLookback:20, msLookback:60, swingStrength:3,
     volSpikeMult:1.3,
@@ -118,7 +118,7 @@ const CONFIG = {
   TRIPLE_TF_BOOST:25,
   CONFLUENCE_GATE_REDUCTION:6,
 
-  TP3_MULT:3.0,
+  TP3_MULT:2.0,  // v3.5: lowered 3.0 → 2.0 (backtest: 3.0× rarely hit; 2.0× captures more runners)
 
   MAX_RETRIES:2, RETRY_DELAY_MS:3000,
   DEDUP_WINDOW_MS: 3600000,
@@ -1497,7 +1497,14 @@ async function runBot() {
       // e.g. TSLA LONG [4H] + TSLA SHORT [1H] in the same scan run
       let firedDir = null;
 
-      // v3.4: D1 counter-trend handled by soft conviction penalty (-12), not hard block
+      // v3.5: D1 counter-trend — hard block for conv < 72, soft penalty for conv ≥ 72.
+      // Backtest: 0% WR on counter-trend trades. Only strong reversals (72+) allowed through.
+      function isD1CounterBlocked(dir, convScore) {
+        const ct = (d1Bias==='BULL'&&dir==='BEAR')||(d1Bias==='BEAR'&&dir==='BULL');
+        if (ct && convScore < 72) { console.log(`  ⛔ D1 CT BLOCK: ${dir} vs D1 ${d1Bias}, conv ${convScore} < 72`); return true; }
+        return false;
+      }
+
       if (r4h && r1h && r15m && r4h.direction === r1h.direction && r1h.direction === r15m.direction) {
         const dir = r4h.direction;
         if (!isDuplicate(symbol, dir, "TRIPLE")) {
@@ -1506,6 +1513,7 @@ async function runBot() {
           const conv15m = computeConviction(r15m, m15m, ms15m, "M15", false, true, d1Bias);
           const gate    = TF_CONFIG.H4.minConviction - CONFIG.CONFLUENCE_GATE_REDUCTION;
           if (parseFloat(conv4h.score) >= gate) {
+            if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock = hasCorrelatedPosition(symbol, dir);
             if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${dir}`); } else {
             console.log(`  🔥🔥🔥 TRIPLE! ${dir} Conv4H=${conv4h.score}`);
@@ -1530,6 +1538,7 @@ async function runBot() {
           const gate   = TF_CONFIG.H4.minConviction - CONFIG.CONFLUENCE_GATE_REDUCTION;
           console.log(`  🔥🔥 CONFLUENCE! ${dir} 4H Conv=${conv4h.score} gate=${gate}`);
           if (parseFloat(conv4h.score) >= gate) {
+            if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock = hasCorrelatedPosition(symbol, dir);
             if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${dir}`); } else {
             await tgSend(formatConfluenceSignal(r4h, r1h, symbol, conv4h, conv1h, ms4h, ms1h, d1Bias));
@@ -1550,13 +1559,15 @@ async function runBot() {
           const conv = computeConviction(r4h, m4h, ms4h, "H4", false, false, d1Bias);
           console.log(`  4H conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H4.minConviction && !isDuplicate(symbol, r4h.direction, "H4")) {
+            if(isD1CounterBlocked(r4h.direction,parseFloat(conv.score))){/* skip */}
+            else{
             const corrBlock = hasCorrelatedPosition(symbol, r4h.direction);
             if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${r4h.direction}`); } else {
             await tgSend(formatSingleSignal(r4h, symbol, conv, ms4h, "", d1Bias, m4h));
             storePosition(symbol, r4h, conv, "H4"); setCooldown(symbol, r4h.direction, "H4");
             markFired(symbol, r4h.direction, "H4");
             trackFired(symbol, r4h, "H4"); fired++;
-          }} else { console.log(`  ⚠️ 4H conv ${conv.score} below ${TF_CONFIG.H4.minConviction}`); }
+          }}} else { console.log(`  ⚠️ 4H conv ${conv.score} below ${TF_CONFIG.H4.minConviction}`); }
         }
       }
 
@@ -1567,13 +1578,15 @@ async function runBot() {
           const conv = computeConviction(r1h, m1h, ms1h, "H1", false, false, d1Bias);
           console.log(`  1H conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H1.minConviction && !isDuplicate(symbol, r1h.direction, "H1")) {
+            if(isD1CounterBlocked(r1h.direction,parseFloat(conv.score))){/* skip */}
+            else{
             const corrBlock = hasCorrelatedPosition(symbol, r1h.direction);
             if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${r1h.direction}`); } else {
             await tgSend(formatSingleSignal(r1h, symbol, conv, ms1h, "⚡ <b>SCALP</b> —", d1Bias, m1h));
             storePosition(symbol, r1h, conv, "H1"); setCooldown(symbol, r1h.direction, "H1");
             markFired(symbol, r1h.direction, "H1");
             trackFired(symbol, r1h, "H1"); fired++;
-          }} else { console.log(`  ⚠️ 1H conv ${conv.score} below ${TF_CONFIG.H1.minConviction}`); }
+          }}} else { console.log(`  ⚠️ 1H conv ${conv.score} below ${TF_CONFIG.H1.minConviction}`); }
         }
       }
 
@@ -1584,6 +1597,8 @@ async function runBot() {
           const conv = computeConviction(r15m, m15m, ms15m, "M15", true, false, d1Bias);
           console.log(`  15M conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.M15.minConviction && !isDuplicate(symbol, r15m.direction, "M15")) {
+            if(isD1CounterBlocked(r15m.direction,parseFloat(conv.score))){/* skip */}
+            else{
             const corrBlock = hasCorrelatedPosition(symbol, r15m.direction);
             if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${r15m.direction}`); } else {
             await tgSend(formatSingleSignal(r15m, symbol, conv, ms15m, "🔬 <b>MICRO SNIPER</b> —", d1Bias, m15m));
@@ -1591,7 +1606,7 @@ async function runBot() {
             setCooldown(symbol, r15m.direction, "M15");
             markFired(symbol, r15m.direction, "M15");
             trackFired(symbol, r15m, "M15"); fired++;
-          }}
+          }}}
 
         }
       }
