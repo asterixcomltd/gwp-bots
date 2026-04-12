@@ -136,6 +136,26 @@ const CONFIG = {
 
 const V = "GWP Stocks v3.1 | Elite Max™ | Asterix.COM | Abdin";
 
+// v3.2: Per-pair volatility multiplier based on beta
+const PAIR_VOL_MULT = {
+  "TSLA":1.2, "NVDA":1.0, "MSTR":1.8, "COIN":1.6, "PLTR":1.3, "AMD":0.9, "SMCI":1.4,
+};
+
+const CORR_GROUPS = [
+  ["TSLA","NVDA","AMD","SMCI"], // tech/semis
+  ["MSTR","COIN"], // crypto-exposure
+  ["PLTR"], // standalone
+];
+function getCorrelatedPairs(sym) { const g = CORR_GROUPS.find(gr => gr.includes(sym)); return g ? g.filter(s => s !== sym) : []; }
+function hasCorrelatedPosition(symbol, direction) {
+  const corr = getCorrelatedPairs(symbol);
+  for (const cs of corr) {
+    const keys = Object.keys(state).filter(k => k.startsWith("SPOS1_" + cs + "_" + direction));
+    for (const k of keys) { try { const p = JSON.parse(state[k]); if (p && p.state === "OPEN") return cs; } catch(e) {} }
+  }
+  return null;
+}
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "stocks_state.json");
 let state = {};
@@ -774,13 +794,22 @@ function computeConviction(gwp, math, ms, tfKey, isConfluence = false, isTriple 
     if (ms.fvg && ms.fvg.present) score += 3;
   }
 
-  // v3.1: D1 BIAS — soft whisper (+2 aligned / −1 counter).
-  // D1 is context-only. Primary engine is 4H+1H+15M.
-  // Old ±6/−4 swing = up to 10 pts on a 105-pt scale was blocking live trends.
-  if (d1Bias === "BULL" && gwp.direction === "BULL") score += 2;
-  if (d1Bias === "BEAR" && gwp.direction === "BEAR") score += 2;
-  if (d1Bias === "BULL" && gwp.direction === "BEAR") score -= 1;
-  if (d1Bias === "BEAR" && gwp.direction === "BULL") score -= 1;
+  // v3.2: D1 BIAS — heavier scoring (+6 aligned / −6 counter).
+  // D1 trend alignment is now a strong directional filter.
+  if (d1Bias === "BULL" && gwp.direction === "BULL") score += 6;
+  if (d1Bias === "BEAR" && gwp.direction === "BEAR") score += 6;
+  if (d1Bias === "BULL" && gwp.direction === "BEAR") score -= 6;
+  if (d1Bias === "BEAR" && gwp.direction === "BULL") score -= 6;
+
+  // v3.2: Session-aware conviction — US market hours scoring
+  const h = new Date().getUTCHours();
+  if (h >= 13 && h <= 16) score += 3; // US market open (peak liquidity)
+  else if (h >= 17 && h <= 20) score += 1; // US afternoon
+  else if (h >= 11 && h < 13) score += 1; // pre-market
+
+  // v3.2: Volatility regime scoring
+  if (math && math.atrPct < 15) score -= 4;
+  if (math && math.atrPct > 85) score += 2;
 
   // CONFLUENCE BOOSTS
   if (isTriple)           score += CONFIG.TRIPLE_TF_BOOST;
@@ -814,7 +843,7 @@ function getZoneTouchCount(candles, bBot, bTop) {
 }
 
 // ── CORE GWP DETECTOR ─────────────────────────────────────────────────────────
-function detectGWP(candles, vp, avwap, math, tfCfg) {
+function detectGWP(candles, vp, avwap, math, tfCfg, symbol) {
   if (!candles || candles.length < 6 || !vp) return null;
   const n = candles.length, cur = candles[n - 1];
   const { valBandBot: bBot, valBandTop: bTop, valBandMid: bMid, rowHeight: bH } = vp;
@@ -867,7 +896,8 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     else                      { const slBase = Math.min(sig.low  - atrBuf, sig.low  - rangeBuffer); sl = isPathB ? slBase - (cur.close - slBase) * 0.30 : slBase; }
 
     // Minimum SL % for stocks
-    const minSlDist = cur.close * CONFIG.STOCK_MIN_SL_PCT / 100;
+    const pairVolMult = PAIR_VOL_MULT[symbol] || 1.0;
+    const minSlDist = cur.close * CONFIG.STOCK_MIN_SL_PCT * pairVolMult / 100;
     if (direction === "BEAR" && (sl - cur.close) < minSlDist) sl = cur.close + minSlDist;
     if (direction === "BULL" && (cur.close - sl) < minSlDist) sl = cur.close - minSlDist;
 
@@ -877,6 +907,9 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
       if (direction === "BEAR" && (sl - cur.close) < atrFloor) sl = cur.close + atrFloor;
       if (direction === "BULL" && (cur.close - sl) < atrFloor) sl = cur.close - atrFloor;
     }
+
+    // v3.2: Volatility regime — widen SL in high-ATR environments
+    if (math && math.atrPct > 80) { const boost = Math.abs(sl - cur.close) * 0.20; sl = direction === "BEAR" ? sl + boost : sl - boost; }
 
     const entry = cur.close, slDist = Math.abs(entry - sl);
     let tp2 = bMid; // VP-anchored: institutional acceptance zone
@@ -937,9 +970,12 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
       { pass: wyckoff !== null,             item: "Market structure confirmed" },  // v3.1 Bug#7 Fix: wyckoff is computed above
     ];
 
+    // v3.2: Limit entry — prefer AVWAP as entry for better fills
+    const limitEntry = avwap ? (direction === "BEAR" ? Math.max(cur.close, avwap) : Math.min(cur.close, avwap)) : cur.close;
+
     return {
       direction, grade: "GWP", score: adjustedScore.toFixed(1), rawScore, age,
-      tf: tfCfg.tf, tfLabel: tfCfg.label,
+      tf: tfCfg.tf, tfLabel: tfCfg.label, limitEntry: f(limitEntry),
       path: isPathB ? "B — Sweep + Return ⚠️" : "A — Direct Return 🎯",
       isPathB, volumeSpike, avwapTrap, momentumBurst, zoneRevisit,
       entry: f(entry), sl: f(sl), tp1: f(tp1), tp2: f(tp2), tp3: f(tp3),
@@ -999,7 +1035,7 @@ function storePosition(symbol, r, conv, tfKey) {
     symbol, direction: r.direction, entry: parseFloat(r.entry), sl: parseFloat(r.sl),
     tp1: parseFloat(r.tp1), tp2: parseFloat(r.tp2), tp3: parseFloat(r.tp3),
     rr: r.rr, grade: r.grade, tf: tfKey, conviction: conv ? conv.score : "?",
-    isPathB: r.isPathB, reEntry: r.reEntry, state: "OPEN", tp1hit: false, tp2hit: false, ts: Date.now(),
+    isPathB: r.isPathB, reEntry: r.reEntry, state: "OPEN", tp1hit: false, tp2hit: false, sizeRemaining: 1.0, ts: Date.now(),
   }));
   appendSignalToFile(symbol, r, conv, tfKey);
 }
@@ -1019,11 +1055,11 @@ async function checkOpenPositions() {
     const f  = n => Number(n).toFixed(dp(Math.abs(n)));
     let msg = null;
     // Use high for BULL TP checks, low for BEAR TP checks (intracandle detection)
-    if (!p.tp1hit && (isL ? hi >= p.tp1 : lo <= p.tp1)) { p.tp1hit = true; msg = `🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
-    if (!p.tp2hit && (isL ? hi >= p.tp2 : lo <= p.tp2)) { p.tp2hit = true; msg = `🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
+    if (!p.tp1hit && (isL ? hi >= p.tp1 : lo <= p.tp1)) { p.tp1hit = true; p.sl = p.entry; p.sizeRemaining = 0.6; msg = `🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. SL→BE: <code>${f(p.entry)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
+    if (!p.tp2hit && (isL ? hi >= p.tp2 : lo <= p.tp2)) { p.tp2hit = true; p.sl = p.tp1; p.sizeRemaining = 0.3; msg = `🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code> SL→TP1: <code>${f(p.tp1)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
     if (p.tp2hit && (isL ? hi >= p.tp3 : lo <= p.tp3)) { msg = `🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, true, null); }
     // Use candle high for BEAR SL (wick through SL), candle low for BULL SL
-    if (isL ? lo <= p.sl : hi >= p.sl) { const pbN = p.isPathB ? `\n⚡ Path B re-entry: <code>${p.reEntry || "zone"}</code>` : ""; msg = `❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, false, null); }
+    if (isL ? lo <= p.sl : hi >= p.sl) { const adjPnl = (parseFloat(pnl) * (p.sizeRemaining || 1.0)).toFixed(3); const pbN = p.isPathB ? `\n⚡ Path B re-entry: <code>${p.reEntry || "zone"}</code>` : ""; msg = `❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${adjPnl}%</b>${pbN}\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, adjPnl, false, null); }
     if (msg) { await tgSend(msg); if (p.state === "CLOSED") delProp(key); else setProp(key, JSON.stringify(p)); } else { setProp(key, JSON.stringify(p)); }
   }
 }
@@ -1043,6 +1079,11 @@ async function trackClose(symbol, direction, pnlPct, isWin, convScore = null) {
   if (isWin) { w.wins = (w.wins || 0) + 1; recordWin(symbol); } else { w.losses = (w.losses || 0) + 1; await recordLoss(symbol); }
   w.pnl = parseFloat(((w.pnl || 0) + parseFloat(pnlPct || 0)).toFixed(3));
   const p = parseFloat(pnlPct || 0);
+  // v3.2: Per-pair tracking
+  if (!w.byPair) w.byPair = {};
+  if (!w.byPair[symbol]) w.byPair[symbol] = { wins: 0, losses: 0, pnl: 0 };
+  w.byPair[symbol][isWin ? 'wins' : 'losses']++;
+  w.byPair[symbol].pnl += parseFloat(pnlPct);
   if (w.bestPnl === undefined || p > w.bestPnl) { w.bestPnl = p; w.bestSym = symbol; }
   if (w.worstPnl === undefined || p < w.worstPnl) { w.worstPnl = p; w.worstSym = symbol; }
   if (convScore !== null) {
@@ -1068,6 +1109,13 @@ async function sendWeeklyReport() {
     if (w.worstSym) msg += `💀 Worst: ${w.worstSym} ${w.worstPnl}%\n`;
     msg += `🧠 Avg Conv — Wins: ${avgWinConv} | Losses: ${avgLossConv}\n`;
   } else { msg += `  No closed trades this week.\n`; }
+  if (w.byPair) {
+    msg += `\n📊 <b>By Pair:</b>\n`;
+    for (const [sym, d] of Object.entries(w.byPair)) {
+      const t = d.wins + d.losses;
+      msg += `  $${sym}: ${d.wins}W/${d.losses}L (${t > 0 ? ((d.wins/t)*100).toFixed(0) : '—'}%) P&L: ${d.pnl >= 0 ? '+' : ''}${d.pnl.toFixed(2)}%\n`;
+    }
+  }
   msg += `\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;
   await tgSend(msg);
 }
@@ -1145,6 +1193,7 @@ function formatSingleSignal(r, symbol, conv, ms, _label, d1Bias = "NEUTRAL", mat
     `${dirEmoji}  <b>${conv.score}/123</b>  ·  ${conv.grade}  ·  R:R <b>${r.rr}:1</b>${ageNote}${biasNote}\n` +
     `─────────────────────────────\n` +
     `<b>ENTRY</b>  <code>${r.entry}</code>   <b>SL</b>  <code>${r.sl}</code>  (-${r.slPct}%)\n` +
+    (r.limitEntry ? `<b>LIMIT</b>  <code>${r.limitEntry}</code>\n` : "") +
     `<b>TP1</b>  <code>${r.tp1}</code>  ·  <b>TP2</b>  <code>${r.tp2}</code>  ·  <b>TP3</b>  <code>${r.tp3}</code>\n` +
     `─────────────────────────────\n` +
     `📐  Size: <b>${getSizeMult(parseFloat(conv.score)).label}</b>\n` +
@@ -1345,9 +1394,9 @@ async function scanSingle(symbol) {
   const m4h   = c4h  ? runMathEngine(c4h)  : null;
   const m1h   = c1h  ? runMathEngine(c1h)  : null;
   const m15m  = c15m ? runMathEngine(c15m) : null;
-  const r4h   = c4h  && vp4h  ? detectGWP(c4h,  vp4h,  computeAVWAP(c4h,  TF_CONFIG.H4.avwapLookback),  m4h,  TF_CONFIG.H4)  : null;
-  const r1h   = c1h  && vp1h  ? detectGWP(c1h,  vp1h,  computeAVWAP(c1h,  TF_CONFIG.H1.avwapLookback),  m1h,  TF_CONFIG.H1)  : null;
-  const r15m2 = c15m && vp15m ? detectGWP(c15m, vp15m, computeAVWAP(c15m, TF_CONFIG.M15.avwapLookback), m15m, TF_CONFIG.M15) : null;
+  const r4h   = c4h  && vp4h  ? detectGWP(c4h,  vp4h,  computeAVWAP(c4h,  TF_CONFIG.H4.avwapLookback),  m4h,  TF_CONFIG.H4,  symbol)  : null;
+  const r1h   = c1h  && vp1h  ? detectGWP(c1h,  vp1h,  computeAVWAP(c1h,  TF_CONFIG.H1.avwapLookback),  m1h,  TF_CONFIG.H1,  symbol)  : null;
+  const r15m2 = c15m && vp15m ? detectGWP(c15m, vp15m, computeAVWAP(c15m, TF_CONFIG.M15.avwapLookback), m15m, TF_CONFIG.M15, symbol) : null;
   const ms4h  = r4h   ? analyzeMarketStructure(c4h,  r4h.direction,  TF_CONFIG.H4)  : null;
   const ms1h  = r1h   ? analyzeMarketStructure(c1h,  r1h.direction,  TF_CONFIG.H1)  : null;
   const ms15m = r15m2 ? analyzeMarketStructure(c15m, r15m2.direction, TF_CONFIG.M15) : null;
@@ -1408,6 +1457,15 @@ async function runBot() {
     return; // Skip this entire scan
   }
 
+  // v3.2: Daily max drawdown gate
+  const dayKey = "S1_D_" + getDateKey();
+  let dayData; try { dayData = JSON.parse(getProp(dayKey) || "{}"); } catch(e) { dayData = {}; }
+  if ((dayData.pnl || 0) <= -3) {
+    console.log("⛔ DAILY DRAWDOWN GATE: P&L " + dayData.pnl + "%");
+    await tgSend(`⛔ <b>DAILY DRAWDOWN GATE</b>\nP&L: <b>${dayData.pnl}%</b>\nSignals paused.\n\n<i>${V}</i>`);
+    return;
+  }
+
   for (const symbol of CONFIG.PAIRS) {
     try {
       console.log(`\n▶ $${symbol}`);
@@ -1447,9 +1505,9 @@ async function runBot() {
 
       console.log(`  4H: ${vp4h.valBandBot.toFixed(2)}–${vp4h.valBandTop.toFixed(2)} | Hurst:${m4h ? m4h.hurst.toFixed(3) : "?"} | Price:${c4h[c4h.length - 1].close.toFixed(2)}`);
 
-      const r4h  = detectGWP(c4h,  vp4h,  av4h,  m4h,  TF_CONFIG.H4);
-      const r1h  = vp1h  ? detectGWP(c1h,  vp1h,  av1h,  m1h,  TF_CONFIG.H1)  : null;
-      const r15m = vp15m ? detectGWP(c15m, vp15m, av15m, m15m, TF_CONFIG.M15) : null;
+      const r4h  = detectGWP(c4h,  vp4h,  av4h,  m4h,  TF_CONFIG.H4,  symbol);
+      const r1h  = vp1h  ? detectGWP(c1h,  vp1h,  av1h,  m1h,  TF_CONFIG.H1,  symbol)  : null;
+      const r15m = vp15m ? detectGWP(c15m, vp15m, av15m, m15m, TF_CONFIG.M15, symbol) : null;
 
       const ms4h  = r4h  ? analyzeMarketStructure(c4h,  r4h.direction,  TF_CONFIG.H4)  : null;
       const ms1h  = r1h  ? analyzeMarketStructure(c1h,  r1h.direction,  TF_CONFIG.H1)  : null;
@@ -1468,6 +1526,8 @@ async function runBot() {
           const conv15m = computeConviction(r15m, m15m, ms15m, "M15", false, true, d1Bias);
           const gate    = TF_CONFIG.H4.minConviction - CONFIG.CONFLUENCE_GATE_REDUCTION;
           if (parseFloat(conv4h.score) >= gate) {
+            const corrBlock = hasCorrelatedPosition(symbol, dir);
+            if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${dir}`); } else {
             console.log(`  🔥🔥🔥 TRIPLE! ${dir} Conv4H=${conv4h.score}`);
             await tgSend(formatTripleSignal(r4h, r1h, r15m, symbol, conv4h, conv1h, conv15m, ms4h, ms1h, ms15m, d1Bias));
             storePosition(symbol, r4h,  conv4h, "H4");
@@ -1476,7 +1536,7 @@ async function runBot() {
             markFired(symbol, dir, "TRIPLE");
             firedDir = dir;
             trackFired(symbol, r4h, "TRIPLE"); fired++; continue;
-          }
+          }}
         }
       }
 
@@ -1490,13 +1550,16 @@ async function runBot() {
           const gate   = TF_CONFIG.H4.minConviction - CONFIG.CONFLUENCE_GATE_REDUCTION;
           console.log(`  🔥🔥 CONFLUENCE! ${dir} 4H Conv=${conv4h.score} gate=${gate}`);
           if (parseFloat(conv4h.score) >= gate) {
+            const corrBlock = hasCorrelatedPosition(symbol, dir);
+            if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${dir}`); } else {
             await tgSend(formatConfluenceSignal(r4h, r1h, symbol, conv4h, conv1h, ms4h, ms1h, d1Bias));
             storePosition(symbol, r4h, conv4h, "H4"); storePosition(symbol, r1h, conv1h, "H1");
             setCooldown(symbol, dir, "H4"); setCooldown(symbol, dir, "H1");
             markFired(symbol, dir, "CONF");
             firedDir = dir;
             trackFired(symbol, r4h, "CONFLUENCE"); fired++; continue;
-          }
+          }}
+
         }
       }
 
@@ -1507,11 +1570,13 @@ async function runBot() {
           const conv = computeConviction(r4h, m4h, ms4h, "H4", false, false, d1Bias);
           console.log(`  4H conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H4.minConviction && !isDuplicate(symbol, r4h.direction, "H4")) {
+            const corrBlock = hasCorrelatedPosition(symbol, r4h.direction);
+            if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${r4h.direction}`); } else {
             await tgSend(formatSingleSignal(r4h, symbol, conv, ms4h, "", d1Bias, m4h));
             storePosition(symbol, r4h, conv, "H4"); setCooldown(symbol, r4h.direction, "H4");
             markFired(symbol, r4h.direction, "H4");
             trackFired(symbol, r4h, "H4"); fired++;
-          } else { console.log(`  ⚠️ 4H conv ${conv.score} below ${TF_CONFIG.H4.minConviction}`); }
+          }} else { console.log(`  ⚠️ 4H conv ${conv.score} below ${TF_CONFIG.H4.minConviction}`); }
         }
       }
 
@@ -1522,11 +1587,13 @@ async function runBot() {
           const conv = computeConviction(r1h, m1h, ms1h, "H1", false, false, d1Bias);
           console.log(`  1H conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H1.minConviction && !isDuplicate(symbol, r1h.direction, "H1")) {
+            const corrBlock = hasCorrelatedPosition(symbol, r1h.direction);
+            if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${r1h.direction}`); } else {
             await tgSend(formatSingleSignal(r1h, symbol, conv, ms1h, "⚡ <b>SCALP</b> —", d1Bias, m1h));
             storePosition(symbol, r1h, conv, "H1"); setCooldown(symbol, r1h.direction, "H1");
             markFired(symbol, r1h.direction, "H1");
             trackFired(symbol, r1h, "H1"); fired++;
-          } else { console.log(`  ⚠️ 1H conv ${conv.score} below ${TF_CONFIG.H1.minConviction}`); }
+          }} else { console.log(`  ⚠️ 1H conv ${conv.score} below ${TF_CONFIG.H1.minConviction}`); }
         }
       }
 
@@ -1537,12 +1604,15 @@ async function runBot() {
           const conv = computeConviction(r15m, m15m, ms15m, "M15", true, false, d1Bias);
           console.log(`  15M conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.M15.minConviction && !isDuplicate(symbol, r15m.direction, "M15")) {
+            const corrBlock = hasCorrelatedPosition(symbol, r15m.direction);
+            if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${r15m.direction}`); } else {
             await tgSend(formatSingleSignal(r15m, symbol, conv, ms15m, "🔬 <b>MICRO SNIPER</b> —", d1Bias, m15m));
             storePosition(symbol, r15m, conv, "M15");
             setCooldown(symbol, r15m.direction, "M15");
             markFired(symbol, r15m.direction, "M15");
             trackFired(symbol, r15m, "M15"); fired++;
-          }
+          }}
+
         }
       }
 

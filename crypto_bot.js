@@ -133,7 +133,31 @@ const CONFIG = {
   TP_HIT_DEDUP_MS: 14400000,
 };
 
-const V = "GWP Crypto v3.1 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Crypto v3.2 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+
+// v3.2: Per-pair volatility multiplier for SL sizing (higher = wider SL)
+const PAIR_VOL_MULT = {
+  "BTC-USDT":0.8, "SOL-USDT":1.5, "DEXE-USDT":1.8, "UNI-USDT":1.3,
+  "COMP-USDT":1.3, "SUSHI-USDT":1.6, "LINK-USDT":1.2,
+};
+
+const CORR_GROUPS = [
+  ["SOL-USDT","LINK-USDT","UNI-USDT","SUSHI-USDT"], // DeFi/L1
+  ["BTC-USDT"], // standalone
+  ["DEXE-USDT","COMP-USDT"], // DeFi governance
+];
+function getCorrelatedPairs(sym){
+  const g=CORR_GROUPS.find(gr=>gr.includes(sym));
+  return g?g.filter(s=>s!==sym):[];
+}
+function hasCorrelatedPosition(symbol,direction){
+  const corr=getCorrelatedPairs(symbol);
+  for(const cs of corr){
+    const keys=Object.keys(state).filter(k=>k.startsWith("APOS8_"+cs+"_"+direction));
+    for(const k of keys){try{const p=JSON.parse(state[k]);if(p&&p.state==="OPEN")return cs;}catch(e){}}
+  }
+  return null;
+}
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, "crypto_state.json");
@@ -645,14 +669,22 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
     if(ms.fvg&&ms.fvg.present)score+=3;
   }
 
-  // v3.1: D1 BIAS — soft whisper (+2 aligned / −1 counter).
-  // Rationale: D1 20-candle lag was suppressing valid 4H+1H entries with a
-  // 10-point swing on a 105-point scale. With 3-candle micro-D1, the bias
-  // is already fast — it only needs to whisper direction, not gate the signal.
-  if(d1Bias==='BULL'&&gwp.direction==='BULL') score+=2;
-  if(d1Bias==='BEAR'&&gwp.direction==='BEAR') score+=2;
-  if(d1Bias==='BULL'&&gwp.direction==='BEAR') score-=1;
-  if(d1Bias==='BEAR'&&gwp.direction==='BULL') score-=1;
+  // v3.2: D1 BIAS — heavier scoring (+6 aligned / −6 counter).
+  // With 3-candle micro-D1 responding fast, alignment is a strong signal.
+  if(d1Bias==='BULL'&&gwp.direction==='BULL') score+=6;
+  if(d1Bias==='BEAR'&&gwp.direction==='BEAR') score+=6;
+  if(d1Bias==='BULL'&&gwp.direction==='BEAR') score-=6;
+  if(d1Bias==='BEAR'&&gwp.direction==='BULL') score-=6;
+
+  // v3.2: Session-aware conviction
+  const h=new Date().getUTCHours();
+  if(h>=12&&h<=16) score+=3; // London/NY overlap — best signals
+  else if(h>=7&&h<12) score+=1; // London
+  else if(h>=0&&h<7) score-=2; // Asia — weaker signals
+
+  // v3.2: Volatility regime
+  if(math&&math.atrPct<15) score-=4; // extreme low vol — unreliable
+  if(math&&math.atrPct>85) score+=2; // high vol — strong moves
 
   // CONFLUENCE BOOSTS
   if(isTriple)  score+=CONFIG.TRIPLE_TF_BOOST;
@@ -687,7 +719,7 @@ function getZoneTouchCount(candles, bBot, bTop) {
 
 // ── CORE GWP DETECTOR ─────────────────────────────────────────────────────────
 // v8.0: ATR floor on SL, Vol+AVWAP institutional gate, age penalty 0.5→0.75, TP3=3.0×
-function detectGWP(candles,vp,avwap,math,tfCfg){
+function detectGWP(candles,vp,avwap,math,tfCfg,symbol){
   if(!candles||candles.length<6||!vp)return null;
   const n=candles.length,cur=candles[n-1];
   const{valBandBot:bBot,valBandTop:bTop,valBandMid:bMid,rowHeight:bH}=vp;
@@ -740,7 +772,8 @@ function detectGWP(candles,vp,avwap,math,tfCfg){
     else{const slBase=Math.min(sig.low-atrBuf,sig.low-rangeBuffer);sl=isPathB?slBase-(cur.close-slBase)*0.30:slBase;}
 
     // Layer 3: enforce minimum SL % for crypto (v8.0: 1.2%)
-    const minSlDist=(cur.close*CONFIG.CRYPTO_MIN_SL_PCT/100);
+    const pairVolMult=PAIR_VOL_MULT[symbol]||1.0;
+    const minSlDist=(cur.close*CONFIG.CRYPTO_MIN_SL_PCT*pairVolMult/100);
     if(direction==="BEAR"&&(sl-cur.close)<minSlDist)sl=cur.close+minSlDist;
     if(direction==="BULL"&&(cur.close-sl)<minSlDist)sl=cur.close-minSlDist;
 
@@ -748,6 +781,8 @@ function detectGWP(candles,vp,avwap,math,tfCfg){
     const atrFloor = atr * CONFIG.ATR_SL_FLOOR_MULT;
     if(direction==="BEAR"&&(sl-cur.close)<atrFloor)sl=cur.close+atrFloor;
     if(direction==="BULL"&&(cur.close-sl)<atrFloor)sl=cur.close-atrFloor;
+    // v3.2: High-vol regime SL boost
+    if(math&&math.atrPct>80){const boost=Math.abs(sl-cur.close)*0.20;sl=direction==="BEAR"?sl+boost:sl-boost;}
     // ─────────────────────────────────────────────────────────────────────────
 
     const entry=cur.close,tp2=bMid;
@@ -810,12 +845,15 @@ function detectGWP(candles,vp,avwap,math,tfCfg){
     const reEntry=isPathB?f(direction==="BEAR"?entry+Math.abs(entry-sl)*0.8:entry-Math.abs(entry-sl)*0.8):null;
     console.log(`  ✅ GWP [${tfCfg.label}]: ${direction} | age=${age} | ${grade} | score=${adjustedScore.toFixed(1)} | R:R=${rr.toFixed(2)} | SL=${f(sl)} (${(Math.abs(entry-sl)/entry*100).toFixed(2)}%) | VolSpike=${volumeSpike} | AvwapTrap=${avwapTrap}`);
 
+    const limitEntry = avwap ? (direction==="BEAR" ? Math.max(cur.close, avwap) : Math.min(cur.close, avwap)) : cur.close;
+
     return{
       direction,grade,score:adjustedScore.toFixed(1),rawScore,age,
       tf:tfCfg.tf,tfLabel:tfCfg.label,
       path:isPathB?"B — Sweep + Return ⚠️":"A — Direct Return 🎯",
       isPathB,volumeSpike,avwapTrap,momentumBurst,zoneRevisit,
       entry:f(entry),sl:f(sl),tp1:f(tp1),tp2:f(tp2),tp3:f(tp3),rr:rr.toFixed(2),
+      limitEntry:f(limitEntry),
       slPct:(Math.abs(entry-sl)/entry*100).toFixed(2),
       tp1Pct:(Math.abs(entry-tp1)/entry*100).toFixed(2),
       tp2Pct:(Math.abs(entry-tp2)/entry*100).toFixed(2),
@@ -914,7 +952,7 @@ function storePosition(symbol,r,conv,tfKey){
     symbol,direction:r.direction,entry:parseFloat(r.entry),sl:parseFloat(r.sl),
     tp1:parseFloat(r.tp1),tp2:parseFloat(r.tp2),tp3:parseFloat(r.tp3),
     rr:r.rr,grade:r.grade,tf:tfKey,conviction:conv?conv.score:"?",
-    isPathB:r.isPathB,reEntry:r.reEntry,state:"OPEN",tp1hit:false,tp2hit:false,ts:Date.now(),
+    isPathB:r.isPathB,reEntry:r.reEntry,state:"OPEN",tp1hit:false,tp2hit:false,sizeRemaining:1.0,ts:Date.now(),
   }));
   appendSignalToFile(symbol, r, conv, tfKey);
 }
@@ -954,17 +992,21 @@ async function checkOpenPositions(){
     // Use high for BULL TP checks, low for BEAR TP checks (intracandle detection)
     if(!tp1Sent&&(isL?hi>=p.tp1:lo<=p.tp1)){
       p.tp1hit=true;
+      p.sl=p.entry; // v3.2: move SL to breakeven
+      p.sizeRemaining=0.6; // v3.2: 40% exited
       setProp(tp1DedupKey,Date.now().toString()); // v8.1: secondary dedup key
-      msg=`🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;
+      msg=`🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. SL moved to BE: <code>${f(p.entry)}</code>\nRemaining: 60%\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;
     }
     if(!tp2Sent&&(isL?hi>=p.tp2:lo<=p.tp2)){
       p.tp2hit=true;
+      p.sl=p.tp1; // v3.2: trail SL to TP1 level
+      p.sizeRemaining=0.3; // v3.2: another 30% exited
       setProp(tp2DedupKey,Date.now().toString()); // v8.1: secondary dedup key
-      msg=`🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;
+      msg=`🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nSL trailing TP1: <code>${f(p.tp1)}</code>\nRemaining: 30%\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;
     }
-    if(p.tp2hit&&(isL?hi>=p.tp3:lo<=p.tp3)){msg=`🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,true,null);}
+    if(p.tp2hit&&(isL?hi>=p.tp3:lo<=p.tp3)){const partialPnl=(parseFloat(pnl)*(p.sizeRemaining||0.3)).toFixed(3);msg=`🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit (final ${((p.sizeRemaining||0.3)*100).toFixed(0)}%). P&L: <b>+${partialPnl}%</b> (on remaining)\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,true,null);}
     // Use candle high for BEAR SL (wick through SL), candle low for BULL SL
-    if(isL?lo<=p.sl:hi>=p.sl){const pbN=p.isPathB?`\n⚡ Path B re-entry: <code>${p.reEntry||"zone"}</code>`:"";msg=`❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,pnl,false,null);}
+    if(isL?lo<=p.sl:hi>=p.sl){const szRem=p.sizeRemaining||1.0;const adjPnl=(parseFloat(pnl)*szRem).toFixed(3);const pbN=p.isPathB?`\n⚡ Path B re-entry: <code>${p.reEntry||"zone"}</code>`:"";msg=`❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nRemaining: ${(szRem*100).toFixed(0)}%\nP&L: <b>${adjPnl}%</b>${pbN}\n\n<i>${V}</i>`;p.state="CLOSED";await trackClose(p.symbol,p.direction,adjPnl,false,null);}
     if(msg){await tgSend(msg);if(p.state==="CLOSED")delProp(key);else setProp(key,JSON.stringify(p));}else{setProp(key,JSON.stringify(p));}
   }
 }
@@ -982,11 +1024,16 @@ function trackFired(symbol,r,mode){
 async function trackClose(symbol, direction, pnlPct, isWin, convScore = null) {
   const wk = "A8_W_" + getWeekKey(); let w; try { w = JSON.parse(getProp(wk) || "{}"); } catch(e) { w = {}; }
   if (isWin) { w.wins = (w.wins || 0) + 1; recordWin(symbol); } else { w.losses = (w.losses || 0) + 1; await recordLoss(symbol); }
-  w.pnl = parseFloat(((w.pnl || 0) + parseFloat(pnlPct || 0)).toFixed(3));
+  const pnlFloat = parseFloat(pnlPct || 0);
+  w.pnl = parseFloat(((w.pnl || 0) + pnlFloat).toFixed(3));
+  // v3.2: Per-pair stats
+  if(!w.byPair) w.byPair={};
+  if(!w.byPair[symbol]) w.byPair[symbol]={wins:0,losses:0,pnl:0};
+  w.byPair[symbol][isWin?'wins':'losses']++;
+  w.byPair[symbol].pnl+=pnlFloat;
   // Track best/worst trade
-  const p = parseFloat(pnlPct || 0);
-  if (w.bestPnl === undefined || p > w.bestPnl) { w.bestPnl = p; w.bestSym = symbol; }
-  if (w.worstPnl === undefined || p < w.worstPnl) { w.worstPnl = p; w.worstSym = symbol; }
+  if (w.bestPnl === undefined || pnlFloat > w.bestPnl) { w.bestPnl = pnlFloat; w.bestSym = symbol; }
+  if (w.worstPnl === undefined || pnlFloat < w.worstPnl) { w.worstPnl = pnlFloat; w.worstSym = symbol; }
   // Track avg conviction of winners vs losers
   if (convScore !== null) {
     if (isWin) { w.winConvSum = (w.winConvSum || 0) + convScore; w.winConvN = (w.winConvN || 0) + 1; }
@@ -1011,6 +1058,13 @@ async function sendWeeklyReport() {
     if (w.worstSym) msg += `💀 Worst: ${w.worstSym} ${w.worstPnl}%\n`;
     msg += `🧠 Avg Conv — Wins: ${avgWinConv} | Losses: ${avgLossConv}\n`;
   } else { msg += `  No closed trades this week.\n`; }
+  if(w.byPair){
+    msg += `\n📊 <b>By Pair:</b>\n`;
+    for(const [sym,d] of Object.entries(w.byPair)){
+      const t=d.wins+d.losses;
+      msg += `  ${sym}: ${d.wins}W/${d.losses}L (${t>0?((d.wins/t)*100).toFixed(0):'—'}%) P&L: ${d.pnl>=0?'+':''}${d.pnl.toFixed(2)}%\n`;
+    }
+  }
   msg += `\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;
   await tgSend(msg);
 }
@@ -1103,6 +1157,8 @@ function formatSingleSignal(r,symbol,conv,ms,_label,d1Bias='NEUTRAL',math=null){
     `${dirEmoji}  <b>${conv.score}/123</b>  ·  ${conv.grade}  ·  R:R <b>${r.rr}:1</b>${ageNote}${biasNote}\n`+
     `─────────────────────────────\n`+
     `<b>ENTRY</b>  <code>${r.entry}</code>   <b>SL</b>  <code>${r.sl}</code>  (-${r.slPct}%)\n`+
+    (r.limitEntry && Math.abs(parseFloat(r.limitEntry) - parseFloat(r.entry)) / parseFloat(r.entry) > 0.001
+      ? `📍  <b>LIMIT</b>  <code>${r.limitEntry}</code>  (better fill vs market)\n` : "")+
     `<b>TP1</b>  <code>${r.tp1}</code>  ·  <b>TP2</b>  <code>${r.tp2}</code>  ·  <b>TP3</b>  <code>${r.tp3}</code>${tp4Note}\n`+
     `─────────────────────────────\n`+
     `📐  Size: <b>${getSizeMult(parseFloat(conv.score)).label}</b>\n`+
@@ -1363,9 +1419,9 @@ async function scanSingle(symbol){
   const vp1h=c1h?computeVolumeProfile(c1h,TF_CONFIG.H1.vpLookback):null;
   const vp15m=c15m?computeVolumeProfile(c15m,TF_CONFIG.M15.vpLookback):null;
   const m4h=c4h?runMathEngine(c4h):null,m1h=c1h?runMathEngine(c1h):null,m15m=c15m?runMathEngine(c15m):null;
-  const r4h=c4h&&vp4h?detectGWP(c4h,vp4h,computeAVWAP(c4h,TF_CONFIG.H4.avwapLookback),m4h,TF_CONFIG.H4):null;
-  const r1h=c1h&&vp1h?detectGWP(c1h,vp1h,computeAVWAP(c1h,TF_CONFIG.H1.avwapLookback),m1h,TF_CONFIG.H1):null;
-  const r15m=c15m&&vp15m?detectGWP(c15m,vp15m,computeAVWAP(c15m,TF_CONFIG.M15.avwapLookback),m15m,TF_CONFIG.M15):null;
+  const r4h=c4h&&vp4h?detectGWP(c4h,vp4h,computeAVWAP(c4h,TF_CONFIG.H4.avwapLookback),m4h,TF_CONFIG.H4,symbol):null;
+  const r1h=c1h&&vp1h?detectGWP(c1h,vp1h,computeAVWAP(c1h,TF_CONFIG.H1.avwapLookback),m1h,TF_CONFIG.H1,symbol):null;
+  const r15m=c15m&&vp15m?detectGWP(c15m,vp15m,computeAVWAP(c15m,TF_CONFIG.M15.avwapLookback),m15m,TF_CONFIG.M15,symbol):null;
   const ms4h=r4h?analyzeMarketStructure(c4h,r4h.direction,TF_CONFIG.H4):null;
   const ms1h=r1h?analyzeMarketStructure(c1h,r1h.direction,TF_CONFIG.H1):null;
   const ms15m=r15m?analyzeMarketStructure(c15m,r15m.direction,TF_CONFIG.M15):null;
@@ -1417,6 +1473,15 @@ async function runBot(){
     return; // Skip this entire scan
   }
 
+  // v3.2: Daily drawdown gate
+  const dayKey="A8_D_"+getDateKey();
+  let dayData;try{dayData=JSON.parse(getProp(dayKey)||"{}");}catch(e){dayData={};}
+  if((dayData.pnl||0)<=-3){
+    console.log("⛔ DAILY DRAWDOWN GATE: P&L "+dayData.pnl+"% — pausing all signals");
+    await tgSend(`⛔ <b>DAILY DRAWDOWN GATE</b>\nP&L today: <b>${dayData.pnl}%</b>\nAll signals paused until tomorrow.\n\n<i>${V}</i>`);
+    return;
+  }
+
   for(const symbol of CONFIG.PAIRS){
     try{
       console.log(`\n▶ ${symbol}`);
@@ -1447,9 +1512,9 @@ async function runBot(){
 
       console.log(`  4H: ${vp4h.valBandBot.toFixed(4)}–${vp4h.valBandTop.toFixed(4)} | Hurst:${m4h?m4h.hurst.toFixed(3):"?"}`);
 
-      const r4h=detectGWP(c4h,vp4h,av4h,m4h,TF_CONFIG.H4);
-      const r1h=vp1h?detectGWP(c1h,vp1h,av1h,m1h,TF_CONFIG.H1):null;
-      const r15m=vp15m?detectGWP(c15m,vp15m,av15m,m15m,TF_CONFIG.M15):null;
+      const r4h=detectGWP(c4h,vp4h,av4h,m4h,TF_CONFIG.H4,symbol);
+      const r1h=vp1h?detectGWP(c1h,vp1h,av1h,m1h,TF_CONFIG.H1,symbol):null;
+      const r15m=vp15m?detectGWP(c15m,vp15m,av15m,m15m,TF_CONFIG.M15,symbol):null;
 
       const ms4h=r4h?analyzeMarketStructure(c4h,r4h.direction,TF_CONFIG.H4):null;
       const ms1h=r1h?analyzeMarketStructure(c1h,r1h.direction,TF_CONFIG.H1):null;
@@ -1469,6 +1534,8 @@ async function runBot(){
           const conv15m=computeConviction(r15m,m15m,ms15m,"M15",false,true,d1Bias);
           const gate=TF_CONFIG.H4.minConviction-CONFIG.CONFLUENCE_GATE_REDUCTION;
           if(parseFloat(conv4h.score)>=gate){
+            const corrBlock=hasCorrelatedPosition(symbol,dir);
+            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
             console.log(`  🔥🔥🔥 TRIPLE! ${dir} Conv4H=${conv4h.score}`);
             await tgSend(formatTripleSignal(r4h,r1h,r15m,symbol,conv4h,conv1h,conv15m,ms4h,ms1h,ms15m,d1Bias));
             storePosition(symbol,r4h,conv4h,"H4");storePosition(symbol,r1h,conv1h,"H1");
@@ -1490,6 +1557,8 @@ async function runBot(){
           const gate=TF_CONFIG.H4.minConviction-CONFIG.CONFLUENCE_GATE_REDUCTION;
           console.log(`  🔥🔥 CONFLUENCE! ${dir} 4H Conv=${conv4h.score} gate=${gate}`);
           if(parseFloat(conv4h.score)>=gate){
+            const corrBlock=hasCorrelatedPosition(symbol,dir);
+            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
             await tgSend(formatConfluenceSignal(r4h,r1h,symbol,conv4h,conv1h,ms4h,ms1h,d1Bias));
             storePosition(symbol,r4h,conv4h,"H4");storePosition(symbol,r1h,conv1h,"H1");
             setCooldown(symbol,dir,"H4");setCooldown(symbol,dir,"H1");
@@ -1517,11 +1586,14 @@ async function runBot(){
               if (fDir==="BEAR" && funding.rate < -0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
             }
             r4h._fundingLabel = funding.label;
+            const corrBlock=hasCorrelatedPosition(symbol,r4h.direction);
+            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${r4h.direction}`);}
+            else{
             await tgSend(formatSingleSignal(r4h,symbol,conv,ms4h,"",d1Bias,m4h));
             storePosition(symbol,r4h,conv,"H4");setCooldown(symbol,r4h.direction,"H4");
             markFired(symbol,r4h.direction,"H4");
             firedDir=r4h.direction;
-            trackFired(symbol,r4h,"H4");fired++;
+            trackFired(symbol,r4h,"H4");fired++;}
           }else{console.log(`  ⚠️ 4H conv ${conv.score} below ${TF_CONFIG.H4.minConviction}`);}
         }
       }
@@ -1543,10 +1615,13 @@ async function runBot(){
               if (fDir==="BEAR" && funding.rate < -0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
             }
             r1h._fundingLabel = funding.label;
+            const corrBlock=hasCorrelatedPosition(symbol,r1h.direction);
+            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${r1h.direction}`);}
+            else{
             await tgSend(formatSingleSignal(r1h,symbol,conv,ms1h,"⚡ <b>SCALP</b> —",d1Bias,m1h));
             storePosition(symbol,r1h,conv,"H1");setCooldown(symbol,r1h.direction,"H1");
             markFired(symbol,r1h.direction,"H1");
-            trackFired(symbol,r1h,"H1");fired++;
+            trackFired(symbol,r1h,"H1");fired++;}
           }else{console.log(`  ⚠️ 1H conv ${conv.score} below ${TF_CONFIG.H1.minConviction}`);}
         }
       }
@@ -1568,11 +1643,14 @@ async function runBot(){
               if (fDir==="BEAR" && funding.rate < -0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
             }
             r15m._fundingLabel = funding.label;
+            const corrBlock=hasCorrelatedPosition(symbol,r15m.direction);
+            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${r15m.direction}`);}
+            else{
             await tgSend(formatSingleSignal(r15m,symbol,conv,ms15m,"🔬 <b>MICRO SNIPER</b> —",d1Bias,m15m));
             storePosition(symbol,r15m,conv,"M15");
             setCooldown(symbol,r15m.direction,"M15");
             markFired(symbol,r15m.direction,"M15");
-            trackFired(symbol,r15m,"M15");fired++;
+            trackFired(symbol,r15m,"M15");fired++;}
           }
         }
       }
