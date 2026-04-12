@@ -71,7 +71,7 @@ const TF_CONFIG = {
   H4: {
     tf:"H4", label:"4H",
     vpLookback:100, avwapLookback:30,
-    minRR:2.0,          // v8.0: raised 1.8 → 2.0
+    minRR:1.5,          // v3.3: lowered 2.0 → 1.5 (backtest: R:R gate was killing 98% of valid signals)
     minConviction:52, cooldownHrs:4,
     atrBufMult:0.55, maxAge:2, avwapProx:0.004,
     volLookback:20, msLookback:80, swingStrength:3,
@@ -80,7 +80,7 @@ const TF_CONFIG = {
   H1: {
     tf:"H1", label:"1H",
     vpLookback:60, avwapLookback:20,
-    minRR:1.6, minConviction:54, cooldownHrs:2,
+    minRR:1.4, minConviction:54, cooldownHrs:2,  // v3.3: minRR 1.6 → 1.4
     atrBufMult:0.65, maxAge:1, avwapProx:0.005,
     volLookback:20, msLookback:60, swingStrength:3,
     volSpikeMult:1.3,
@@ -123,10 +123,10 @@ const CONFIG = {
   DEDUP_WINDOW_MS: 3600000,
 
   // v8.0: CRYPTO_MIN_SL_PCT raised 0.35 → 1.2 (CRITICAL FIX — hairline SL)
-  CRYPTO_MIN_SL_PCT: 2.0,  // v3.1.2: raised 1.2 → 2.0 (1.2% too tight for SOL/DEXE volatility)
+  CRYPTO_MIN_SL_PCT: 1.5,  // v3.3: lowered 2.0 → 1.5 (backtest: 2.0% × pair mult created SLs too wide for VAL band targets)
 
   // v8.0: ATR floor — SL must be ≥ this multiple of ATR from entry
-  ATR_SL_FLOOR_MULT: 1.5,
+  ATR_SL_FLOOR_MULT: 1.0,  // v3.3: lowered 1.5 → 1.0 (backtest: 1.5×ATR too wide for crypto volatility)
 
   // v8.1: TP hit dedup window — 4 hours prevents repeat TP alerts even if
   // state file fails to persist across runs

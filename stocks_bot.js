@@ -70,7 +70,7 @@ const TF_CONFIG = {
   H4: {
     tf:"H4", label:"4H",
     vpLookback:100, avwapLookback:30,
-    minRR:2.0, minConviction:52, cooldownHrs:4,
+    minRR:1.5, minConviction:52, cooldownHrs:4,  // v3.3: minRR 2.0 → 1.5 (backtest: R:R gate too restrictive)
     atrBufMult:0.55, maxAge:2, avwapProx:0.003,
     volLookback:20, msLookback:80, swingStrength:3,
     volSpikeMult:1.2,
@@ -78,7 +78,7 @@ const TF_CONFIG = {
   H1: {
     tf:"H1", label:"1H",
     vpLookback:60, avwapLookback:20,
-    minRR:1.6, minConviction:54, cooldownHrs:2,
+    minRR:1.4, minConviction:54, cooldownHrs:2,  // v3.3: minRR 1.6 → 1.4
     atrBufMult:0.65, maxAge:1, avwapProx:0.004,
     volLookback:20, msLookback:60, swingStrength:3,
     volSpikeMult:1.3,
@@ -123,11 +123,11 @@ const CONFIG = {
   MAX_RETRIES:2, RETRY_DELAY_MS:3000,
   DEDUP_WINDOW_MS: 3600000,
 
-  // Stock SL floor: 0.8% minimum (stocks less gappy than crypto)
-  STOCK_MIN_SL_PCT: 0.8,
+  // v3.3: Stock SL floor lowered 0.8 → 0.6 (proportional to crypto SL reduction)
+  STOCK_MIN_SL_PCT: 0.6,
 
-  // ATR floor — SL must be ≥ this multiple of ATR from entry
-  ATR_SL_FLOOR_MULT: 1.5,
+  // v3.3: ATR floor lowered 1.5 → 1.0 (backtest: 1.5×ATR too wide, killed R:R)
+  ATR_SL_FLOOR_MULT: 1.0,
 
   // v3.0 Gist publishing (merged repo — same Gist as crypto+forex)
   GH_PAT:  process.env.GH_PAT  || "",
