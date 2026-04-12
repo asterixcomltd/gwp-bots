@@ -262,7 +262,7 @@ function calcVolumeRatio(candles,p=20){
   return avg>0?sl[sl.length-1].vol/avg:1.0;
 }
 function calcHurst(closes){
-  if(closes.length<20)return 0.5;
+  if(closes.length<120)return 0.5; // Bug#15: 120+ candles needed for Hurst
   const rets=[];for(let i=1;i<closes.length;i++)rets.push(Math.log(closes[i]/closes[i-1]));
   const lags=[4,8,16].filter(l=>l<rets.length-2);if(lags.length<2)return 0.5;
   const rsVals=lags.map(lag=>{const chunks=Math.floor(rets.length/lag);let rsSum=0;

@@ -427,7 +427,7 @@ function calcVolumeRatio(candles, p = 20) {
   return avg > 0 ? sl[sl.length - 1].vol / avg : 1.0;
 }
 function calcHurst(closes) {
-  if (closes.length < 20) return 0.5;
+  if (closes.length < 120) return 0.5; // Bug#15: 120+ candles needed for Hurst
   const rets = []; for (let i = 1; i < closes.length; i++) rets.push(Math.log(closes[i] / closes[i - 1]));
   const lags = [4, 8, 16].filter(l => l < rets.length - 2); if (lags.length < 2) return 0.5;
   const rsVals = lags.map(lag => {
@@ -879,7 +879,9 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     }
 
     const entry = cur.close, slDist = Math.abs(entry - sl);
-    const tp2 = direction === "BEAR" ? entry - slDist * 2.0 : entry + slDist * 2.0;
+    let tp2 = bMid; // VP-anchored: institutional acceptance zone
+    if (direction === "BEAR" && tp2 >= entry) tp2 = entry - slDist * 2.0;
+    if (direction === "BULL" && tp2 <= entry) tp2 = entry + slDist * 2.0;
     // v3.1 Fix #6: Structural TP1 — use nearest swing level between entry and TP2
     // Falls back to VP band edge if no swing exists in range
     const msSlice6 = candles.slice(-Math.min(tfCfg.msLookback, candles.length));
@@ -900,13 +902,13 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     }
     // Safety: if structural TP1 is too close (< 0.3% from entry), fallback to bH distance
     if (Math.abs(entry - tp1) / entry < 0.003) {
-      tp1 = direction === "BEAR" ? entry - bH * 1.0 : entry + bH * 1.0;
+      tp1 = direction === "BEAR" ? entry - Math.abs(entry - tp2) * 0.35 : entry + Math.abs(entry - tp2) * 0.35;
     }
-    const tp3 = direction === "BEAR" ? entry - slDist * CONFIG.TP3_MULT : entry + slDist * CONFIG.TP3_MULT;
-    const tp4 = direction === "BEAR" ? entry - slDist * 4.0 : entry + slDist * 4.0;
-    const rr  = slDist > 0 ? Math.abs(tp2 - entry) / slDist : 0;
-
+    let rr = slDist > 0 ? Math.abs(tp2 - entry) / slDist : 0;
+    if (rr < tfCfg.minRR) { tp1 = direction === "BEAR" ? bBot : bTop; rr = slDist > 0 ? Math.abs(tp1 - entry) / slDist : 0; }
     if (rr < tfCfg.minRR) { console.log(`  GWP ${direction} ${tfCfg.label} age=${age}: RR=${rr.toFixed(2)} < ${tfCfg.minRR}`); continue; }
+    const tp3 = direction === "BEAR" ? entry - Math.abs(entry - tp2) * CONFIG.TP3_MULT : entry + Math.abs(entry - tp2) * CONFIG.TP3_MULT;
+    const tp4 = direction === "BEAR" ? entry - Math.abs(entry - tp2) * 2.0 : entry + Math.abs(entry - tp2) * 2.0;
 
     const reEntry = direction === "BEAR" ? (cur.close * 0.998).toFixed(4) : (cur.close * 1.002).toFixed(4);
     // v3.1 Bug#6 Fix: align agePenalty with crypto/forex (subtractor not multiplier)
@@ -1583,18 +1585,19 @@ async function runBot() {
     }
   }
 
-  // Only run the scheduled/mode action if no Telegram commands were just handled.
-  // (Prevents double-scan when /scan is sent, and avoids redundant runs after /health etc.)
-  if (commandsHandled === 0) {
-    if (mode === "scan")          await runBot();
-    if (mode === "daily")         await sendDailySummary();
-    if (mode === "weekly")        await sendWeeklySummary();
-    if (mode === "weeklyreport")  await sendWeeklyReport();  // v3.1 Fix #10
-    if (mode === "health")        await sendHealth();
-    // v3.1 Fix #10: Auto weekly report on Friday UTC 21:00 run
-    if (mode === "scan" && new Date().getUTCDay() === 5 && new Date().getUTCHours() === 21) await sendWeeklyReport();
-  } else {
-    console.log(`  ${commandsHandled} command(s) handled — skipping scheduled mode action.`);
+  // Bug#14: daily/weekly/health modes run unconditionally; only scan is gated by commandsHandled
+  if (mode === "daily")         await sendDailySummary();
+  if (mode === "weekly")        await sendWeeklySummary();
+  if (mode === "weeklyreport")  await sendWeeklyReport();
+  if (mode === "health")        await sendHealth();
+  if (mode === "scan" && new Date().getUTCDay() === 5 && new Date().getUTCHours() === 21) await sendWeeklyReport();
+
+  if (mode === "scan") {
+    if (commandsHandled === 0) {
+      await runBot();
+    } else {
+      console.log(`  ${commandsHandled} command(s) handled — skipping scheduled mode action.`);
+    }
   }
 
   // Send startup message only on first run of the day

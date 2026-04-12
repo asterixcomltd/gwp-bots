@@ -255,7 +255,7 @@ function calcVolumeRatio(candles,p=20){
   return avg>0?sl[sl.length-1].vol/avg:1.0;
 }
 function calcHurst(closes){
-  if(closes.length<20)return 0.5;
+  if(closes.length<120)return 0.5; // Bug#15: 120+ candles needed for Hurst
   const rets=[];for(let i=1;i<closes.length;i++)rets.push(Math.log(closes[i]/closes[i-1]));
   const lags=[4,8,16].filter(l=>l<rets.length-2);if(lags.length<2)return 0.5;
   const rsVals=lags.map(lag=>{const chunks=Math.floor(rets.length/lag);let rsSum=0;
@@ -1368,10 +1368,12 @@ async function runBot(){
       console.log(`\n▶ ${pair.symbol} (forex)`);
       if(isCircuitBroken(pair.symbol)){console.log("  ⛔ Circuit breaker");continue;}
 
-      const c4h  = await fetchCandles(pair,"H4", TF_CONFIG.H4.vpLookback+20);
-      const c1h  = await fetchCandles(pair,"H1", TF_CONFIG.H1.vpLookback+20);
-      const c15m = await fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20);
-      const cd1  = await fetchCandles(pair,"D1", 30);  // v8.0: D1 for bias context
+      const [c4h, c1h, c15m, cd1] = await Promise.all([
+        fetchCandles(pair,"H4", TF_CONFIG.H4.vpLookback+20),
+        fetchCandles(pair,"H1", TF_CONFIG.H1.vpLookback+20),
+        fetchCandles(pair,"M15",TF_CONFIG.M15.vpLookback+20),
+        fetchCandles(pair,"D1", 30),
+      ]);
       if(!c4h||c4h.length<30){console.log("  No 4H data");continue;}
 
       const d1Bias = getD1Bias(cd1);
