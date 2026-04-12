@@ -100,7 +100,7 @@ const CONFIG = {
   TELEGRAM_TOKEN : process.env.CRYPTO_TG_TOKEN || "",
   CHAT_ID        : process.env.CRYPTO_CHAT_ID  || "",
 
-  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","SUSHI-USDT","BTC-USDT","LINK-USDT"],  // v3.0: 7 pairs (removed ETH,AVAX,ARB,INJ; added COMP)
+  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","SUSHI-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT"],  // v3.5: 9 pairs (+ETH,NEAR — backtest-validated positive expectancy)
 
   CAPITAL:5, RISK_PCT:1.5, LEVERAGE:20,
   VP_ROWS:24, MIN_WICK_DEPTH_PCT:0.12, MIN_BODY_GAP_PCT:0.08,
@@ -139,11 +139,12 @@ const V = "GWP Crypto v3.2 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 const PAIR_VOL_MULT = {
   "BTC-USDT":0.8, "SOL-USDT":1.5, "DEXE-USDT":1.8, "UNI-USDT":1.3,
   "COMP-USDT":1.3, "SUSHI-USDT":1.6, "LINK-USDT":1.2,
+  "ETH-USDT":0.9, "NEAR-USDT":1.4,  // v3.5: added (ETH low-vol like BTC, NEAR mid-vol like UNI)
 };
 
 const CORR_GROUPS = [
-  ["SOL-USDT","LINK-USDT","UNI-USDT","SUSHI-USDT"], // DeFi/L1
-  ["BTC-USDT"], // standalone
+  ["SOL-USDT","LINK-USDT","UNI-USDT","SUSHI-USDT","NEAR-USDT"], // DeFi/L1
+  ["BTC-USDT","ETH-USDT"], // majors
   ["DEXE-USDT","COMP-USDT"], // DeFi governance
 ];
 function getCorrelatedPairs(sym){
