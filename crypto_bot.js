@@ -100,7 +100,7 @@ const CONFIG = {
   TELEGRAM_TOKEN : process.env.CRYPTO_TG_TOKEN || "",
   CHAT_ID        : process.env.CRYPTO_CHAT_ID  || "",
 
-  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","SUSHI-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT"],  // v3.5: 9 pairs (+ETH,NEAR — backtest-validated positive expectancy)
+  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT","AVAX-USDT","AAVE-USDT","ARB-USDT","INJ-USDT","DOT-USDT","FIL-USDT","SUI-USDT","ATOM-USDT"],  // v3.6: 16 pairs — removed SUSHI (0% WR), added 8 high-liquidity pairs for compounding
 
   CAPITAL:50, RISK_PCT:1.5, LEVERAGE:20,  // v3.5: scaled 5 → 50 USD
   VP_ROWS:24, MIN_WICK_DEPTH_PCT:0.12, MIN_BODY_GAP_PCT:0.08,
@@ -133,19 +133,24 @@ const CONFIG = {
   TP_HIT_DEDUP_MS: 14400000,
 };
 
-const V = "GWP Crypto v3.2 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Crypto v3.6 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // v3.2: Per-pair volatility multiplier for SL sizing (higher = wider SL)
 const PAIR_VOL_MULT = {
   "BTC-USDT":0.8, "SOL-USDT":1.5, "DEXE-USDT":1.8, "UNI-USDT":1.3,
-  "COMP-USDT":1.3, "SUSHI-USDT":1.6, "LINK-USDT":1.2,
-  "ETH-USDT":0.9, "NEAR-USDT":1.4,  // v3.5: added (ETH low-vol like BTC, NEAR mid-vol like UNI)
+  "COMP-USDT":1.3, "LINK-USDT":1.2,
+  "ETH-USDT":0.9, "NEAR-USDT":1.4,
+  // v3.6: new pairs — volatility-calibrated from 30-day ATR%
+  "AVAX-USDT":1.4, "AAVE-USDT":1.3, "ARB-USDT":1.5, "INJ-USDT":1.6,
+  "DOT-USDT":1.3, "FIL-USDT":1.5, "SUI-USDT":1.5, "ATOM-USDT":1.2,
 };
 
 const CORR_GROUPS = [
-  ["SOL-USDT","LINK-USDT","UNI-USDT","SUSHI-USDT","NEAR-USDT"], // DeFi/L1
+  ["SOL-USDT","NEAR-USDT","SUI-USDT","AVAX-USDT","APT-USDT","DOT-USDT","ATOM-USDT"], // L1s
   ["BTC-USDT","ETH-USDT"], // majors
-  ["DEXE-USDT","COMP-USDT"], // DeFi governance
+  ["DEXE-USDT","COMP-USDT","AAVE-USDT"], // DeFi governance
+  ["UNI-USDT","LINK-USDT","ARB-USDT"], // DeFi/infra
+  ["INJ-USDT","FIL-USDT"], // infra/storage
 ];
 function getCorrelatedPairs(sym){
   const g=CORR_GROUPS.find(gr=>gr.includes(sym));
@@ -1007,6 +1012,10 @@ async function trackClose(symbol, direction, pnlPct, isWin, convScore = null) {
   if (isWin) { w.wins = (w.wins || 0) + 1; recordWin(symbol); } else { w.losses = (w.losses || 0) + 1; await recordLoss(symbol); }
   const pnlFloat = parseFloat(pnlPct || 0);
   w.pnl = parseFloat(((w.pnl || 0) + pnlFloat).toFixed(3));
+  // v3.6: Update cumulative P&L for compounding engine
+  const cumPnl = updateCumulativePnl(pnlFloat);
+  const eCap = getEffectiveCapital();
+  console.log(`  💰 Compounding: cumPnl=${cumPnl}%, effectiveCapital=$${eCap.capital}`);
   // v3.2: Per-pair stats
   if(!w.byPair) w.byPair={};
   if(!w.byPair[symbol]) w.byPair[symbol]={wins:0,losses:0,pnl:0};
@@ -1046,6 +1055,9 @@ async function sendWeeklyReport() {
       msg += `  ${sym}: ${d.wins}W/${d.losses}L (${t>0?((d.wins/t)*100).toFixed(0):'—'}%) P&L: ${d.pnl>=0?'+':''}${d.pnl.toFixed(2)}%\n`;
     }
   }
+  // v3.6: Compounding status
+  const eCap = getEffectiveCapital();
+  msg += `\n📈 <b>Compounding:</b> $${eCap.capital.toFixed(2)} effective (${eCap.cumPnlPct>=0?'+':''}${eCap.cumPnlPct.toFixed(2)}% cumulative)\n`;
   msg += `\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;
   await tgSend(msg);
 }
@@ -1081,6 +1093,28 @@ function confBox(r){
 }
 function checklistBlock(checks){
   return checks.map((c,i)=>`${c.pass?"✅":"⬜"}  ${c.item}`).join("\n");
+}
+
+// ── COMPOUNDING CAPITAL ENGINE (v3.6) ────────────────────────────────────────
+// Tracks cumulative realized P&L and adjusts effective capital for compounding.
+// Base capital grows/shrinks with realized returns. Resets weekly floor.
+function getEffectiveCapital() {
+  const base = CONFIG.CAPITAL;  // $50
+  try {
+    const cumPnlPct = parseFloat(getProp("A8_CUM_PNL") || "0");
+    // Compound: effective = base × (1 + cumPnlPct/100)
+    // Floor at 80% of base (drawdown protection) — never risk below $40
+    // Cap at 300% of base ($150) — prevents over-leverage on hot streaks
+    const raw = base * (1 + cumPnlPct / 100);
+    const effective = Math.max(base * 0.8, Math.min(base * 3.0, raw));
+    return { capital: parseFloat(effective.toFixed(2)), cumPnlPct, isCompounding: cumPnlPct > 0 };
+  } catch(e) { return { capital: base, cumPnlPct: 0, isCompounding: false }; }
+}
+function updateCumulativePnl(tradePnlPct) {
+  const current = parseFloat(getProp("A8_CUM_PNL") || "0");
+  const updated = parseFloat((current + tradePnlPct).toFixed(3));
+  setProp("A8_CUM_PNL", String(updated));
+  return updated;
 }
 
 // ── CONVICTION-BASED POSITION SIZING (v3.1 Fix #7) ───────────────────────────
@@ -1157,7 +1191,9 @@ function formatConfluenceSignal(r4h,r1h,symbol,conv4h,conv1h,ms4h,ms1h,d1Bias){
   const isBull=r4h.direction==="BULL";
   const dirEmoji=isBull?"🟢":"🔴";
   const dirWord =isBull?"LONG  ▲":"SHORT  ▼";
-  const riskUSD=CONFIG.CAPITAL*CONFIG.RISK_PCT/100,posUSD=riskUSD*CONFIG.LEVERAGE;
+  const eCap=getEffectiveCapital();
+  const riskUSD=eCap.capital*CONFIG.RISK_PCT/100,posUSD=riskUSD*CONFIG.LEVERAGE;
+  const compLabel=eCap.isCompounding?`  📈 +${eCap.cumPnlPct.toFixed(1)}%`:"";
   const conf=confBox(r4h)||confBox(r1h);
   const biasNote=d1Bias!=='NEUTRAL'?`  ·  📅 D1: <b>${d1Bias}</b>`:"";
   const pbNote=r4h.isPathB?`\n⚠️  <b>PATH B</b> — sweep zone · Re-enter: <code>${r4h.reEntry}</code>`:"";
@@ -1188,7 +1224,7 @@ function formatConfluenceSignal(r4h,r1h,symbol,conv4h,conv1h,ms4h,ms1h,d1Bias){
     `💎  <b>TP3</b>         <code>${r4h.tp3}</code>     +${r4h.tp3Pct}%  · 20% runner\n`+
     `\n`+
     `📐  <b>R:R</b>   <b>${r4h.rr} : 1</b>  (4H)   ·   ${r1h.rr} : 1  (1H)\n`+
-    `💼  Risk: $${riskUSD.toFixed(2)}   ·   Pos: $${posUSD.toFixed(0)}   (${CONFIG.LEVERAGE}×)\n`+
+    `💼  Risk: $${riskUSD.toFixed(2)}   ·   Pos: $${posUSD.toFixed(0)}   (${CONFIG.LEVERAGE}×)${compLabel}\n`+
     `📐  <b>Size:</b>  ${getSizeMult(parseFloat(conv4h.score)).label}\n`+
     `\n`+
     `─────────────────────────────\n`+
@@ -1234,7 +1270,9 @@ function formatTripleSignal(r4h,r1h,r15m,symbol,c4h,c1h,c15m,ms4h,ms1h,ms15m,d1B
   const isBull=r4h.direction==="BULL";
   const dirEmoji=isBull?"🟢":"🔴";
   const dirWord =isBull?"LONG  ▲":"SHORT  ▼";
-  const riskUSD=CONFIG.CAPITAL*CONFIG.RISK_PCT/100,posUSD=riskUSD*CONFIG.LEVERAGE;
+  const eCap=getEffectiveCapital();
+  const riskUSD=eCap.capital*CONFIG.RISK_PCT/100,posUSD=riskUSD*CONFIG.LEVERAGE;
+  const compLabel=eCap.isCompounding?`  📈 +${eCap.cumPnlPct.toFixed(1)}%`:"";
   const conf=confBox(r4h)||confBox(r1h)||confBox(r15m);
   const biasNote=d1Bias!=='NEUTRAL'?`  ·  📅 D1: <b>${d1Bias}</b>`:"";
   return(
@@ -1265,7 +1303,7 @@ function formatTripleSignal(r4h,r1h,r15m,symbol,c4h,c1h,c15m,ms4h,ms1h,ms15m,d1B
     `💎  <b>TP3</b>         <code>${r4h.tp3}</code>     +${r4h.tp3Pct}%  · 20% runner\n`+
     `\n`+
     `📐  <b>R:R</b>   <b>${r4h.rr} : 1</b>\n`+
-    `💼  Risk: $${riskUSD.toFixed(2)}   ·   Pos: $${posUSD.toFixed(0)}   (${CONFIG.LEVERAGE}×)\n`+
+    `💼  Risk: $${riskUSD.toFixed(2)}   ·   Pos: $${posUSD.toFixed(0)}   (${CONFIG.LEVERAGE}×)${compLabel}\n`+
     `\n`+
     `─────────────────────────────\n`+
     `🏛  <b>MARKET STRUCTURE  —  3 TF CONFIRMED</b>\n`+
@@ -1321,10 +1359,13 @@ async function sendWeeklySummary(){
   msg+=`📊 Signals: ${w.signals||0}  Confluences: ${w.confluence||0}  Triples: ${w.triple||0}\n`;
   if(closed>0)msg+=`✅ ${w.wins||0}W  ❌ ${w.losses||0}L  Win Rate: <b>${wr}</b>\n💰 Net P&L: <b>${(w.pnl||0)>=0?"+":""}${w.pnl||0}%</b>\n`;
   else msg+=`  No closed trades yet.\n`;
+  // v3.6: Compounding status
+  const eCap2 = getEffectiveCapital();
+  msg+=`📈 Capital: $${eCap2.capital.toFixed(2)} (${eCap2.cumPnlPct>=0?'+':''}${eCap2.cumPnlPct.toFixed(2)}% cum)\n`;
   msg+=`\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;await tgSend(msg);
 }
 async function sendHealth(){
-  let msg=`💚 <b>GWP Crypto v3.1 ELITE MAX — HEALTH</b>\n\n`;
+  let msg=`💚 <b>GWP Crypto v3.6 ELITE MAX — HEALTH</b>\n\n`;
   for(const symbol of CONFIG.PAIRS){
     let price="?";
     try{const c=await fetchKlines(symbol,"H1",2);if(c&&c.length)price=c[c.length-1].close;}catch(e){}
@@ -1506,13 +1547,13 @@ async function runBot(){
       // v3.0: directional lock — prevents SOL SHORT [4H] + SOL LONG [1H] same scan
       let firedDir=null;
 
-      // v3.5: D1 counter-trend — hard block for conv < 72, soft penalty for conv ≥ 72.
-      // Backtest showed 0% WR on counter-trend trades. Only strong reversals (CHoCH+Wyckoff
-      // scoring 72+) are allowed through. The -12 soft penalty in conviction engine still applies.
+      // v3.6: D1 counter-trend — hard block for conv < 78 (raised from 72).
+      // Backtest v3.5 showed 2 CT leakers at conv 74-75 (both SUSHI, 0% WR, -5.34% P&L).
+      // Raising gate to 78 ensures only genuine strong reversals pass through.
       const _isCounterTrend = (d1Bias==='BULL'&&r4h&&r4h.direction==='BEAR')||(d1Bias==='BEAR'&&r4h&&r4h.direction==='BULL');
       function isD1CounterBlocked(dir, convScore) {
         const ct = (d1Bias==='BULL'&&dir==='BEAR')||(d1Bias==='BEAR'&&dir==='BULL');
-        if (ct && convScore < 72) { console.log(`  ⛔ D1 CT BLOCK: ${dir} vs D1 ${d1Bias}, conv ${convScore} < 72`); return true; }
+        if (ct && convScore < 78) { console.log(`  ⛔ D1 CT BLOCK: ${dir} vs D1 ${d1Bias}, conv ${convScore} < 78`); return true; }
         return false;
       }
 

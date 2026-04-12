@@ -51,7 +51,7 @@ const TF_CONFIG = {
 };
 
 const CONFIG = {
-  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","SUSHI-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT"],
+  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT","AVAX-USDT","AAVE-USDT","ARB-USDT","INJ-USDT","DOT-USDT","FIL-USDT","SUI-USDT","ATOM-USDT"],  // v3.6: 16 pairs
   CAPITAL: 5, RISK_PCT: 1.5, LEVERAGE: 20,
   VP_ROWS: 24, MIN_WICK_DEPTH_PCT: 0.12, MIN_BODY_GAP_PCT: 0.08,
   VOLUME_FILTER: true,
@@ -65,8 +65,10 @@ const CONFIG = {
 
 const PAIR_VOL_MULT = {
   "BTC-USDT":0.8, "SOL-USDT":1.5, "DEXE-USDT":1.8, "UNI-USDT":1.3,
-  "COMP-USDT":1.3, "SUSHI-USDT":1.6, "LINK-USDT":1.2,
+  "COMP-USDT":1.3, "LINK-USDT":1.2,
   "ETH-USDT":0.9, "NEAR-USDT":1.4,
+  "AVAX-USDT":1.4, "AAVE-USDT":1.3, "ARB-USDT":1.5, "INJ-USDT":1.6,
+  "DOT-USDT":1.3, "FIL-USDT":1.5, "SUI-USDT":1.5, "ATOM-USDT":1.2,
 };
 
 // ─── HTTP ────────────────────────────────────────────────────────────────────
@@ -689,9 +691,9 @@ async function runBacktest() {
           continue;
         }
 
-        // v3.5: D1 counter-trend hard block for conv < 72
+        // v3.6: D1 counter-trend hard block for conv < 78 (raised from 72 — v3.5 leakers at 74-75)
         const isCounterTrend = (d1Bias==='BULL'&&gwp.direction==='BEAR')||(d1Bias==='BEAR'&&gwp.direction==='BULL');
-        if (isCounterTrend && conv.score < 72) {
+        if (isCounterTrend && conv.score < 78) {
           blockedByConv++;
           continue;
         }
