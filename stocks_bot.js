@@ -24,6 +24,15 @@
 //   ✅ Fix #11: Double-candle CHoCH confirmation — +16 pts (vs +10 single-candle)
 //   ✅ Fix #12: Signal quality score — % of institutional criteria met (0–100%)
 //
+// v3.1.1 HOTFIXES (2026-04-12):
+//   ✅ BugFix A: SL/TP checks use candle HIGH/LOW not CLOSE (intracandle detection)
+//   ✅ BugFix B: NFP/FOMC Set-based lookup — fixes day≤10 FOMC/NFP misclassification
+//   ✅ BugFix C: Conviction display /105 → /123 (actual scoring maximum is 123)
+//   ✅ BugFix D: detectGWP agePenalty = subtractor (not multiplier) — aligns with crypto
+//   ✅ BugFix E: detectGWP raw score < 4.5 rejection gate added
+//   ✅ BugFix F: "Market structure confirmed" check passes wyckoff (was hardcoded false)
+//   ✅ BugFix G: 4H solo firedDir guard added — prevents opposite-dir 4H+1H same scan
+//
 // v1.0 — GWP Stocks Edition:
 //   ✅ Same GWP engine as crypto_bot.js v8.0 (identical detection logic)
 //   ✅ Data: Yahoo Finance API (free, no key, public REST)
@@ -339,34 +348,31 @@ async function fetchKlines(symbol, tf, limit) {
   return null;
 }
 
-// ── MACRO EVENT BLACKOUT (v3.1 Fix #5) ───────────────────────────────────────
-// Blocks signals within BLOCK_MINS of known high-impact events.
-// FOMC 2026 dates (announced by Fed). Extend list as dates become known.
-const MACRO_EVENTS_2026 = [
-  // FOMC Meeting dates 2026 (day of decision, 18:00 UTC)
+// ── MACRO EVENT BLACKOUT (v3.1 Fix #5 · Bug#4 Fix) ──────────────────────────
+// Separate FOMC and NFP sets to prevent day-of-month ≤ 10 misclassification.
+// FOMC 2026 = 18:00 UTC decisions. NFP 2026 = first Friday, 12:30 UTC.
+const FOMC_DATES_2026 = new Set([
   "2026-01-29","2026-03-18","2026-05-06","2026-06-17",
   "2026-07-29","2026-09-16","2026-11-04","2026-12-16",
-  // US NFP (first Friday each month, 12:30 UTC)
+]);
+const NFP_DATES_2026 = new Set([
   "2026-01-09","2026-02-06","2026-03-06","2026-04-03",
   "2026-05-01","2026-06-05","2026-07-10","2026-08-07",
   "2026-09-04","2026-10-02","2026-11-06","2026-12-04",
-];
-const MACRO_BLOCK_MS = 60 * 60 * 1000; // 1 hour blackout window each side
+]);
 
 function isNearMacroEvent() {
-  const now = Date.now();
   const todayStr = new Date().toISOString().slice(0, 10);
-  for (const dateStr of MACRO_EVENTS_2026) {
-    if (dateStr !== todayStr) continue;
-    // Check if current time is within BLOCK window of the event
-    // FOMC = 18:00 UTC, NFP = 12:30 UTC
-    const h = new Date().getUTCHours();
-    const m = new Date().getUTCMinutes();
-    const isNFP = parseInt(dateStr.slice(8)) <= 10; // NFP always early month
-    const eventHour = isNFP ? 12 : 18;
-    const nowMins = h * 60 + m;
-    const eventMins = eventHour * 60 + (isNFP ? 30 : 0);
-    if (Math.abs(nowMins - eventMins) <= 60) return { blocked: true, event: isNFP ? "NFP" : "FOMC", date: dateStr };
+  const h = new Date().getUTCHours();
+  const m = new Date().getUTCMinutes();
+  const nowMins = h * 60 + m;
+  // NFP: 12:30 UTC ± 60 min
+  if (NFP_DATES_2026.has(todayStr)) {
+    if (Math.abs(nowMins - (12 * 60 + 30)) <= 60) return { blocked: true, event: "NFP", date: todayStr };
+  }
+  // FOMC: 18:00 UTC ± 60 min
+  if (FOMC_DATES_2026.has(todayStr)) {
+    if (Math.abs(nowMins - (18 * 60)) <= 60) return { blocked: true, event: "FOMC", date: todayStr };
   }
   return { blocked: false };
 }
@@ -903,9 +909,12 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
     if (rr < tfCfg.minRR) { console.log(`  GWP ${direction} ${tfCfg.label} age=${age}: RR=${rr.toFixed(2)} < ${tfCfg.minRR}`); continue; }
 
     const reEntry = direction === "BEAR" ? (cur.close * 0.998).toFixed(4) : (cur.close * 1.002).toFixed(4);
+    // v3.1 Bug#6 Fix: align agePenalty with crypto/forex (subtractor not multiplier)
+    // and add 4.5 rejection gate to prevent weak raw patterns from passing.
     const rawScore = Math.min(10, (bodyGapPct / 100) * 10 + (wickDepth / bH) * 5 + (isPathB ? 0 : 2));
-    const agePenalty = age > 0 ? Math.pow(0.75, age) : 1;
-    const score = rawScore * agePenalty;
+    const agePenalty = age * 0.75; // subtract 0.75 per candle age (same as crypto/forex)
+    const score = rawScore - agePenalty;
+    if (score < 4.5) { console.log(`  GWP ${direction} ${tfCfg.label} age=${age}: rawScore=${rawScore.toFixed(2)} score=${score.toFixed(2)} < 4.5 rejected`); continue; }
     // v3.1 Fix #1: Zone touch penalty — fresh zones score higher
     const zoneTouches = getZoneTouchCount(candles, bBot, bTop);
     const touchPenalty = zoneTouches >= 3 ? (zoneTouches >= 5 ? 2.0 : 1.0) : 0;
@@ -923,7 +932,7 @@ function detectGWP(candles, vp, avwap, math, tfCfg) {
       { pass: avwapTrap,                   item: "AVWAP trap zone confluence" },
       { pass: !isPathB,                    item: "Path A (direct return, no sweep)" },
       { pass: momentumBurst,               item: "Momentum burst on signal candle" },
-      { pass: false,                       item: "Market structure confirmed" },  // ✅ FIX: ms computed after detectGWP returns
+      { pass: wyckoff !== null,             item: "Market structure confirmed" },  // v3.1 Bug#7 Fix: wyckoff is computed above
     ];
 
     return {
@@ -1000,15 +1009,19 @@ async function checkOpenPositions() {
     let candles = null;
     try { candles = await fetchKlines(p.symbol, "M15", 3); } catch(e) {}
     if (!candles || !candles.length) continue;
-    const price = candles[candles.length - 1].close, isL = p.direction === "BULL";
+    // v3.1 Fix: use candle high/low for SL/TP checks — catches intracandle touches
+    const last = candles[candles.length - 1];
+    const price = last.close, hi = last.high, lo = last.low, isL = p.direction === "BULL";
     const pnl = ((isL ? (price - p.entry) / p.entry : (p.entry - price) / p.entry) * 100).toFixed(3);
     const dp = v => v < 0.01 ? 6 : v < 1 ? 5 : v < 10 ? 4 : v < 1000 ? 3 : 2;
     const f  = n => Number(n).toFixed(dp(Math.abs(n)));
     let msg = null;
-    if (!p.tp1hit && (isL ? price >= p.tp1 : price <= p.tp1)) { p.tp1hit = true; msg = `🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
-    if (!p.tp2hit && (isL ? price >= p.tp2 : price <= p.tp2)) { p.tp2hit = true; msg = `🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
-    if (p.tp2hit && (isL ? price >= p.tp3 : price <= p.tp3)) { msg = `🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, true, null); }
-    if (isL ? price <= p.sl : price >= p.sl) { const pbN = p.isPathB ? `\n⚡ Path B re-entry: <code>${p.reEntry || "zone"}</code>` : ""; msg = `❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, false, null); }
+    // Use high for BULL TP checks, low for BEAR TP checks (intracandle detection)
+    if (!p.tp1hit && (isL ? hi >= p.tp1 : lo <= p.tp1)) { p.tp1hit = true; msg = `🎯 <b>GWP TP1 HIT — ${p.symbol} [${p.tf}]</b>\n40% exit. Move SL to BE.\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
+    if (!p.tp2hit && (isL ? hi >= p.tp2 : lo <= p.tp2)) { p.tp2hit = true; msg = `🏆 <b>GWP TP2 HIT — ${p.symbol} [${p.tf}]</b> 🔥\nHold 20% for TP3: <code>${f(p.tp3)}</code>\nP&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; }
+    if (p.tp2hit && (isL ? hi >= p.tp3 : lo <= p.tp3)) { msg = `🏅 <b>GWP TP3 HIT! — ${p.symbol} [${p.tf}]</b> 💎\nFull exit. P&L: <b>+${pnl}%</b>\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, true, null); }
+    // Use candle high for BEAR SL (wick through SL), candle low for BULL SL
+    if (isL ? lo <= p.sl : hi >= p.sl) { const pbN = p.isPathB ? `\n⚡ Path B re-entry: <code>${p.reEntry || "zone"}</code>` : ""; msg = `❌ <b>GWP SL HIT — ${p.symbol} [${p.tf}]</b>\n${p.direction} ${f(p.entry)} → SL ${f(p.sl)}\nP&L: <b>${pnl}%</b>${pbN}\n\n<i>${V}</i>`; p.state = "CLOSED"; await trackClose(p.symbol, p.direction, pnl, false, null); }
     if (msg) { await tgSend(msg); if (p.state === "CLOSED") delProp(key); else setProp(key, JSON.stringify(p)); } else { setProp(key, JSON.stringify(p)); }
   }
 }
@@ -1127,7 +1140,7 @@ function formatSingleSignal(r, symbol, conv, ms, _label, d1Bias = "NEUTRAL", mat
   return (
     `\n` +
     `🎯  <b>GWP · $${symbol} · ${dir} [${r.tfLabel}]</b>\n` +
-    `${dirEmoji}  <b>${conv.score}/105</b>  ·  ${conv.grade}  ·  R:R <b>${r.rr}:1</b>${ageNote}${biasNote}\n` +
+    `${dirEmoji}  <b>${conv.score}/123</b>  ·  ${conv.grade}  ·  R:R <b>${r.rr}:1</b>${ageNote}${biasNote}\n` +
     `─────────────────────────────\n` +
     `<b>ENTRY</b>  <code>${r.entry}</code>   <b>SL</b>  <code>${r.sl}</code>  (-${r.slPct}%)\n` +
     `<b>TP1</b>  <code>${r.tp1}</code>  ·  <b>TP2</b>  <code>${r.tp2}</code>  ·  <b>TP3</b>  <code>${r.tp3}</code>\n` +
@@ -1283,7 +1296,7 @@ async function sendPositions() {
   const keys = Object.keys(state).filter(k => k.startsWith("SPOS1_"));
   if (!keys.length) { await tgSend(`📭 No open positions.\n\n<i>${V}</i>`); return; }
   let msg = `📊 <b>Open GWP Stock Positions</b>\n\n`;
-  for (const k of keys) { try { const p = JSON.parse(getProp(k)); msg += `${p.direction === "BULL" ? "🟢" : "🔴"} <b>$${p.symbol}</b> ${p.direction} [${p.tf}]\n  Entry: $${p.entry}  SL: $${p.sl}  TP2: $${p.tp2}  Conv: ${p.conviction}/105\n\n`; } catch(e) {} }
+  for (const k of keys) { try { const p = JSON.parse(getProp(k)); msg += `${p.direction === "BULL" ? "🟢" : "🔴"} <b>$${p.symbol}</b> ${p.direction} [${p.tf}]\n  Entry: $${p.entry}  SL: $${p.sl}  TP2: $${p.tp2}  Conv: ${p.conviction}/123\n\n`; } catch(e) {} }
   await tgSend(msg + `<i>${V}</i>`);
 }
 async function sendHelp() {
@@ -1486,11 +1499,11 @@ async function runBot() {
       }
 
       // ─ 4H SOLO ──────────────────────────────────────────────────────────────
-      if (r4h) {
+      if (r4h && (!firedDir || r4h.direction === firedDir)) {
         if (isOnCooldown(symbol, r4h.direction, "H4")) { console.log("  🔒 4H cooldown"); }
         else {
           const conv = computeConviction(r4h, m4h, ms4h, "H4", false, false, d1Bias);
-          console.log(`  4H conv: ${conv.score}/105 ${conv.grade}`);
+          console.log(`  4H conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H4.minConviction && !isDuplicate(symbol, r4h.direction, "H4")) {
             await tgSend(formatSingleSignal(r4h, symbol, conv, ms4h, "", d1Bias, m4h));
             storePosition(symbol, r4h, conv, "H4"); setCooldown(symbol, r4h.direction, "H4");
@@ -1505,7 +1518,7 @@ async function runBot() {
         if (isOnCooldown(symbol, r1h.direction, "H1")) { console.log("  🔒 1H cooldown"); }
         else {
           const conv = computeConviction(r1h, m1h, ms1h, "H1", false, false, d1Bias);
-          console.log(`  1H conv: ${conv.score}/105 ${conv.grade}`);
+          console.log(`  1H conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.H1.minConviction && !isDuplicate(symbol, r1h.direction, "H1")) {
             await tgSend(formatSingleSignal(r1h, symbol, conv, ms1h, "⚡ <b>SCALP</b> —", d1Bias, m1h));
             storePosition(symbol, r1h, conv, "H1"); setCooldown(symbol, r1h.direction, "H1");
@@ -1520,7 +1533,7 @@ async function runBot() {
         const parentDir = (r4h || r1h).direction;
         if (r15m.direction === parentDir && !isOnCooldown(symbol, r15m.direction, "M15")) {
           const conv = computeConviction(r15m, m15m, ms15m, "M15", true, false, d1Bias);
-          console.log(`  15M conv: ${conv.score}/105 ${conv.grade}`);
+          console.log(`  15M conv: ${conv.score}/123 ${conv.grade}`);
           if (parseFloat(conv.score) >= TF_CONFIG.M15.minConviction && !isDuplicate(symbol, r15m.direction, "M15")) {
             await tgSend(formatSingleSignal(r15m, symbol, conv, ms15m, "🔬 <b>MICRO SNIPER</b> —", d1Bias, m15m));
             storePosition(symbol, r15m, conv, "M15");
