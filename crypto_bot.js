@@ -2,12 +2,12 @@
 // ════════════════════════════════════════════════════════════════════════════
 // GHOST WICK PROTOCOL — CRYPTO EDITION  v3.1  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
-// Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
+// Author   : Abdin · asterixcomltd@gmail.com · Asterix Holdings Ltd. · Accra, Ghana
 // Exchange : KuCoin (Public REST API — no auth key needed)
 // Pairs    : DEXE · UNI · SUSHI · SOL · BTC · LINK · COMP
 // Platform : GitHub Actions (Node.js 22+) · crypto_state.json persistence
 //
-// © 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
+// © 2026 Asterix Holdings Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
 //
 // v3.1 CHANGES (on top of v3.0):
 //   ✅ FIX: D1 AVWAP lookback 20 candles → 3 candles (eliminates 10+ day lag)
@@ -1465,8 +1465,30 @@ async function scanSingle(symbol){
 }
 
 // ── COMMAND HANDLER ────────────────────────────────────────────────────────────
+async function sendWelcome(){
+  await tgSend(
+    `👻 <b>Welcome to GWP Crypto Signals</b>\n`+
+    `<b>Ghost Wick Protocol™ v3.1 — Institutional Crypto</b>\n\n`+
+    `🏛 <b>What you'll receive:</b>\n`+
+    `▸ Institutional-grade BULL/BEAR signals on DeFi altcoins\n`+
+    `▸ Triple TF confluence: 4H + 1H + 15M alignment\n`+
+    `▸ Entry · SL · TP1 · TP2 · TP3 with conviction score /123\n`+
+    `▸ Live TP/SL hit alerts as trade unfolds\n`+
+    `▸ Pairs: DEXE · UNI · SUSHI · SOL · BTC · LINK · COMP\n\n`+
+    `📡 <b>How it works:</b>\n`+
+    `▸ Bot runs every 4H — new candle = new scan\n`+
+    `▸ Only high-conviction setups fire (no spam)\n`+
+    `▸ Signals go to both this channel AND asterix-gwp.vercel.app\n\n`+
+    `⚡ <b>Quick commands:</b>\n`+
+    `/scan · /positions · /status · /health · /help\n\n`+
+    `<i>Every candle. Every session. Zero downtime.</i>\n`+
+    `<i>Asterix Holdings Ltd. · Accra, Ghana</i>\n\n`+
+    `<i>${V}</i>`
+  );
+}
 async function handleCommand(cmd){
   cmd=cmd.trim().toLowerCase().split(" ")[0];
+  if(cmd==="/start")     {await sendWelcome();return;}
   if(cmd==="/scan")      {await runBot();return;}
   if(cmd==="/daily")     {await sendDailySummary();return;}
   if(cmd==="/weekly")    {await sendWeeklySummary();return;}

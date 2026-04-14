@@ -1,6 +1,6 @@
 # GWP Bots — Ghost Wick Protocol™ v3.1 INSTITUTIONAL
 
-**Autonomous institutional-grade trading signal bots by Abdin · Asterix.COM Ltd. · Accra, Ghana**
+**Autonomous institutional-grade trading signal bots by Abdin · Asterix Holdings Ltd. · Accra, Ghana**
 
 > *Real GWP. Real Price Action. Real Market Structure. Real Math & Statistics. Real Macro Fundamentals.*
 > *Every candle. Every session. Zero downtime.*
@@ -176,6 +176,44 @@ Trigger manually anytime: `node crypto_bot.js weeklyreport`
 
 ---
 
+## Instant /start Webhook (User Onboarding — Vercel)
+
+When users click a bot link from the Asterix app and send `/start`, the standard
+GitHub Actions bots take up to 4H to respond. The Vercel webhook fixes this — **instant reply**.
+
+### Deploy to Vercel (one-time, free)
+
+1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import `asterixcomltd/gwp-bots`
+2. In Vercel **Environment Variables**, add:
+   - `CRYPTO_TG_TOKEN` — your crypto bot token
+   - `FOREX_TG_TOKEN` — your forex bot token
+   - `STOCKS_TG_TOKEN` — your stocks bot token
+3. Deploy → copy your Vercel URL (e.g. `https://gwp-bots.vercel.app`)
+
+### Register webhooks (one-time)
+
+Edit `setup-webhooks.sh` — fill in your Vercel URL and 3 bot tokens — then run:
+```bash
+bash setup-webhooks.sh
+```
+
+Or manually via curl:
+```bash
+curl "https://api.telegram.org/bot<CRYPTO_TOKEN>/setWebhook?url=https://YOUR.vercel.app/api/webhook?bot=crypto"
+curl "https://api.telegram.org/bot<FOREX_TOKEN>/setWebhook?url=https://YOUR.vercel.app/api/webhook?bot=forex"
+curl "https://api.telegram.org/bot<STOCKS_TOKEN>/setWebhook?url=https://YOUR.vercel.app/api/webhook?bot=stocks"
+```
+
+### What users see
+
+| User action | Response |
+|---|---|
+| Sends `/start` | Instant welcome — bot info, pairs, commands, GWP explanation |
+| Sends `/help` | Same as `/start` |
+| Sends any other command | "Will be processed at next scan within 4H" |
+
+---
+
 ## Cron Schedule
 
 | Bot | Scan | Daily Summary | Weekly Report |
@@ -223,5 +261,5 @@ gwp-bots/
 
 ---
 
-*© 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary and confidential.*
+*© 2026 Asterix Holdings Ltd. / Abdin. Ghost Wick Protocol™ is proprietary and confidential.*
 *Advertised accuracy = % of fired signals meeting ≥90% institutional quality criteria.*

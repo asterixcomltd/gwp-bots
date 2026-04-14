@@ -2,11 +2,11 @@
 // ════════════════════════════════════════════════════════════════════════════
 // GHOST WICK PROTOCOL — STOCKS EDITION  v3.1  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
-// Author   : Abdin · asterixcomltd@gmail.com · Asterix.COM Ltd. · Accra, Ghana
+// Author   : Abdin · asterixcomltd@gmail.com · Asterix Holdings Ltd. · Accra, Ghana
 // Assets   : TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI (Yahoo Finance)
 // Platform : GitHub Actions (Node.js 22+) · stocks_state.json persistence
 //
-// © 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
+// © 2026 Asterix Holdings Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
 //
 // v3.1 CHANGES (on top of v3.0):
 //   ✅ FIX: D1 AVWAP — full history → 3-candle micro-AVWAP (eliminates weeks of lag)
@@ -134,7 +134,7 @@ const CONFIG = {
   GIST_ID: process.env.GIST_ID || "",
 };
 
-const V = "GWP Stocks v3.1 | Elite Max™ | Asterix.COM | Abdin";
+const V = "GWP Stocks v3.1 | Elite Max™ | Asterix Holdings Ltd. | Abdin";
 
 // v3.2: Per-pair volatility multiplier based on beta
 const PAIR_VOL_MULT = {
@@ -1328,6 +1328,27 @@ async function sendPositions() {
   for (const k of keys) { try { const p = JSON.parse(getProp(k)); msg += `${p.direction === "BULL" ? "🟢" : "🔴"} <b>$${p.symbol}</b> ${p.direction} [${p.tf}]\n  Entry: $${p.entry}  SL: $${p.sl}  TP2: $${p.tp2}  Conv: ${p.conviction}/123\n\n`; } catch(e) {} }
   await tgSend(msg + `<i>${V}</i>`);
 }
+async function sendWelcome() {
+  await tgSend(
+    `👻 <b>Welcome to GWP Stocks Signals</b>\n`+
+    `<b>Ghost Wick Protocol™ v3.1 — Institutional Stocks</b>\n\n`+
+    `🏛 <b>What you'll receive:</b>\n`+
+    `▸ Institutional BULL/BEAR signals on US tech stocks\n`+
+    `▸ Triple TF confluence: 4H + 1H + 15M alignment\n`+
+    `▸ Entry · SL · TP1 · TP2 · TP3 with conviction score\n`+
+    `▸ Live TP/SL hit alerts as trade unfolds\n`+
+    `▸ Stocks: TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI\n\n`+
+    `📡 <b>How it works:</b>\n`+
+    `▸ Bot runs every 4H — new candle = new scan\n`+
+    `▸ Only high-conviction setups fire (no spam)\n`+
+    `▸ Signals also on asterix-gwp.vercel.app dashboard\n\n`+
+    `⚡ <b>Quick commands:</b>\n`+
+    `/scan · /positions · /status · /health · /help\n\n`+
+    `<i>Every candle. Every session. Zero downtime.</i>\n`+
+    `<i>Asterix Holdings Ltd. · Accra, Ghana</i>\n\n`+
+    `<i>${V}</i>`
+  );
+}
 async function sendHelp() {
   await tgSend(
     `👻 <b>GWP STOCKS v3.1 ELITE MAX™</b>\n` +
@@ -1400,8 +1421,30 @@ async function scanSingle(symbol) {
 }
 
 // ── COMMAND HANDLER ────────────────────────────────────────────────────────────
+async function sendWelcome() {
+  await tgSend(
+    `📈 <b>Welcome to GWP Stocks Signals</b>\n` +
+    `<b>Ghost Wick Protocol™ v3.1 — US Stocks Edition</b>\n\n` +
+    `🏛 <b>What you'll receive:</b>\n` +
+    `▸ Institutional-grade BULL/BEAR signals on top US stocks\n` +
+    `▸ Triple TF confluence: 4H + 1H + 15M alignment\n` +
+    `▸ Entry · SL · TP1 · TP2 · TP3 with conviction score\n` +
+    `▸ Live TP/SL hit alerts as trade unfolds\n` +
+    `▸ Stocks: $TSLA · $NVDA · $MSTR · $COIN · $PLTR · $AMD · $SMCI\n\n` +
+    `📡 <b>How it works:</b>\n` +
+    `▸ Bot runs during US market hours only (Mon–Fri)\n` +
+    `▸ Only high-conviction setups fire (no spam)\n` +
+    `▸ Signals published live at asterix-gwp.vercel.app\n\n` +
+    `⚡ <b>Quick commands:</b>\n` +
+    `/scan · /positions · /status · /health · /help\n\n` +
+    `<i>Every candle. Every session. Zero downtime.</i>\n` +
+    `<i>Asterix Holdings Ltd. · Accra, Ghana</i>\n\n` +
+    `<i>${V}</i>`
+  );
+}
 async function handleCommand(cmd) {
   cmd = cmd.trim().toLowerCase().split(" ")[0];
+  if (cmd === "/start")     { await sendWelcome(); return; }
   if (cmd === "/scan")      { await runBot(); return; }
   if (cmd === "/daily")     { await sendDailySummary(); return; }
   if (cmd === "/weekly")    { await sendWeeklySummary(); return; }

@@ -6,7 +6,7 @@
 //
 // Usage:  node backtest.js [--pair BTC-USDT] [--days 90] [--tf H4]
 //
-// © 2026 Asterix.COM Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
+// © 2026 Asterix Holdings Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
 // ════════════════════════════════════════════════════════════════════════════
 
 const https = require("https");
