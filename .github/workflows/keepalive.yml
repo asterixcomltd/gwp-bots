@@ -58,6 +58,11 @@ jobs:
           git config user.email "gwp-keepalive@asterixcom.ltd"
           git config user.name  "GWP Keepalive"
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          # Sync with remote before writing/committing — same fetch+reset strategy used by
+          # gwp-crypto/forex/stocks and backtest.yml (v8.3 fix), so a state-commit pushed by
+          # another workflow in between checkout and push here can't cause a rejected push.
+          git fetch origin main --quiet
+          git reset --hard origin/main
           mkdir -p .keepalive
           echo "Last heartbeat: $(date -u +%Y-%m-%dT%H:%MZ)" > .keepalive/last-run.txt
           git add .keepalive/last-run.txt
