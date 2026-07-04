@@ -19,9 +19,10 @@ function getArg(name, def) {
   const idx = args.indexOf("--" + name);
   return idx >= 0 && args[idx + 1] ? args[idx + 1] : def;
 }
-const BT_PAIR     = getArg("pair", "ALL");  // ALL or specific pair
-const BT_DAYS     = parseInt(getArg("days", "90"));
-const BT_TF_FOCUS = getArg("tf", "ALL");   // ALL, H4, H1, M15
+const BT_PAIR       = getArg("pair", "ALL");  // ALL or specific pair
+const BT_DAYS       = parseInt(getArg("days", "90"));
+const BT_TF_FOCUS   = getArg("tf", "ALL");    // ALL, H4, H1, M15
+const BT_MAX_MINUTES = parseInt(getArg("max-minutes", "60")); // hard wall-clock budget for the whole run
 
 // ─── CONFIG (mirrors crypto_bot.js v3.4) ─────────────────────────────────────
 const TF_CONFIG = {
@@ -662,6 +663,35 @@ function simulateTrade(signal, futureCandles) {
 // MAIN BACKTEST LOOP
 // ═══════════════════════════════════════════════════════════════════════════════
 
+async function checkKucoinConnectivity() {
+  // Quick single-attempt probe (not the full retry ladder) so a genuinely
+  // blocked/throttled API is obvious in ~5s instead of discovered 3 hours in.
+  const url = "https://api.kucoin.com/api/v1/market/candles?type=1hour&symbol=BTC-USDT&startAt=" +
+    (Math.floor(Date.now() / 1000) - 3600 * 5) + "&endAt=" + Math.floor(Date.now() / 1000);
+  try {
+    const { status, body } = await httpGet(url);
+    if (status === 200) {
+      const json = JSON.parse(body);
+      if (json.data && json.data.length > 0) {
+        console.log(`✅ KuCoin API reachable (got ${json.data.length} test candles for BTC-USDT).\n`);
+        return true;
+      }
+      console.warn(`⚠️  KuCoin API returned 200 but no candle data (${JSON.stringify(json).slice(0,150)}). Proceeding anyway, but expect gaps.\n`);
+      return true;
+    }
+    console.error(`\n${"!".repeat(70)}`);
+    console.error(`🛑 KuCoin preflight check FAILED: HTTP ${status}`);
+    console.error(`   This almost always means the runner's IP is being rate-limited or`);
+    console.error(`   blocked by KuCoin. The full run will very likely spend its entire`);
+    console.error(`   time budget retrying instead of producing data.`);
+    console.error(`${"!".repeat(70)}\n`);
+    return false;
+  } catch (e) {
+    console.error(`\n🛑 KuCoin preflight check FAILED: ${e.message} — network may be unreachable from this runner.\n`);
+    return false;
+  }
+}
+
 async function runBacktest() {
   const startTime = Date.now();
   const endMs = Date.now();
@@ -669,10 +699,19 @@ async function runBacktest() {
   const pairs = BT_PAIR === "ALL" ? CONFIG.PAIRS : [BT_PAIR];
   const tfs = BT_TF_FOCUS === "ALL" ? ["H4", "H1", "M15"] : [BT_TF_FOCUS];
 
+  const kucoinOk = await checkKucoinConnectivity();
+  if (!kucoinOk) {
+    console.error("Aborting before burning the time budget on a connection that's already failing.");
+    console.error("Re-run later, or from a different network/runner, once this clears.");
+    process.exitCode = 1;
+    return;
+  }
+
   console.log(`\n${"═".repeat(70)}`);
   console.log(`  GWP BACKTESTER v1.0 — ${BT_DAYS}-DAY HISTORICAL SIMULATION`);
   console.log(`  Pairs: ${pairs.join(", ")}  |  Timeframes: ${tfs.join(", ")}`);
   console.log(`  Period: ${new Date(startMs).toISOString().slice(0,10)} → ${new Date(endMs).toISOString().slice(0,10)}`);
+  console.log(`  Time budget: ${BT_MAX_MINUTES} minutes (partial results are saved if this is hit)`);
   console.log(`${"═".repeat(70)}\n`);
 
   const allTrades = [];
@@ -683,26 +722,35 @@ async function runBacktest() {
   let totalSignals = 0, passedGate = 0, blockedByConv = 0, blockedByRR = 0;
   const runStart = Date.now();
   let pairIdx = 0;
+  let ranOutOfTime = false;
+  const skippedPairs = [];
 
   for (const symbol of pairs) {
     pairIdx++;
+    const totalElapsedMin = (Date.now() - runStart) / 60000;
+    if (totalElapsedMin >= BT_MAX_MINUTES) {
+      console.log(`\n⏱️  Time budget of ${BT_MAX_MINUTES}m reached before ${symbol} — stopping fetch, saving results from ${pairIdx - 1}/${pairs.length} pairs already processed.`);
+      ranOutOfTime = true;
+      skippedPairs.push(...pairs.slice(pairIdx - 1));
+      break;
+    }
     const symbolStart = Date.now();
-    const totalElapsedMin = ((Date.now() - runStart) / 60000).toFixed(1);
-    console.log(`\n▶ [${pairIdx}/${pairs.length}] Fetching ${symbol} historical data... (${totalElapsedMin}m elapsed overall)`);
+    console.log(`\n▶ [${pairIdx}/${pairs.length}] Fetching ${symbol} historical data... (${totalElapsedMin.toFixed(1)}m elapsed overall)`);
     tradesByPair[symbol] = [];
 
-    // Fetch all timeframe data + D1
-    const dataPromises = {};
-    for (const tf of tfs) {
-      dataPromises[tf] = fetchKlinesRange(symbol, tf, startMs - TF_MS[tf] * 200, endMs);
-    }
-    dataPromises.D1 = fetchKlinesRange(symbol, "D1", startMs - 86400000 * 60, endMs);
-
+    // Fetch each timeframe SEQUENTIALLY (not as 4 concurrent streams). KuCoin's
+    // public rate limit is per-IP; firing H4+H1+M15+D1 all at once from a shared
+    // GitHub Actions IP was triggering repeated throttling that a burst of retries
+    // couldn't outrun. One stream at a time is slower per-pair in isolation but
+    // avoids the throttling that was making the overall run take 3+ hours.
     const data = {};
-    for (const [k, p] of Object.entries(dataPromises)) {
-      data[k] = await p;
-      console.log(`  ${k}: ${data[k].length} candles fetched`);
+    for (const tf of tfs) {
+      data[tf] = await fetchKlinesRange(symbol, tf, startMs - TF_MS[tf] * 200, endMs);
+      console.log(`  ${tf}: ${data[tf].length} candles fetched`);
     }
+    data.D1 = await fetchKlinesRange(symbol, "D1", startMs - 86400000 * 60, endMs);
+    console.log(`  D1: ${data.D1.length} candles fetched`);
+
     const symbolFetchS = ((Date.now() - symbolStart) / 1000).toFixed(1);
     console.log(`  ✓ ${symbol} data ready in ${symbolFetchS}s`);
 
@@ -831,7 +879,15 @@ async function runBacktest() {
   console.log(`  GWP BACKTEST RESULTS — ${BT_DAYS} DAYS`);
   console.log(`  ${new Date(startMs).toISOString().slice(0,10)} → ${new Date(endMs).toISOString().slice(0,10)}`);
   console.log(`  Runtime: ${elapsed}s`);
+  if (ranOutOfTime) {
+    console.log(`  ⚠️  PARTIAL RUN — hit the ${BT_MAX_MINUTES}m time budget. Skipped: ${skippedPairs.join(", ")}`);
+    console.log(`     Results below only reflect the ${pairIdx - 1}/${pairs.length} pairs that finished. Re-run with a higher`);
+    console.log(`     --max-minutes, or narrow --pair/--tf, to cover the rest.`);
+  }
   console.log(`${"═".repeat(70)}\n`);
+  const partialNotice = ranOutOfTime
+    ? `\n> ⚠️ **PARTIAL RUN** — hit the ${BT_MAX_MINUTES}-minute time budget. Only ${pairIdx - 1}/${pairs.length} pairs finished (skipped: ${skippedPairs.join(", ")}). Numbers below are real but not the full ${BT_DAYS}-day/${pairs.length}-pair picture.\n`
+    : "";
 
   // ─── SIGNAL FUNNEL ─────────────────────────────────────────────────────────
   console.log(`📊 SIGNAL FUNNEL:`);
@@ -840,11 +896,64 @@ async function runBacktest() {
   console.log(`  Passed gate → traded:  ${passedGate} (${totalSignals ? ((passedGate/totalSignals)*100).toFixed(1) : 0}%)`);
   console.log();
 
+  // ─── REPORT PATHS (set up before any early return so every run — even a
+  // zero-trade one — produces an artifact instead of vanishing silently) ────
+  const reportDir = path.join(__dirname, "backtest-reports");
+  fs.mkdirSync(reportDir, { recursive: true });
+  const tagBits = [
+    BT_PAIR === "ALL" ? "ALL" : BT_PAIR,
+    BT_TF_FOCUS === "ALL" ? "ALL" : BT_TF_FOCUS,
+    `${BT_DAYS}d`,
+  ].join("_");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const reportFile = path.join(reportDir, `backtest_${tagBits}_${stamp}.json`);
+  const summaryFile = path.join(reportDir, `backtest_${tagBits}_${stamp}.md`);
+
   if (!allTrades.length) {
     console.log("❌ NO TRADES GENERATED. Possible issues:");
     console.log("  - Conviction gates too high for the data period");
     console.log("  - GWP detection criteria too strict");
     console.log("  - Insufficient data fetched");
+    console.log("  - Window/pair/tf too narrow for confluence setups to occur (e.g. a short diagnostic run)");
+
+    const minimalReport = {
+      meta: {
+        pairs, tfs, days: BT_DAYS,
+        period: `${new Date(startMs).toISOString().slice(0,10)} → ${new Date(endMs).toISOString().slice(0,10)}`,
+        runtime: elapsed + "s",
+        generated: new Date().toISOString(),
+        partialRun: ranOutOfTime,
+        skippedPairs,
+      },
+      summary: { totalSignals, passedGate, blockedByConv, closedTrades: 0 },
+      trades: [],
+    };
+    fs.writeFileSync(reportFile, JSON.stringify(minimalReport, null, 2));
+
+    const minimalMd = [
+      `# GWP Backtest — ${BT_DAYS}-day window`,
+      ``,
+      `**Pairs:** ${pairs.join(", ")}  `,
+      `**Timeframes:** ${tfs.join(", ")}  `,
+      `**Period:** ${new Date(startMs).toISOString().slice(0,10)} → ${new Date(endMs).toISOString().slice(0,10)}  `,
+      `**Runtime:** ${elapsed}s  `,
+      `**Generated:** ${new Date().toISOString()}`,
+      partialNotice,
+      ``,
+      `## ❌ No trades generated`,
+      ``,
+      `- Raw GWP detections: ${totalSignals}`,
+      `- Blocked by conviction: ${blockedByConv}`,
+      `- Passed gate: ${passedGate}`,
+      ``,
+      `Possible causes: conviction gates too strict for this window, GWP criteria too strict, insufficient candles fetched, or the window/pair/tf combo is too narrow (common for short diagnostic runs) for confluence setups to occur.`,
+      ``,
+    ].join("\n");
+    fs.writeFileSync(summaryFile, minimalMd);
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, minimalMd + "\n");
+    }
+    console.log(`\n💾 Report saved (zero-trade run): ${reportFile}`);
     return;
   }
 
@@ -1155,20 +1264,8 @@ async function runBacktest() {
   }
 
   // ─── SAVE DETAILED RESULTS ─────────────────────────────────────────────────
-  // BUGFIX (critical): this used to be a hardcoded /workspace/project/... path
-  // — a sandbox-only path that does not exist on a developer machine or a
-  // GitHub Actions runner. fs.writeFileSync would throw ENOENT here, crashing
-  // the process AFTER all the expensive fetching/simulation had already run.
-  const reportDir = path.join(__dirname, "backtest-reports");
-  fs.mkdirSync(reportDir, { recursive: true });
-  const tagBits = [
-    BT_PAIR === "ALL" ? "ALL" : BT_PAIR,
-    BT_TF_FOCUS === "ALL" ? "ALL" : BT_TF_FOCUS,
-    `${BT_DAYS}d`,
-  ].join("_");
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const reportFile = path.join(reportDir, `backtest_${tagBits}_${stamp}.json`);
-  const summaryFile = path.join(reportDir, `backtest_${tagBits}_${stamp}.md`);
+  // (reportDir/reportFile/summaryFile were already set up above, before the
+  // zero-trade early return, so both paths write to the same place.)
   const report = {
     meta: {
       pairs, tfs, days: BT_DAYS,
@@ -1214,6 +1311,7 @@ async function runBacktest() {
     `**Period:** ${new Date(startMs).toISOString().slice(0,10)} → ${new Date(endMs).toISOString().slice(0,10)}  `,
     `**Runtime:** ${elapsed}s  `,
     `**Generated:** ${new Date().toISOString()}`,
+    partialNotice,
     ``,
     `## Overall performance (${closedTrades.length} closed trades)`,
     ``,
