@@ -11,6 +11,7 @@
 
 const https = require("https");
 const fs    = require("fs");
+const path  = require("path");
 
 // ─── CLI ARGS ────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -727,6 +728,9 @@ async function runBacktest() {
           d1Bias,
           d1Aligned: (d1Bias === gwp.direction) || d1Bias === 'NEUTRAL',
           signalTime: new Date(cur.t).toISOString(),
+          // BUGFIX: slPct was computed on gwp but never copied onto the trade
+          // record, so the "avg SL distance" gap-analysis check always saw 0.
+          slPct: gwp.slPct !== undefined ? gwp.slPct : Math.abs(gwp.entry - gwp.sl) / gwp.entry * 100,
           ...result,
         };
 
@@ -1082,7 +1086,20 @@ async function runBacktest() {
   }
 
   // ─── SAVE DETAILED RESULTS ─────────────────────────────────────────────────
-  const reportFile = `/workspace/project/backtest_results_${new Date().toISOString().slice(0,10)}.json`;
+  // BUGFIX (critical): this used to be a hardcoded /workspace/project/... path
+  // — a sandbox-only path that does not exist on a developer machine or a
+  // GitHub Actions runner. fs.writeFileSync would throw ENOENT here, crashing
+  // the process AFTER all the expensive fetching/simulation had already run.
+  const reportDir = path.join(__dirname, "backtest-reports");
+  fs.mkdirSync(reportDir, { recursive: true });
+  const tagBits = [
+    BT_PAIR === "ALL" ? "ALL" : BT_PAIR,
+    BT_TF_FOCUS === "ALL" ? "ALL" : BT_TF_FOCUS,
+    `${BT_DAYS}d`,
+  ].join("_");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const reportFile = path.join(reportDir, `backtest_${tagBits}_${stamp}.json`);
+  const summaryFile = path.join(reportDir, `backtest_${tagBits}_${stamp}.md`);
   const report = {
     meta: {
       pairs, tfs, days: BT_DAYS,
@@ -1111,7 +1128,60 @@ async function runBacktest() {
     equity,
   };
   fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
+
+  // ─── MARKDOWN SUMMARY (human-readable, GitHub Actions job summary friendly) ─
+  const gradeLines = Object.entries(tradesByGrade).map(([g, trades]) => {
+    const ct = trades.filter(t => t.exitReason !== "OPEN");
+    if (!ct.length) return null;
+    const w = ct.filter(t => t.totalPnlPct > 0).length;
+    return `| ${g} | ${ct.length} | ${(w / ct.length * 100).toFixed(1)}% |`;
+  }).filter(Boolean).join("\n");
+
+  const md = [
+    `# GWP Backtest — ${BT_DAYS}-day window`,
+    ``,
+    `**Pairs:** ${pairs.join(", ")}  `,
+    `**Timeframes:** ${tfs.join(", ")}  `,
+    `**Period:** ${new Date(startMs).toISOString().slice(0,10)} → ${new Date(endMs).toISOString().slice(0,10)}  `,
+    `**Runtime:** ${elapsed}s  `,
+    `**Generated:** ${new Date().toISOString()}`,
+    ``,
+    `## Overall performance (${closedTrades.length} closed trades)`,
+    ``,
+    `| Metric | Value |`,
+    `|---|---|`,
+    `| Win Rate | ${winRate.toFixed(1)}% (${wins.length}W / ${losses.length}L) |`,
+    `| TP1 / TP2 / TP3 Hit Rate | ${tp1Rate.toFixed(1)}% / ${tp2Rate.toFixed(1)}% / ${tp3Rate.toFixed(1)}% |`,
+    `| Total P&L | ${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}% |`,
+    `| Avg P&L / trade | ${avgPnl >= 0 ? "+" : ""}${avgPnl.toFixed(3)}% |`,
+    `| Profit Factor | ${profitFactor === Infinity ? "∞" : profitFactor.toFixed(2)} |`,
+    `| Expectancy | ${expectancy >= 0 ? "+" : ""}${expectancy.toFixed(4)}% per trade |`,
+    `| Max Drawdown | -${maxDD.toFixed(2)}% |`,
+    `| Still Open (unresolved at window end) | ${allTrades.filter(t => t.exitReason === "OPEN").length} |`,
+    ``,
+    `## By conviction grade`,
+    ``,
+    `| Grade | Trades | Win Rate |`,
+    `|---|---|---|`,
+    gradeLines || "| — | — | — |",
+    ``,
+    `## Gap analysis`,
+    ``,
+    gaps.length
+      ? gaps.map(g => `- **[${g.severity}]** ${g.issue}\n  → ${g.suggestion}`).join("\n")
+      : "- ✅ No major gaps detected.",
+    ``,
+    `Full machine-readable report: \`${path.basename(reportFile)}\``,
+    ``,
+  ].join("\n");
+
+  fs.writeFileSync(summaryFile, md);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + "\n");
+  }
+
   console.log(`\n💾 Full report saved: ${reportFile}`);
+  console.log(`📝 Summary saved:    ${summaryFile}`);
   console.log(`   ${allTrades.length} trades logged with full details.\n`);
 }
 

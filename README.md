@@ -15,7 +15,7 @@ Three production Node.js bots running on GitHub Actions, delivering institutiona
 |---|---|---|---|
 | 🪙 **GWP Crypto** | `crypto_bot.js` | KuCoin (no key needed) | DEXE · UNI · SUSHI · SOL · BTC · ETH · LINK · ARB · INJ · COMP |
 | 💱 **GWP Forex** | `forex_bot.js` | Twelve Data API | XAU/USD · EUR/USD · GBP/USD · USD/JPY · GBP/JPY |
-| 📈 **GWP Stocks** | `stocks_bot.js` | Yahoo Finance (no key) | TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI |
+| 📈 **GWP Stocks** | `stocks_bot.js` | Yahoo Finance (no key) | TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI · SPCX |
 
 ---
 
@@ -40,7 +40,57 @@ Three production Node.js bots running on GitHub Actions, delivering institutiona
 
 ---
 
-## Architecture — The 4-Pillar Engine
+## ⚠️ Operations Notes (read this if signals stopped firing)
+
+**"My free subs expired and webhooks stopped working" — most likely cause:**
+GitHub automatically **disables all scheduled (cron) workflows** in a repo once
+**60 consecutive days** pass with no repository activity (commits/PRs/issues).
+This is a GitHub platform behavior, not a subscription — see
+[GitHub Docs](https://docs.github.com/en/actions/managing-workflow-runs/disabling-and-enabling-a-workflow).
+If you left the repo idle, this is almost certainly what actually happened to
+`gwp-crypto.yml` / `gwp-forex.yml` / `stocks_bot.yml`.
+
+**Fix (one-time, manual — GitHub does not allow this to be automated):**
+1. Go to the repo's **Actions** tab.
+2. If you see *"This scheduled workflow is disabled because there hasn't been
+   activity in this repository for at least 60 days"* — click **Enable workflow**
+   on each of the three bot workflows.
+3. `keepalive.yml` (new, see below) now makes a trivial commit every 30 days so
+   this can never happen again, regardless of whether signals fire or not.
+
+**Two separate systems — don't confuse them:**
+| System | What it does | What can break it |
+|---|---|---|
+| GitHub Actions cron (`gwp-crypto.yml` etc.) | Runs the actual scans + sends real trade signals | 60-day auto-disable (see above) |
+| Vercel webhook (`api/webhook.js`) | Instant `/start` and `/help` replies only | Vercel deployment going stale/removed, or the webhook URL never re-registered after a redeploy — re-run `setup-webhooks.sh` if `/start` stops replying instantly |
+
+If it's specifically the **Forex** bot that went quiet (not crypto/stocks), check
+whether your `TWELVE_DATA_KEY` was on a paid tier that lapsed — the free Twelve
+Data tier has low request-per-minute/day caps that can silently start failing a
+scan that scans 5 pairs × 3 timeframes every 30 minutes.
+
+**New: `keepalive.yml`** — runs on the 1st and 15th of each month, makes a
+one-line heartbeat commit. This is the "cron job to keep it active" fix —
+independent of whether the repo is public or private, and independent of any
+paid subscription.
+
+**New: `backtest.yml` + updated `backtest.js`** — on-demand (and monthly
+scheduled) 360-day and 720-day historical backtests of the crypto strategy,
+using real KuCoin history. Run it manually from the Actions tab
+(`workflow_dispatch`, pick `days: 360`, `720`, or leave as `both`). Also fixed
+a bug where the report writer used a hardcoded path that didn't exist outside
+the original dev sandbox — it now writes to `backtest-reports/` in the repo
+and uploads a full artifact.
+
+**New stock: `SPCX`** — SpaceX itself IPO'd on Nasdaq (June 12, 2026), so it's
+now added directly to the Stocks bot pair list (no proxy needed). Its price
+history is short right now, so H4/TRIPLE-confluence signals for it may take a
+few more weeks to start firing — that's the existing insufficient-data guard
+working as intended, not a bug.
+
+---
+
+
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -243,19 +293,24 @@ node crypto_bot.js weeklyreport   # Weekly performance report
 ```
 gwp-bots/
 ├── .github/workflows/
-│   ├── gwp-crypto.yml        ← Crypto bot (every 15min)
-│   ├── gwp-forex.yml         ← Forex bot (every 30min)
-│   └── gwp-stocks.yml        ← Stocks bot (US hours)
-├── crypto_bot.js             ← Crypto signal engine v3.1
-├── forex_bot.js              ← Forex signal engine v3.1
-├── stocks_bot.js             ← Stocks signal engine v3.1
+│   ├── gwp-crypto.yml        ← Crypto bot (every 30min)
+│   ├── gwp-forex.yml         ← Forex bot (hourly)
+│   ├── stocks_bot.yml        ← Stocks bot (staggered 30min, US hours)
+│   ├── backtest.yml          ← NEW: 360d/720d historical backtest (on-demand + monthly)
+│   └── keepalive.yml         ← NEW: 30-day heartbeat, prevents 60-day auto-disable
+├── crypto_bot.js             ← Crypto signal engine v3.6
+├── forex_bot.js              ← Forex signal engine
+├── stocks_bot.js             ← Stocks signal engine (now incl. SPCX)
+├── backtest.js               ← Historical backtester (crypto) — report-path bug fixed
+├── backtest-reports/         ← NEW: generated .md summaries (json gitignored)
 ├── crypto_state.json         ← Persistent state (auto-committed)
 ├── forex_state.json          ← Persistent state (auto-committed)
 ├── stocks_state.json         ← Persistent state (auto-committed)
 ├── crypto_signals.json       ← Latest signals (→ Gist → dashboard)
 ├── forex_signals.json        ← Latest signals (→ Gist → dashboard)
 ├── stocks_signals.json       ← Latest signals (→ Gist → dashboard)
-├── package.json              ← v3.1.0
+├── .gitignore                ← NEW
+├── package.json
 └── README.md
 ```
 
