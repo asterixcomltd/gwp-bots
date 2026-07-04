@@ -3,7 +3,17 @@
 // GHOST WICK PROTOCOL — STOCKS EDITION  v3.1  MONEY PRINTING MACHINE ELITE MAX™
 // Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix Holdings Ltd. · Accra, Ghana
-// Assets   : TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI (Yahoo Finance)
+// Assets   : TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI · SPCX (Yahoo Finance)
+//
+// v3.2 CHANGE:
+//   ✅ NEW: Added SPCX (Space Exploration Technologies Corp. / SpaceX) — the
+//           actual SpaceX stock, which IPO'd on Nasdaq June 12, 2026 (ticker
+//           SPCX). No proxy needed — SpaceX itself is now directly tradeable.
+//           NOTE: SPCX has a short trading history post-IPO. H4 signals need
+//           vpLookback=100 four-hour candles (~400 1H bars); until SPCX has
+//           that much history, H4/TRIPLE confluence signals for it may not
+//           fire yet — H1/M15 will start working sooner. This is expected
+//           behavior (insufficient-data guard), not a bug.
 // Platform : GitHub Actions (Node.js 22+) · stocks_state.json persistence
 //
 // © 2026 Asterix Holdings Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
@@ -98,9 +108,9 @@ const CONFIG = {
   TELEGRAM_TOKEN : process.env.STOCKS_TG_TOKEN || "",
   CHAT_ID        : process.env.STOCKS_CHAT_ID  || "",
 
-  // 7 most volatile US stocks by ATR/beta (April 2026)
-  // TSLA ~2.3β | NVDA ~2.0β | MSTR ~3.5β | COIN ~3.2β | PLTR ~2.5β | AMD ~1.8β | SMCI ~2.8β
-  PAIRS: ["TSLA","NVDA","MSTR","COIN","PLTR","AMD","SMCI"],
+  // 8 most volatile US stocks by ATR/beta (July 2026)
+  // TSLA ~2.3β | NVDA ~2.0β | MSTR ~3.5β | COIN ~3.2β | PLTR ~2.5β | AMD ~1.8β | SMCI ~2.8β | SPCX ~2.5β (est., new listing)
+  PAIRS: ["TSLA","NVDA","MSTR","COIN","PLTR","AMD","SMCI","SPCX"],
 
   CAPITAL:100, RISK_PCT:1.5, LEVERAGE:1,   // no leverage for spot stocks (set >1 for CFD)
   VP_ROWS:24, MIN_WICK_DEPTH_PCT:0.12, MIN_BODY_GAP_PCT:0.08,
@@ -139,12 +149,15 @@ const V = "GWP Stocks v3.1 | Elite Max™ | Asterix Holdings Ltd. | Abdin";
 // v3.2: Per-pair volatility multiplier based on beta
 const PAIR_VOL_MULT = {
   "TSLA":1.2, "NVDA":1.0, "MSTR":1.8, "COIN":1.6, "PLTR":1.3, "AMD":0.9, "SMCI":1.4,
+  // v3.2: SPCX — new listing, wider SL until real ATR history builds up
+  "SPCX":1.6,
 };
 
 const CORR_GROUPS = [
   ["TSLA","NVDA","AMD","SMCI"], // tech/semis
   ["MSTR","COIN"], // crypto-exposure
   ["PLTR"], // standalone
+  ["SPCX"], // standalone — space/AI conglomerate, no direct peer in this list
 ];
 function getCorrelatedPairs(sym) { const g = CORR_GROUPS.find(gr => gr.includes(sym)); return g ? g.filter(s => s !== sym) : []; }
 function hasCorrelatedPosition(symbol, direction) {
@@ -1337,7 +1350,7 @@ async function sendWelcome() {
     `▸ Triple TF confluence: 4H + 1H + 15M alignment\n`+
     `▸ Entry · SL · TP1 · TP2 · TP3 with conviction score\n`+
     `▸ Live TP/SL hit alerts as trade unfolds\n`+
-    `▸ Stocks: TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI\n\n`+
+    `▸ Stocks: TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI · SPCX\n\n`+
     `📡 <b>How it works:</b>\n`+
     `▸ Bot runs every 4H — new candle = new scan\n`+
     `▸ Only high-conviction setups fire (no spam)\n`+
@@ -1354,7 +1367,7 @@ async function sendHelp() {
     `👻 <b>GWP STOCKS v3.1 ELITE MAX™</b>\n` +
     `<b>Money Printing Machine — US Market Edition</b>\n\n` +
     `<b>Stocks scanned:</b>\n` +
-    `$TSLA · $NVDA · $MSTR · $COIN · $PLTR · $AMD · $SMCI\n\n` +
+    `$TSLA · $NVDA · $MSTR · $COIN · $PLTR · $AMD · $SMCI · $SPCX\n\n` +
     `<b>Commands:</b>\n` +
     `/scan — full scan (4H+1H+15M)\n` +
     `/tsla · /nvda · /mstr · /coin · /pltr · /amd · /smci\n` +
@@ -1430,7 +1443,7 @@ async function sendWelcome() {
     `▸ Triple TF confluence: 4H + 1H + 15M alignment\n` +
     `▸ Entry · SL · TP1 · TP2 · TP3 with conviction score\n` +
     `▸ Live TP/SL hit alerts as trade unfolds\n` +
-    `▸ Stocks: $TSLA · $NVDA · $MSTR · $COIN · $PLTR · $AMD · $SMCI\n\n` +
+    `▸ Stocks: $TSLA · $NVDA · $MSTR · $COIN · $PLTR · $AMD · $SMCI · $SPCX\n\n` +
     `📡 <b>How it works:</b>\n` +
     `▸ Bot runs during US market hours only (Mon–Fri)\n` +
     `▸ Only high-conviction setups fire (no spam)\n` +
