@@ -73,11 +73,15 @@ const PAIR_VOL_MULT = {
 };
 
 // ─── HTTP ────────────────────────────────────────────────────────────────────
+// Returns {status, headers, body} instead of a bare string, so callers can
+// actually see 429/5xx and react instead of treating every non-2xx response
+// as "no data" (which used to silently truncate the dataset).
 function httpGet(url) {
   return new Promise((res, rej) => {
     const opts = new URL(url);
     const req = https.get({ hostname: opts.hostname, path: opts.pathname + opts.search }, r => {
-      let d = ""; r.on("data", c => d += c); r.on("end", () => res(d));
+      let d = ""; r.on("data", c => d += c);
+      r.on("end", () => res({ status: r.statusCode, headers: r.headers, body: d }));
     });
     req.on("error", rej);
     req.setTimeout(15000, () => { req.destroy(new Error("Timeout")); });
@@ -89,34 +93,92 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 const KU_TF = { H4: "4hour", H1: "1hour", M15: "15min", D1: "1day" };
 const TF_MS = { H4: 4*3600000, H1: 3600000, M15: 900000, D1: 86400000 };
 
+const FETCH_MAX_RETRIES = 6;         // per page, before giving up on that page
+const FETCH_BASE_BACKOFF_MS = 1000;  // doubles each retry, capped below
+const FETCH_MAX_BACKOFF_MS = 20000;
+const PAGE_LOG_INTERVAL = 5;         // log progress every N pages so a long
+                                      // pull never looks "frozen" in the logs
+
 async function fetchKlinesRange(symbol, tf, startMs, endMs) {
-  // KuCoin returns max 1500 candles. Paginate from startMs to endMs.
+  // KuCoin returns max 1500 candles per call. Paginate from startMs to endMs.
   const allCandles = [];
   let cursor = Math.floor(startMs / 1000);
   const endSec = Math.floor(endMs / 1000);
-  const batchSize = 1500;
+  const fetchStart = Date.now();
+  let page = 0;
 
   while (cursor < endSec) {
     const url = `https://api.kucoin.com/api/v1/market/candles?type=${KU_TF[tf]}&symbol=${symbol}&startAt=${cursor}&endAt=${endSec}`;
-    try {
-      const raw = await httpGet(url);
-      const json = JSON.parse(raw);
-      if (!json.data || json.data.length === 0) break;
-      // KuCoin returns newest first → reverse
-      const batch = json.data.reverse().map(c => ({
-        t: parseInt(c[0]) * 1000, open: parseFloat(c[1]), close: parseFloat(c[2]),
-        high: parseFloat(c[3]), low: parseFloat(c[4]), vol: parseFloat(c[5]),
-      }));
-      for (const c of batch) {
-        if (!allCandles.length || c.t > allCandles[allCandles.length - 1].t) {
-          allCandles.push(c);
+    let batch = null;
+
+    for (let attempt = 0; attempt <= FETCH_MAX_RETRIES; attempt++) {
+      try {
+        const { status, headers, body } = await httpGet(url);
+
+        if (status === 429 || status === 403) {
+          // Rate-limited/blocked — back off (respect Retry-After if KuCoin sends one)
+          const retryAfterSec = parseInt(headers["retry-after"] || "0", 10);
+          const backoff = retryAfterSec > 0
+            ? retryAfterSec * 1000
+            : Math.min(FETCH_BASE_BACKOFF_MS * 2 ** attempt, FETCH_MAX_BACKOFF_MS);
+          console.warn(`  ⏳ ${symbol} ${tf}: HTTP ${status} (rate limited), backing off ${backoff}ms (attempt ${attempt + 1}/${FETCH_MAX_RETRIES + 1})`);
+          await sleep(backoff);
+          continue;
         }
+        if (status >= 500) {
+          const backoff = Math.min(FETCH_BASE_BACKOFF_MS * 2 ** attempt, FETCH_MAX_BACKOFF_MS);
+          console.warn(`  ⏳ ${symbol} ${tf}: HTTP ${status} (server error), retrying in ${backoff}ms`);
+          await sleep(backoff);
+          continue;
+        }
+        if (status !== 200) {
+          console.error(`  ❌ ${symbol} ${tf}: HTTP ${status} — ${body.slice(0, 200)}`);
+          batch = [];
+          break;
+        }
+
+        const json = JSON.parse(body);
+        if (json.code && json.code !== "200000") {
+          // KuCoin's own error envelope can come back with a 200 status too
+          console.error(`  ❌ ${symbol} ${tf}: KuCoin error ${json.code} — ${json.msg || ""}`);
+          batch = [];
+          break;
+        }
+        if (!json.data || json.data.length === 0) { batch = []; break; }
+
+        // KuCoin returns newest first → reverse
+        batch = json.data.reverse().map(c => ({
+          t: parseInt(c[0]) * 1000, open: parseFloat(c[1]), close: parseFloat(c[2]),
+          high: parseFloat(c[3]), low: parseFloat(c[4]), vol: parseFloat(c[5]),
+        }));
+        break; // success
+      } catch (e) {
+        const backoff = Math.min(FETCH_BASE_BACKOFF_MS * 2 ** attempt, FETCH_MAX_BACKOFF_MS);
+        console.warn(`  ⏳ ${symbol} ${tf}: ${e.message}, retrying in ${backoff}ms (attempt ${attempt + 1}/${FETCH_MAX_RETRIES + 1})`);
+        await sleep(backoff);
+        batch = null;
       }
-      if (batch.length < 100) break; // no more data
-      cursor = Math.floor(allCandles[allCandles.length - 1].t / 1000) + 1;
-    } catch (e) {
-      console.error(`  Fetch error ${symbol} ${tf}: ${e.message}`);
+    }
+
+    if (batch === null) {
+      // Exhausted retries on this page — stop here rather than spin forever,
+      // but keep whatever candles we already collected instead of discarding them.
+      console.error(`  🛑 ${symbol} ${tf}: giving up after ${FETCH_MAX_RETRIES + 1} attempts on one page — keeping ${allCandles.length} candles collected so far`);
       break;
+    }
+    if (batch.length === 0) break; // clean end of available data
+
+    for (const c of batch) {
+      if (!allCandles.length || c.t > allCandles[allCandles.length - 1].t) {
+        allCandles.push(c);
+      }
+    }
+    if (batch.length < 100) break; // no more data
+    cursor = Math.floor(allCandles[allCandles.length - 1].t / 1000) + 1;
+    page++;
+    if (page % PAGE_LOG_INTERVAL === 0) {
+      const elapsedS = ((Date.now() - fetchStart) / 1000).toFixed(0);
+      console.log(`    …${symbol} ${tf}: ${page} pages, ${allCandles.length} candles so far (${elapsedS}s elapsed)`);
     }
     await sleep(250); // rate limit courtesy
   }
@@ -619,9 +681,14 @@ async function runBacktest() {
   const tradesByGrade = {};
   const convictionBuckets = {};
   let totalSignals = 0, passedGate = 0, blockedByConv = 0, blockedByRR = 0;
+  const runStart = Date.now();
+  let pairIdx = 0;
 
   for (const symbol of pairs) {
-    console.log(`\n▶ Fetching ${symbol} historical data...`);
+    pairIdx++;
+    const symbolStart = Date.now();
+    const totalElapsedMin = ((Date.now() - runStart) / 60000).toFixed(1);
+    console.log(`\n▶ [${pairIdx}/${pairs.length}] Fetching ${symbol} historical data... (${totalElapsedMin}m elapsed overall)`);
     tradesByPair[symbol] = [];
 
     // Fetch all timeframe data + D1
@@ -636,6 +703,8 @@ async function runBacktest() {
       data[k] = await p;
       console.log(`  ${k}: ${data[k].length} candles fetched`);
     }
+    const symbolFetchS = ((Date.now() - symbolStart) / 1000).toFixed(1);
+    console.log(`  ✓ ${symbol} data ready in ${symbolFetchS}s`);
 
     // Walk through each TF
     for (const tf of tfs) {
