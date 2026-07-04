@@ -1,0 +1,167 @@
+# ════════════════════════════════════════════════════════════════════
+# GWP BACKTEST WORKFLOW — 360-day & 720-day historical validation
+# Runs backtest.js against real KuCoin history for the crypto bot's
+# current CONFIG/TF_CONFIG (kept in sync with crypto_bot.js — see the
+# "Sync check" step, which fails the run if they drift apart).
+#
+# Triggers:
+#   • Manual (workflow_dispatch) — pick your own days/pair/tf
+#   • Monthly, 1st of month 03:00 UTC — runs BOTH 360d and 720d automatically
+#
+# Outputs:
+#   • Full JSON + Markdown report uploaded as a build artifact (90-day retention)
+#   • Markdown summary also written straight into the GitHub Actions job summary
+#   • Markdown summaries additionally committed to backtest-reports/ in the repo
+#     so history of past runs is browsable without digging through Actions logs
+#
+# © 2026 Asterix Holdings Ltd. / Abdin.
+# ════════════════════════════════════════════════════════════════════
+
+name: GWP Backtest (360d / 720d)
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Lookback window in days (leave default to run BOTH 360 and 720)"
+        required: false
+        default: "both"
+      pair:
+        description: "Pair to test, or ALL"
+        required: false
+        default: "ALL"
+      tf:
+        description: "Timeframe to test: H4 / H1 / M15 / ALL"
+        required: false
+        default: "ALL"
+  schedule:
+    # Monthly health-check — 1st of month, 03:00 UTC. Runs both 360d and 720d.
+    - cron: "0 3 1 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gwp-backtest
+  cancel-in-progress: false
+
+jobs:
+  # ── Guard: fail fast if backtest.js core logic has drifted from crypto_bot.js
+  sync-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Verify backtest.js mirrors crypto_bot.js core functions
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const bot = fs.readFileSync('crypto_bot.js', 'utf8');
+          const bt  = fs.readFileSync('backtest.js', 'utf8');
+          const FUNCS = [
+            'calcATR','calcATRPercentile','calcVolumeRatio','calcHurst','calcZScore',
+            'kalmanFilter','calcMomentumBurst','calcZoneRevisit','computeVolumeProfile',
+            'computeAVWAP','hasVolumeSpike','detectSwings','getD1Bias'
+          ];
+          function extract(src, name) {
+            const m = src.match(new RegExp('function ' + name + '\\\\('));
+            if (!m) return null;
+            const start = m.index;
+            const i = src.indexOf('{', start);
+            let depth = 0;
+            for (let j = i; j < src.length; j++) {
+              if (src[j] === '{') depth++;
+              else if (src[j] === '}') { depth--; if (depth === 0) return src.slice(start, j + 1); }
+            }
+            return null;
+          }
+          function normalize(s) { return s.replace(/\/\/.*$/gm, '').replace(/\s+/g, ''); }
+          let failed = false;
+          for (const f of FUNCS) {
+            const a = extract(bot, f), b = extract(bt, f);
+            if (!a || !b) { console.log(`⚠️  ${f}: missing in one file (bot=${!!a}, backtest=${!!b})`); continue; }
+            if (normalize(a) !== normalize(b)) {
+              console.log(`❌ ${f}: LOGIC DRIFT between crypto_bot.js and backtest.js`);
+              failed = true;
+            } else {
+              console.log(`✅ ${f}: in sync`);
+            }
+          }
+          if (failed) {
+            console.log('\n🛑 backtest.js no longer mirrors crypto_bot.js — backtest results would not represent live bot behavior. Fix before trusting results.');
+            process.exit(1);
+          }
+          EOF
+
+  plan:
+    needs: sync-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      days_matrix: ${{ steps.compute.outputs.days_matrix }}
+    steps:
+      - name: Compute which day-windows to run
+        id: compute
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            DAYS="[360,720]"
+          elif [ "${{ github.event.inputs.days }}" = "both" ] || [ -z "${{ github.event.inputs.days }}" ]; then
+            DAYS="[360,720]"
+          else
+            DAYS="[${{ github.event.inputs.days }}]"
+          fi
+          echo "Resolved day-windows: $DAYS"
+          echo "days_matrix=$DAYS" >> "$GITHUB_OUTPUT"
+
+  backtest:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        days: ${{ fromJSON(needs.plan.outputs.days_matrix) }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Run ${{ matrix.days }}-day backtest
+        run: |
+          node backtest.js --days ${{ matrix.days }} \
+            --pair "${{ github.event.inputs.pair || 'ALL' }}" \
+            --tf "${{ github.event.inputs.tf || 'ALL' }}"
+
+      - name: Upload full report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gwp-backtest-${{ matrix.days }}d-${{ github.run_id }}
+          path: backtest-reports/*
+          retention-days: 90
+
+      - name: Commit Markdown summaries to repo
+        run: |
+          git config user.email "gwp-backtest@asterixcom.ltd"
+          git config user.name  "GWP Backtest"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch origin main --quiet
+          git reset --hard origin/main
+          # Re-run doesn't persist across reset, so only commit if report dir exists
+          # from THIS job's own filesystem (still on disk — reset only affects git index/tree,
+          # untracked backtest-reports/*.md files survive since they're new/untracked).
+          git add backtest-reports/*.md 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No new summaries to commit."
+            exit 0
+          fi
+          git commit -m "backtest: ${{ matrix.days }}d report $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+          git push origin main
