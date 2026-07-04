@@ -53,7 +53,7 @@ const TF_CONFIG = {
 
 const CONFIG = {
   PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT","AVAX-USDT","AAVE-USDT","ARB-USDT","INJ-USDT","DOT-USDT","FIL-USDT","SUI-USDT","ATOM-USDT"],  // v3.6: 16 pairs
-  CAPITAL: 5, RISK_PCT: 1.5, LEVERAGE: 20,
+  CAPITAL: 50, RISK_PCT: 1.5, LEVERAGE: 20,  // kept in sync with crypto_bot.js v3.5 (5→50 USD); currently unused in PnL math but here for consistency
   VP_ROWS: 24, MIN_WICK_DEPTH_PCT: 0.12, MIN_BODY_GAP_PCT: 0.08,
   VOLUME_FILTER: true,
   CONFLUENCE_CONVICTION_BOOST: 18,
