@@ -100,6 +100,7 @@ const FETCH_BASE_BACKOFF_MS = 1000;  // doubles each retry, capped below
 const FETCH_MAX_BACKOFF_MS = 20000;
 const PAGE_LOG_INTERVAL = 5;         // log progress every N pages so a long
                                       // pull never looks "frozen" in the logs
+const FETCH_STREAM_MAX_MS = 8 * 60000; // hard ceiling per pair/timeframe stream (8 min)
 
 // Global adaptive governor (shared across every pair/timeframe stream in this
 // process). Per-page retry/backoff alone wasn't enough: once KuCoin starts
@@ -195,10 +196,21 @@ async function fetchKlinesRange(symbol, tf, startMs, endMs) {
     }
     if (batch.length === 0) break; // clean end of available data
 
+    const beforeCount = allCandles.length;
     for (const c of batch) {
       if (!allCandles.length || c.t > allCandles[allCandles.length - 1].t) {
         allCandles.push(c);
       }
+    }
+    if (allCandles.length === beforeCount) {
+      // Non-empty batch, but every candle in it was <= what we already have —
+      // no forward progress. Without this check, cursor recomputes to the
+      // exact same value and we'd request the identical page forever. This
+      // happens in practice when the requested range starts before a pair's
+      // actual listing date: KuCoin keeps handing back its earliest available
+      // window instead of an empty response.
+      console.warn(`  ⚠️  ${symbol} ${tf}: batch returned no new candles beyond what we already have (likely hit the pair's actual history limit) — stopping with ${allCandles.length} candles`);
+      break;
     }
     if (batch.length < 100) break; // no more data
     cursor = Math.floor(allCandles[allCandles.length - 1].t / 1000) + 1;
@@ -206,6 +218,14 @@ async function fetchKlinesRange(symbol, tf, startMs, endMs) {
     if (page % PAGE_LOG_INTERVAL === 0) {
       const elapsedS = ((Date.now() - fetchStart) / 1000).toFixed(0);
       console.log(`    …${symbol} ${tf}: ${page} pages, ${allCandles.length} candles so far (${elapsedS}s elapsed)`);
+    }
+    if (Date.now() - fetchStart > FETCH_STREAM_MAX_MS) {
+      // Defense in depth against the outer per-pair time-budget check: that
+      // check only runs BETWEEN pairs, so one stream that's legitimately slow
+      // (heavy sustained throttling on this specific pair/tf) could otherwise
+      // eat the whole job's time budget before the outer check ever gets a turn.
+      console.warn(`  ⏱️  ${symbol} ${tf}: hit the ${FETCH_STREAM_MAX_MS / 60000}m per-stream ceiling — moving on with ${allCandles.length} candles`);
+      break;
     }
     await sleep(400); // rate limit courtesy (bumped from 250ms — gentler steady-state pace)
   }
@@ -748,6 +768,9 @@ async function runBacktest() {
   const tradesByGrade = {};
   const convictionBuckets = {};
   let totalSignals = 0, passedGate = 0, blockedByConv = 0, blockedByRR = 0;
+  const blockedScores = []; // {tf, signalType, score, gate} for every blocked signal — lets
+                             // future tuning see the real score distribution near the gate
+                             // instead of guessing at a new threshold blind.
   const runStart = Date.now();
   let pairIdx = 0;
   let ranOutOfTime = false;
@@ -782,116 +805,166 @@ async function runBacktest() {
     const symbolFetchS = ((Date.now() - symbolStart) / 1000).toFixed(1);
     console.log(`  ✓ ${symbol} data ready in ${symbolFetchS}s`);
 
-    // Walk through each TF
+    // ─── PHASE 1: build raw signal timelines per TF ──────────────────────────
+    // One pass per TF, recording every raw GWP detection (pre-gate) with full
+    // context. This both feeds the existing solo paths AND lets us look up
+    // "what was H1/M15 showing at this H4 bar's close" for TRIPLE/CONFLUENCE
+    // detection in phase 2 — without ever looking at a future bar (the lookup
+    // is a binary search bounded to entries with t <= the anchor's timestamp).
+    const timelines = {};
     for (const tf of tfs) {
       const candles = data[tf];
-      const d1Candles = data.D1;
       if (!candles || candles.length < 160) {
         console.log(`  ⚠️ ${tf}: insufficient data (${candles ? candles.length : 0} candles)`);
+        timelines[tf] = [];
         continue;
       }
       if (!tradesByTf[tf]) tradesByTf[tf] = [];
-
       const tfCfg = TF_CONFIG[tf];
       const windowSize = tfCfg.vpLookback + 50;
-      const cooldowns = {}; // symbol_direction_tf -> last fire timestamp
-
-      // Step size: H4=1 (check every candle), H1=2 (every other), M15=4 (every 4th)
-      // This is realistic: bots run every 15min for M15, every hour for H1, every 4h for H4
       const stepSize = tf === "M15" ? 4 : tf === "H1" ? 2 : 1;
-
-      // Slide window through candles
+      const tl = [];
       for (let i = windowSize; i < candles.length - 5; i += stepSize) {
         const window = candles.slice(Math.max(0, i - windowSize), i + 1);
         const cur = window[window.length - 1];
-
-        // Find D1 candles up to this point
-        const d1Window = d1Candles.filter(d => d.t < cur.t);
+        const d1Window = data.D1.filter(d => d.t < cur.t);
         const d1Bias = getD1Bias(d1Window.length >= 2 ? d1Window.slice(-5) : null);
-
-        // Cooldown check
-        const coolKey = `${symbol}_${tf}`;
-        if (cooldowns[coolKey] && (cur.t - cooldowns[coolKey]) < tfCfg.cooldownHrs * 3600000) continue;
-
-        // Compute indicators
         const vp = computeVolumeProfile(window, tfCfg.vpLookback);
         if (!vp) continue;
         const avwap = computeAVWAP(window, tfCfg.avwapLookback);
         const math = runMathEngine(window);
-
-        // Detect GWP
         const gwp = detectGWP(window, vp, avwap, math, tfCfg, symbol);
         if (!gwp) continue;
         totalSignals++;
-
-        // Market structure
         const ms = analyzeMarketStructure(window, gwp.direction, tfCfg);
+        tl.push({
+          i, t: cur.t, direction: gwp.direction, gwp, ms, math, d1Bias,
+          candleHour: new Date(cur.t).getUTCHours(),
+        });
+      }
+      timelines[tf] = tl;
+    }
 
-        // Conviction
-        const candleHour = new Date(cur.t).getUTCHours();
-        const conv = computeConviction(gwp, math, ms, tf, false, false, d1Bias, candleHour);
+    // Binary search: most recent timeline entry at or before `atT` (never looks ahead).
+    function currentStateAsOf(tf, atT) {
+      const tl = timelines[tf];
+      if (!tl || !tl.length) return null;
+      let lo = 0, hi = tl.length - 1, ans = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (tl[mid].t <= atT) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+      }
+      return ans >= 0 ? tl[ans] : null;
+    }
+    // Is `tf` currently (as of atT) showing the same direction, and recently enough
+    // to count as "live" rather than a stale leftover read? The freshness bound
+    // reuses that TF's own (already-tuned) cooldown window rather than inventing
+    // a new arbitrary constant.
+    function checkAgreement(tf, direction, atT, maxAgeMs) {
+      const s = currentStateAsOf(tf, atT);
+      if (!s || s.direction !== direction) return null;
+      if (atT - s.t > maxAgeMs) return null;
+      return s;
+    }
 
-        // Gate check
-        if (conv.score < tfCfg.minConviction) {
-          blockedByConv++;
-          continue;
-        }
+    // Shared across all TFs for this symbol so a fired CONFLUENCE/TRIPLE trade's
+    // cooldown suppresses the solo loops from also firing on the same underlying
+    // move — mirrors crypto_bot.js calling setCooldown() for every TF involved.
+    const cooldowns = {}; // `${direction}_${tf}` -> last-fired timestamp
 
-        // v3.6: D1 counter-trend hard block for conv < 78 (raised from 72 — v3.5 leakers at 74-75)
-        const isCounterTrend = (d1Bias==='BULL'&&gwp.direction==='BEAR')||(d1Bias==='BEAR'&&gwp.direction==='BULL');
-        if (isCounterTrend && conv.score < 78) {
-          blockedByConv++;
-          continue;
-        }
+    function recordTrade(tf, evt, conv, signalType) {
+      const candles = data[tf];
+      const futureStart = evt.i + 1;
+      const futureEnd = Math.min(candles.length, futureStart + 100);
+      const futureCandles = candles.slice(futureStart, futureEnd);
+      if (futureCandles.length < 3) return;
+      const result = simulateTrade(evt.gwp, futureCandles);
+      const trade = {
+        symbol,
+        tf: signalType, // "H4"/"H1"/"M15" for solo, or "CONFLUENCE"/"TRIPLE" — preserves
+                         // which path fired, for reporting (matches live bot's distinct
+                         // Telegram formats for solo vs confluence vs triple signals)
+        direction: evt.direction,
+        entry: evt.gwp.entry, sl: evt.gwp.sl, tp1: evt.gwp.tp1, tp2: evt.gwp.tp2, tp3: evt.gwp.tp3,
+        rr: evt.gwp.rr,
+        conviction: conv.score,
+        grade: conv.grade,
+        d1Bias: evt.d1Bias,
+        d1Aligned: (evt.d1Bias === evt.direction) || evt.d1Bias === 'NEUTRAL',
+        signalTime: new Date(evt.t).toISOString(),
+        slPct: evt.gwp.slPct !== undefined ? evt.gwp.slPct : Math.abs(evt.gwp.entry - evt.gwp.sl) / evt.gwp.entry * 100,
+        ...result,
+      };
+      allTrades.push(trade);
+      tradesByPair[symbol].push(trade);
+      (tradesByTf[tf] = tradesByTf[tf] || []).push(trade);
+      const convBucket = Math.floor(conv.score / 10) * 10;
+      const bucketKey = `${convBucket}-${convBucket + 9}`;
+      (convictionBuckets[bucketKey] = convictionBuckets[bucketKey] || []).push(trade);
+      (tradesByGrade[conv.grade] = tradesByGrade[conv.grade] || []).push(trade);
+    }
+
+    // ─── PHASE 2a: H4 anchor — TRIPLE → CONFLUENCE → solo H4 (priority order
+    // mirrors crypto_bot.js's live scan: TRIPLE checked first, then CONFLUENCE,
+    // else solo falls through) ────────────────────────────────────────────────
+    if (timelines.H4 && timelines.H4.length) {
+      for (const evt of timelines.H4) {
+        const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
+        if (cooldowns[`${direction}_H4`] && (t - cooldowns[`${direction}_H4`]) < TF_CONFIG.H4.cooldownHrs * 3600000) continue;
+
+        const h1Agree = tfs.includes("H1")
+          ? checkAgreement("H1", direction, t, TF_CONFIG.H1.cooldownHrs * 3600000 * 2) : null;
+        const m15Agree = tfs.includes("M15")
+          ? checkAgreement("M15", direction, t, TF_CONFIG.M15.cooldownHrs * 3600000 * 2) : null;
+        const isTriple = !!(h1Agree && m15Agree);
+        const isConfluence = !isTriple && !!h1Agree;
+
+        const conv = computeConviction(gwp, math, ms, "H4", isConfluence, isTriple, d1Bias, candleHour);
+        const gate = (isTriple || isConfluence)
+          ? TF_CONFIG.H4.minConviction - CONFIG.CONFLUENCE_GATE_REDUCTION
+          : TF_CONFIG.H4.minConviction;
+
+        if (conv.score < gate) { blockedByConv++; blockedScores.push({ tf: "H4", signalType: isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4", score: conv.score, gate }); continue; }
+        const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
+        if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
         passedGate++;
 
-        // Set cooldown
-        cooldowns[coolKey] = cur.t;
-        const dirKey = `${symbol}_${gwp.direction}_${tf}`;
-        cooldowns[dirKey] = cur.t;
+        cooldowns[`${direction}_H4`] = t;
+        if (isConfluence || isTriple) cooldowns[`${direction}_H1`] = t;
+        if (isTriple) cooldowns[`${direction}_M15`] = t;
 
-        // Simulate trade with future candles
-        const futureStart = i + 1;
-        const futureEnd = Math.min(candles.length, futureStart + 100); // max 100 bars forward
-        const futureCandles = candles.slice(futureStart, futureEnd);
-        if (futureCandles.length < 3) continue;
+        recordTrade("H4", evt, conv, isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4");
+      }
+    }
 
-        const result = simulateTrade(gwp, futureCandles);
+    // ─── PHASE 2b: H1 solo (cooldowns already set by a fired CONFLUENCE/TRIPLE
+    // above suppress duplicate entries on the same underlying move) ──────────
+    if (timelines.H1 && timelines.H1.length) {
+      for (const evt of timelines.H1) {
+        const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
+        if (cooldowns[`${direction}_H1`] && (t - cooldowns[`${direction}_H1`]) < TF_CONFIG.H1.cooldownHrs * 3600000) continue;
+        const conv = computeConviction(gwp, math, ms, "H1", false, false, d1Bias, candleHour);
+        if (conv.score < TF_CONFIG.H1.minConviction) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: conv.score, gate: TF_CONFIG.H1.minConviction }); continue; }
+        const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
+        if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
+        passedGate++;
+        cooldowns[`${direction}_H1`] = t;
+        recordTrade("H1", evt, conv, "H1");
+      }
+    }
 
-        const trade = {
-          symbol,
-          tf,
-          direction: gwp.direction,
-          entry: gwp.entry,
-          sl: gwp.sl,
-          tp1: gwp.tp1,
-          tp2: gwp.tp2,
-          tp3: gwp.tp3,
-          rr: gwp.rr,
-          conviction: conv.score,
-          grade: conv.grade,
-          d1Bias,
-          d1Aligned: (d1Bias === gwp.direction) || d1Bias === 'NEUTRAL',
-          signalTime: new Date(cur.t).toISOString(),
-          // BUGFIX: slPct was computed on gwp but never copied onto the trade
-          // record, so the "avg SL distance" gap-analysis check always saw 0.
-          slPct: gwp.slPct !== undefined ? gwp.slPct : Math.abs(gwp.entry - gwp.sl) / gwp.entry * 100,
-          ...result,
-        };
-
-        allTrades.push(trade);
-        tradesByPair[symbol].push(trade);
-        tradesByTf[tf].push(trade);
-
-        // Bucket by conviction
-        const convBucket = Math.floor(conv.score / 10) * 10;
-        const bucketKey = `${convBucket}-${convBucket + 9}`;
-        if (!convictionBuckets[bucketKey]) convictionBuckets[bucketKey] = [];
-        convictionBuckets[bucketKey].push(trade);
-
-        // Bucket by grade
-        if (!tradesByGrade[conv.grade]) tradesByGrade[conv.grade] = [];
-        tradesByGrade[conv.grade].push(trade);
+    // ─── PHASE 2c: M15 solo ──────────────────────────────────────────────────
+    if (timelines.M15 && timelines.M15.length) {
+      for (const evt of timelines.M15) {
+        const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
+        if (cooldowns[`${direction}_M15`] && (t - cooldowns[`${direction}_M15`]) < TF_CONFIG.M15.cooldownHrs * 3600000) continue;
+        const conv = computeConviction(gwp, math, ms, "M15", false, false, d1Bias, candleHour);
+        if (conv.score < TF_CONFIG.M15.minConviction) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: conv.score, gate: TF_CONFIG.M15.minConviction }); continue; }
+        const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
+        if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
+        passedGate++;
+        cooldowns[`${direction}_M15`] = t;
+        recordTrade("M15", evt, conv, "M15");
       }
     }
     await sleep(500); // rate limit between pairs
@@ -922,6 +995,15 @@ async function runBacktest() {
   console.log(`  Raw GWP detections:    ${totalSignals}`);
   console.log(`  Blocked by conviction: ${blockedByConv} (${totalSignals ? ((blockedByConv/totalSignals)*100).toFixed(1) : 0}%)`);
   console.log(`  Passed gate → traded:  ${passedGate} (${totalSignals ? ((passedGate/totalSignals)*100).toFixed(1) : 0}%)`);
+  const nearMisses = blockedScores.filter(b => b.gate - b.score <= 5);
+  if (nearMisses.length) {
+    console.log(`  Near-misses (within 5 pts of gate): ${nearMisses.length}`);
+    const byTf = {};
+    for (const nm of nearMisses) (byTf[nm.signalType] = byTf[nm.signalType] || []).push(nm.gate - nm.score);
+    for (const [tf, gaps] of Object.entries(byTf)) {
+      console.log(`    ${tf}: ${gaps.length} near-misses, avg gap ${(gaps.reduce((a,b)=>a+b,0)/gaps.length).toFixed(1)} pts`);
+    }
+  }
   console.log();
 
   // ─── REPORT PATHS (set up before any early return so every run — even a
@@ -953,7 +1035,8 @@ async function runBacktest() {
         partialRun: ranOutOfTime,
         skippedPairs,
       },
-      summary: { totalSignals, passedGate, blockedByConv, closedTrades: 0 },
+      summary: { totalSignals, passedGate, blockedByConv, closedTrades: 0, nearMisses: nearMisses.length },
+      blockedScores,
       trades: [],
     };
     fs.writeFileSync(reportFile, JSON.stringify(minimalReport, null, 2));
@@ -1300,9 +1383,11 @@ async function runBacktest() {
       period: `${new Date(startMs).toISOString().slice(0,10)} → ${new Date(endMs).toISOString().slice(0,10)}`,
       runtime: elapsed + "s",
       generated: new Date().toISOString(),
+      partialRun: ranOutOfTime,
+      skippedPairs,
     },
     summary: {
-      totalSignals, passedGate, blockedByConv,
+      totalSignals, passedGate, blockedByConv, nearMisses: nearMisses.length,
       closedTrades: closedTrades.length,
       winRate: parseFloat(winRate.toFixed(1)),
       tp1Rate: parseFloat(tp1Rate.toFixed(1)),
@@ -1320,6 +1405,7 @@ async function runBacktest() {
     gaps,
     trades: allTrades,
     equity,
+    blockedScores,
   };
   fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
 
