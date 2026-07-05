@@ -20,6 +20,7 @@ function getArg(name, def) {
   return idx >= 0 && args[idx + 1] ? args[idx + 1] : def;
 }
 const BT_PAIR       = getArg("pair", "ALL");  // ALL or specific pair
+const BT_PAIRS_LIST = getArg("pairs", "");    // comma-separated override, e.g. for running one chunk of the full pair list in parallel
 const BT_DAYS       = parseInt(getArg("days", "90"));
 const BT_TF_FOCUS   = getArg("tf", "ALL");    // ALL, H4, H1, M15
 const BT_MAX_MINUTES = parseInt(getArg("max-minutes", "60")); // hard wall-clock budget for the whole run
@@ -100,6 +101,28 @@ const FETCH_MAX_BACKOFF_MS = 20000;
 const PAGE_LOG_INTERVAL = 5;         // log progress every N pages so a long
                                       // pull never looks "frozen" in the logs
 
+// Global adaptive governor (shared across every pair/timeframe stream in this
+// process). Per-page retry/backoff alone wasn't enough: once KuCoin starts
+// throttling a sustained run, EVERY stream kept independently retrying at its
+// own pace and re-triggering more 429s. Instead, the first throttle signal
+// slows down ALL subsequent requests process-wide, easing off gradually once
+// things flow again — much closer to how a well-behaved client should react
+// to a sustained rate limit rather than a one-off blip.
+let globalCooldownUntil = 0;
+let throttleStrikes = 0;
+async function respectGlobalCooldown() {
+  const wait = globalCooldownUntil - Date.now();
+  if (wait > 0) await sleep(wait);
+}
+function registerThrottleHit() {
+  throttleStrikes++;
+  const cooldown = Math.min(1500 * throttleStrikes, 15000);
+  globalCooldownUntil = Math.max(globalCooldownUntil, Date.now() + cooldown);
+}
+function registerThrottleClear() {
+  if (throttleStrikes > 0) throttleStrikes--; // ease off gradually, don't snap back to full speed
+}
+
 async function fetchKlinesRange(symbol, tf, startMs, endMs) {
   // KuCoin returns max 1500 candles per call. Paginate from startMs to endMs.
   const allCandles = [];
@@ -113,16 +136,18 @@ async function fetchKlinesRange(symbol, tf, startMs, endMs) {
     let batch = null;
 
     for (let attempt = 0; attempt <= FETCH_MAX_RETRIES; attempt++) {
+      await respectGlobalCooldown();
       try {
         const { status, headers, body } = await httpGet(url);
 
         if (status === 429 || status === 403) {
+          registerThrottleHit();
           // Rate-limited/blocked — back off (respect Retry-After if KuCoin sends one)
           const retryAfterSec = parseInt(headers["retry-after"] || "0", 10);
           const backoff = retryAfterSec > 0
             ? retryAfterSec * 1000
             : Math.min(FETCH_BASE_BACKOFF_MS * 2 ** attempt, FETCH_MAX_BACKOFF_MS);
-          console.warn(`  ⏳ ${symbol} ${tf}: HTTP ${status} (rate limited), backing off ${backoff}ms (attempt ${attempt + 1}/${FETCH_MAX_RETRIES + 1})`);
+          console.warn(`  ⏳ ${symbol} ${tf}: HTTP ${status} (rate limited), backing off ${backoff}ms (attempt ${attempt + 1}/${FETCH_MAX_RETRIES + 1}, global throttle strikes: ${throttleStrikes})`);
           await sleep(backoff);
           continue;
         }
@@ -145,6 +170,7 @@ async function fetchKlinesRange(symbol, tf, startMs, endMs) {
           batch = [];
           break;
         }
+        registerThrottleClear();
         if (!json.data || json.data.length === 0) { batch = []; break; }
 
         // KuCoin returns newest first → reverse
@@ -181,7 +207,7 @@ async function fetchKlinesRange(symbol, tf, startMs, endMs) {
       const elapsedS = ((Date.now() - fetchStart) / 1000).toFixed(0);
       console.log(`    …${symbol} ${tf}: ${page} pages, ${allCandles.length} candles so far (${elapsedS}s elapsed)`);
     }
-    await sleep(250); // rate limit courtesy
+    await sleep(400); // rate limit courtesy (bumped from 250ms — gentler steady-state pace)
   }
   return allCandles;
 }
@@ -696,7 +722,9 @@ async function runBacktest() {
   const startTime = Date.now();
   const endMs = Date.now();
   const startMs = endMs - BT_DAYS * 86400000;
-  const pairs = BT_PAIR === "ALL" ? CONFIG.PAIRS : [BT_PAIR];
+  const pairs = BT_PAIRS_LIST
+    ? BT_PAIRS_LIST.split(",").map(p => p.trim()).filter(Boolean)
+    : (BT_PAIR === "ALL" ? CONFIG.PAIRS : [BT_PAIR]);
   const tfs = BT_TF_FOCUS === "ALL" ? ["H4", "H1", "M15"] : [BT_TF_FOCUS];
 
   const kucoinOk = await checkKucoinConnectivity();
