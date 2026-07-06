@@ -414,6 +414,49 @@ function hasVolumeSpike(sigCandle, allCandles, sigIdx, lookback, mult) {
 }
 
 // ── MARKET STRUCTURE ENGINE ───────────────────────────────────────────────────
+// ── TIMEFRAME BIAS VOTE + ENTRY CONFIRMATION COUNT (ported from crypto_bot.js,
+// which itself ports the MVS bot's proven 2-of-3 vote design) ─────────────────
+function computeTfBias(candles, vp, fibLookback = 50) {
+  if (!candles || !vp || candles.length < fibLookback) return null;
+  const price = candles[candles.length - 1].close;
+  const fibData = candles.slice(-fibLookback);
+  const swingHigh = Math.max(...fibData.map(c => c.high));
+  const swingLow = Math.min(...fibData.map(c => c.low));
+  const fibMid = (swingHigh + swingLow) / 2;
+  const votes = {
+    poc: price >= vp.poc ? "BULL" : "BEAR",
+    vah: price >= vp.vah ? "BULL" : "BEAR",
+    val: price >= vp.val ? "BULL" : "BEAR",
+    fib: price >= fibMid ? "BULL" : "BEAR",
+  };
+  const bullVotes = Object.values(votes).filter(v => v === "BULL").length;
+  let bias;
+  if (bullVotes >= 3) bias = "BULLISH";
+  else if (bullVotes <= 1) bias = "BEARISH";
+  else bias = "NEUTRAL";
+  return { bias, bullVotes, votes, swingHigh, swingLow, fibMid };
+}
+function resolveVoteDirection(votes) {
+  const usable = votes.filter(v => v.result && v.result.bias !== "NEUTRAL");
+  const bulls = usable.filter(v => v.result.bias === "BULLISH").map(v => v.tf);
+  const bears = usable.filter(v => v.result.bias === "BEARISH").map(v => v.tf);
+  if (bulls.length >= 2) return { direction: "BULL", agreeing: bulls, tally: `${bulls.length}/3` };
+  if (bears.length >= 2) return { direction: "BEAR", agreeing: bears, tally: `${bears.length}/3` };
+  return null;
+}
+// MVS-style count-based entry gate — replaces the old high cumulative
+// conviction-score threshold as the pass/fail decision. See crypto_bot.js for
+// the full rationale. D1 counter-trend stays a separate hard block.
+function checkEntryConfirmations(gwp, ms) {
+  const confirmations = [];
+  if (gwp.volumeSpike) confirmations.push("VOLUME_SPIKE");
+  if (gwp.avwapTrap) confirmations.push("AVWAP_TRAP");
+  if (gwp.wyckoff && (gwp.wyckoff.phase === "SPRING" || gwp.wyckoff.phase === "UPTHRUST")) confirmations.push("WYCKOFF");
+  if (ms && ms.confirmed) confirmations.push("MS_CONFIRMED");
+  if (parseFloat(gwp.rr) >= 1.5) confirmations.push("RR_FLOOR");
+  return { count: confirmations.length, confirmations, valid: confirmations.length >= 2 };
+}
+
 function detectSwings(candles,strength){
   const highs=[],lows=[],str=strength||3;
   for(let i=str;i<candles.length-str;i++){
@@ -1495,8 +1538,8 @@ async function runBot(){
           const conv4h=computeConviction(r4h,m4h,ms4h,"H4",false,true,d1Bias);
           const conv1h=computeConviction(r1h,m1h,ms1h,"H1",false,true,d1Bias);
           const conv15m=computeConviction(r15m,m15m,ms15m,"M15",false,true,d1Bias);
-          const gate=TF_CONFIG.H4.minConviction-CONFIG.CONFLUENCE_GATE_REDUCTION;
-          if(parseFloat(conv4h.score)>=gate){
+          const gate=checkEntryConfirmations(r4h,ms4h);
+          if(gate.valid){
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock=hasCorrelatedPosition(pair.symbol,dir);
             if(corrBlock){console.log(`  ⚠️ CORR FILTER: ${pair.symbol} blocked — ${corrBlock} already OPEN ${dir}`);continue;}
@@ -1518,9 +1561,9 @@ async function runBot(){
         if(!isDuplicate(pair.symbol,dir,"CONF")){
           const conv4h=computeConviction(r4h,m4h,ms4h,"H4",true,false,d1Bias);
           const conv1h=computeConviction(r1h,m1h,ms1h,"H1",true,false,d1Bias);
-          const gate=TF_CONFIG.H4.minConviction-CONFIG.CONFLUENCE_GATE_REDUCTION;
-          console.log(`  🔥🔥 CONFLUENCE! ${dir} 4H Conv=${conv4h.score} gate=${gate}`);
-          if(parseFloat(conv4h.score)>=gate){
+          const gate=checkEntryConfirmations(r4h,ms4h);
+          console.log(`  🔥🔥 CONFLUENCE! ${dir} confirmations=${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid){
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock=hasCorrelatedPosition(pair.symbol,dir);
             if(corrBlock){console.log(`  ⚠️ CORR FILTER: ${pair.symbol} blocked — ${corrBlock} already OPEN ${dir}`);continue;}
@@ -1539,8 +1582,9 @@ async function runBot(){
         if(isOnCooldown(pair.symbol,r4h.direction,"H4")){console.log("  🔒 4H cooldown");}
         else{
           const conv=computeConviction(r4h,m4h,ms4h,"H4",false,false,d1Bias);
-          console.log(`  4H conv: ${conv.score}/123 ${conv.grade}`);
-          if(parseFloat(conv.score)>=TF_CONFIG.H4.minConviction&&!isDuplicate(pair.symbol,r4h.direction,"H4")){
+          const gate=checkEntryConfirmations(r4h,ms4h);
+          console.log(`  4H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid&&!isDuplicate(pair.symbol,r4h.direction,"H4")){
             if(isD1CounterBlocked(r4h.direction,parseFloat(conv.score))){/* skip */}
             else{
             const corrBlock=hasCorrelatedPosition(pair.symbol,r4h.direction);
@@ -1561,8 +1605,9 @@ async function runBot(){
         if(isOnCooldown(pair.symbol,r1h.direction,"H1")){console.log("  🔒 1H cooldown");}
         else{
           const conv=computeConviction(r1h,m1h,ms1h,"H1",false,false,d1Bias);
-          console.log(`  1H conv: ${conv.score}/123 ${conv.grade}`);
-          if(parseFloat(conv.score)>=TF_CONFIG.H1.minConviction&&!isDuplicate(pair.symbol,r1h.direction,"H1")){
+          const gate=checkEntryConfirmations(r1h,ms1h);
+          console.log(`  1H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid&&!isDuplicate(pair.symbol,r1h.direction,"H1")){
             if(isD1CounterBlocked(r1h.direction,parseFloat(conv.score))){/* skip */}
             else{
             const corrBlock=hasCorrelatedPosition(pair.symbol,r1h.direction);
@@ -1582,8 +1627,9 @@ async function runBot(){
         const parentDir=(r4h||r1h).direction;
         if(r15m.direction===parentDir&&!isOnCooldown(pair.symbol,r15m.direction,"M15")){
           const conv=computeConviction(r15m,m15m,ms15m,"M15",true,false,d1Bias);
-          console.log(`  15M conv: ${conv.score}/123 ${conv.grade}`);
-          if(parseFloat(conv.score)>=TF_CONFIG.M15.minConviction&&!isDuplicate(pair.symbol,r15m.direction,"M15")){
+          const gate=checkEntryConfirmations(r15m,ms15m);
+          console.log(`  15M conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid&&!isDuplicate(pair.symbol,r15m.direction,"M15")){
             if(isD1CounterBlocked(r15m.direction,parseFloat(conv.score))){/* skip */}
             else{
             const corrBlock=hasCorrelatedPosition(pair.symbol,r15m.direction);

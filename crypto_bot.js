@@ -500,6 +500,26 @@ function resolveVoteDirection(votes) {
   return null;
 }
 
+// ── ENTRY CONFIRMATION COUNT (MVS-style, replaces the old high cumulative ─────
+// conviction-score threshold as the pass/fail gate) ────────────────────────────
+// detectGWP already requires volumeSpike OR avwapTrap internally before it even
+// returns a signal — so every gwp candidate already has at least one of these
+// two for free. This just asks: is there at least one MORE independent reason
+// to trust this specific setup (Wyckoff spring/upthrust, confirmed market
+// structure, or a decent reward:risk)? 2-of-5 total mirrors MVS's own
+// REJECTION_MIN_PATTERNS=2 threshold almost exactly. Conviction score is still
+// computed elsewhere for grading/labeling/position-sizing — it's just no
+// longer the gate. D1 counter-trend stays a separate, distinct hard block.
+function checkEntryConfirmations(gwp, ms) {
+  const confirmations = [];
+  if (gwp.volumeSpike) confirmations.push("VOLUME_SPIKE");
+  if (gwp.avwapTrap) confirmations.push("AVWAP_TRAP");
+  if (gwp.wyckoff && (gwp.wyckoff.phase === "SPRING" || gwp.wyckoff.phase === "UPTHRUST")) confirmations.push("WYCKOFF");
+  if (ms && ms.confirmed) confirmations.push("MS_CONFIRMED");
+  if (parseFloat(gwp.rr) >= 1.5) confirmations.push("RR_FLOOR");
+  return { count: confirmations.length, confirmations, valid: confirmations.length >= 2 };
+}
+
 function detectSwings(candles,strength){
   const highs=[],lows=[],str=strength||3;
   for(let i=str;i<candles.length-str;i++){
@@ -1604,8 +1624,8 @@ async function runBot(){
       ]);
       console.log(`  🗳️ VOTE: 4H=${bias4h?bias4h.bias:"N/A"} | 1H=${bias1h?bias1h.bias:"N/A"} | 15M=${bias15m?bias15m.bias:"N/A"}`+
         (vote?` → ${vote.direction} (${vote.tally}: ${vote.agreeing.join("+")})`:" → NO 2-OF-3 AGREEMENT"));
-      if(!vote){console.log("  🔒 Vote gate: no 2-of-3 agreement, skipping symbol this scan");continue;}
-      const voteDir = vote.direction;
+      if(!vote){console.log("  🗳️ Vote: no 2-of-3 agreement (informational only — does not block; see conviction/trigger gate below)");}
+      const voteDir = vote ? vote.direction : null;
 
       const av4h=computeAVWAP(c4h,TF_CONFIG.H4.avwapLookback);
       const av1h=c1h?computeAVWAP(c1h,TF_CONFIG.H1.avwapLookback):null;
@@ -1639,14 +1659,14 @@ async function runBot(){
       }
 
       // ─ TRIPLE CONFLUENCE ──────────────────────────────────────────────────
-      if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction&&r4h.direction===voteDir){
+      if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction){
         const dir=r4h.direction;
         if(!isDuplicate(symbol,dir,"TRIPLE")){
           const conv4h=computeConviction(r4h,m4h,ms4h,"H4",false,true,d1Bias);
           const conv1h=computeConviction(r1h,m1h,ms1h,"H1",false,true,d1Bias);
           const conv15m=computeConviction(r15m,m15m,ms15m,"M15",false,true,d1Bias);
-          const gate=TF_CONFIG.H4.minConviction-CONFIG.CONFLUENCE_GATE_REDUCTION;
-          if(parseFloat(conv4h.score)>=gate){
+          const gate=checkEntryConfirmations(r4h,ms4h);
+          if(gate.valid){
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock=hasCorrelatedPosition(symbol,dir);
             if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
@@ -1662,15 +1682,15 @@ async function runBot(){
       }
 
       // ─ 4H + 1H CONFLUENCE ─────────────────────────────────────────────────
-      if(r4h&&r1h&&r4h.direction===r1h.direction&&r4h.direction===voteDir){
+      if(r4h&&r1h&&r4h.direction===r1h.direction){
         const dir=r4h.direction;
         if(isOnCooldown(symbol,dir,"H4")&&isOnCooldown(symbol,dir,"H1")){console.log("  🔒 Both TF cooldowns");continue;}
         if(!isDuplicate(symbol,dir,"CONF")){
           const conv4h=computeConviction(r4h,m4h,ms4h,"H4",true,false,d1Bias);
           const conv1h=computeConviction(r1h,m1h,ms1h,"H1",true,false,d1Bias);
-          const gate=TF_CONFIG.H4.minConviction-CONFIG.CONFLUENCE_GATE_REDUCTION;
-          console.log(`  🔥🔥 CONFLUENCE! ${dir} 4H Conv=${conv4h.score} gate=${gate}`);
-          if(parseFloat(conv4h.score)>=gate){
+          const gate=checkEntryConfirmations(r4h,ms4h);
+          console.log(`  🔥🔥 CONFLUENCE! ${dir} confirmations=${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid){
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock=hasCorrelatedPosition(symbol,dir);
             if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
@@ -1685,12 +1705,13 @@ async function runBot(){
       }
 
       // ─ 4H SOLO ────────────────────────────────────────────────────────────
-      if(r4h&&(!firedDir||r4h.direction===firedDir)&&r4h.direction===voteDir){
+      if(r4h&&(!firedDir||r4h.direction===firedDir)){
         if(isOnCooldown(symbol,r4h.direction,"H4")){console.log("  🔒 4H cooldown");}
         else{
           const conv=computeConviction(r4h,m4h,ms4h,"H4",false,false,d1Bias);
-          console.log(`  4H conv: ${conv.score}/123 ${conv.grade}`);
-          if(parseFloat(conv.score)>=TF_CONFIG.H4.minConviction&&!isDuplicate(symbol,r4h.direction,"H4")){
+          const gate=checkEntryConfirmations(r4h,ms4h);
+          console.log(`  4H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid&&!isDuplicate(symbol,r4h.direction,"H4")){
             if(isD1CounterBlocked(r4h.direction,parseFloat(conv.score))){/* skip */}
             else{
             // v3.1 Fix #4: Funding rate adjustment
@@ -1716,12 +1737,13 @@ async function runBot(){
       }
 
       // ─ 1H SOLO ────────────────────────────────────────────────────────────
-      if(r1h&&(!firedDir||r1h.direction===firedDir)&&r1h.direction===voteDir){
+      if(r1h&&(!firedDir||r1h.direction===firedDir)){
         if(isOnCooldown(symbol,r1h.direction,"H1")){console.log("  🔒 1H cooldown");}
         else{
           const conv=computeConviction(r1h,m1h,ms1h,"H1",false,false,d1Bias);
-          console.log(`  1H conv: ${conv.score}/123 ${conv.grade}`);
-          if(parseFloat(conv.score)>=TF_CONFIG.H1.minConviction&&!isDuplicate(symbol,r1h.direction,"H1")){
+          const gate=checkEntryConfirmations(r1h,ms1h);
+          console.log(`  1H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid&&!isDuplicate(symbol,r1h.direction,"H1")){
             if(isD1CounterBlocked(r1h.direction,parseFloat(conv.score))){/* skip */}
             else{
             // v3.1 Fix #4: Funding rate adjustment
@@ -1748,10 +1770,11 @@ async function runBot(){
       // ─ 15M MICRO (only with higher TF present for context) ────────────────
       if(r15m&&(r4h||r1h)){
         const parentDir=(r4h||r1h).direction;
-        if(r15m.direction===parentDir&&parentDir===voteDir&&!isOnCooldown(symbol,r15m.direction,"M15")){
+        if(r15m.direction===parentDir&&!isOnCooldown(symbol,r15m.direction,"M15")){
           const conv=computeConviction(r15m,m15m,ms15m,"M15",true,false,d1Bias);
-          console.log(`  15M conv: ${conv.score}/123 ${conv.grade}`);
-          if(parseFloat(conv.score)>=TF_CONFIG.M15.minConviction&&!isDuplicate(symbol,r15m.direction,"M15")){
+          const gate=checkEntryConfirmations(r15m,ms15m);
+          console.log(`  15M conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
+          if(gate.valid&&!isDuplicate(symbol,r15m.direction,"M15")){
             if(isD1CounterBlocked(r15m.direction,parseFloat(conv.score))){/* skip */}
             else{
             // v3.1 Fix #4: Funding rate adjustment
