@@ -335,6 +335,37 @@ function hasVolumeSpike(sigCandle,allCandles,sigIdx,volLookback,mult){
 }
 
 // ─── MARKET STRUCTURE ────────────────────────────────────────────────────────
+// ── TIMEFRAME BIAS VOTE (ported from the MVS bot's proven 2-of-3 design) ──────
+// Mirrors crypto_bot.js exactly — see that file for the full explanation.
+function computeTfBias(candles, vp, fibLookback = 50) {
+  if (!candles || !vp || candles.length < fibLookback) return null;
+  const price = candles[candles.length - 1].close;
+  const fibData = candles.slice(-fibLookback);
+  const swingHigh = Math.max(...fibData.map(c => c.high));
+  const swingLow = Math.min(...fibData.map(c => c.low));
+  const fibMid = (swingHigh + swingLow) / 2;
+  const votes = {
+    poc: price >= vp.poc ? "BULL" : "BEAR",
+    vah: price >= vp.vah ? "BULL" : "BEAR",
+    val: price >= vp.val ? "BULL" : "BEAR",
+    fib: price >= fibMid ? "BULL" : "BEAR",
+  };
+  const bullVotes = Object.values(votes).filter(v => v === "BULL").length;
+  let bias;
+  if (bullVotes >= 3) bias = "BULLISH";
+  else if (bullVotes <= 1) bias = "BEARISH";
+  else bias = "NEUTRAL";
+  return { bias, bullVotes, votes, swingHigh, swingLow, fibMid };
+}
+function resolveVoteDirection(votes) {
+  const usable = votes.filter(v => v.result && v.result.bias !== "NEUTRAL");
+  const bulls = usable.filter(v => v.result.bias === "BULLISH").map(v => v.tf);
+  const bears = usable.filter(v => v.result.bias === "BEARISH").map(v => v.tf);
+  if (bulls.length >= 2) return { direction: "BULL", agreeing: bulls, tally: `${bulls.length}/3` };
+  if (bears.length >= 2) return { direction: "BEAR", agreeing: bears, tally: `${bears.length}/3` };
+  return null;
+}
+
 function detectSwings(candles,strength){
   const highs=[],lows=[],str=strength||3;
   for(let i=str;i<candles.length-str;i++){
@@ -811,12 +842,19 @@ async function runBacktest() {
     // "what was H1/M15 showing at this H4 bar's close" for TRIPLE/CONFLUENCE
     // detection in phase 2 — without ever looking at a future bar (the lookup
     // is a binary search bounded to entries with t <= the anchor's timestamp).
+    //
+    // ALSO builds a separate, denser "bias timeline" per TF (computed at every
+    // bar with a valid volume profile, regardless of whether a GWP trigger
+    // fired) — the 2-of-3 vote (ported from the MVS bot) is a continuous
+    // structural read, not a trigger event, so it needs its own timeline.
     const timelines = {};
+    const biasTimelines = {};
     for (const tf of tfs) {
       const candles = data[tf];
       if (!candles || candles.length < 160) {
         console.log(`  ⚠️ ${tf}: insufficient data (${candles ? candles.length : 0} candles)`);
         timelines[tf] = [];
+        biasTimelines[tf] = [];
         continue;
       }
       if (!tradesByTf[tf]) tradesByTf[tf] = [];
@@ -824,6 +862,7 @@ async function runBacktest() {
       const windowSize = tfCfg.vpLookback + 50;
       const stepSize = tf === "M15" ? 4 : tf === "H1" ? 2 : 1;
       const tl = [];
+      const bl = [];
       for (let i = windowSize; i < candles.length - 5; i += stepSize) {
         const window = candles.slice(Math.max(0, i - windowSize), i + 1);
         const cur = window[window.length - 1];
@@ -831,6 +870,10 @@ async function runBacktest() {
         const d1Bias = getD1Bias(d1Window.length >= 2 ? d1Window.slice(-5) : null);
         const vp = computeVolumeProfile(window, tfCfg.vpLookback);
         if (!vp) continue;
+
+        const bias = computeTfBias(window, vp);
+        if (bias) bl.push({ t: cur.t, bias: bias.bias });
+
         const avwap = computeAVWAP(window, tfCfg.avwapLookback);
         const math = runMathEngine(window);
         const gwp = detectGWP(window, vp, avwap, math, tfCfg, symbol);
@@ -843,6 +886,32 @@ async function runBacktest() {
         });
       }
       timelines[tf] = tl;
+      biasTimelines[tf] = bl;
+    }
+
+    // Binary search into the dense bias timeline: what was this TF's compressed
+    // vote showing at or before time atT? (never looks ahead)
+    function biasAsOf(tf, atT) {
+      const bl = biasTimelines[tf];
+      if (!bl || !bl.length) return null;
+      let lo = 0, hi = bl.length - 1, ans = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (bl[mid].t <= atT) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+      }
+      return ans >= 0 ? bl[ans].bias : null;
+    }
+    // Resolve the 2-of-3 vote as of a given anchor timestamp, using whichever
+    // TFs are actually in `tfs` (mirrors crypto_bot.js's live vote, which also
+    // only uses whichever of H4/H1/M15 it has data for).
+    function resolveVoteAsOf(atT) {
+      const votes = [];
+      for (const tf of ["H4", "H1", "M15"]) {
+        if (!tfs.includes(tf)) continue;
+        const bias = biasAsOf(tf, atT);
+        votes.push({ tf, result: bias ? { bias } : null });
+      }
+      return resolveVoteDirection(votes);
     }
 
     // Binary search: most recent timeline entry at or before `atT` (never looks ahead).
@@ -912,6 +981,11 @@ async function runBacktest() {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
         if (cooldowns[`${direction}_H4`] && (t - cooldowns[`${direction}_H4`]) < TF_CONFIG.H4.cooldownHrs * 3600000) continue;
 
+        // 2-of-3 vote gate (primary — mirrors crypto_bot.js): must resolve AND
+        // match this signal's own direction before anything else is evaluated.
+        const vote = resolveVoteAsOf(t);
+        if (!vote || vote.direction !== direction) { blockedByConv++; continue; }
+
         const h1Agree = tfs.includes("H1")
           ? checkAgreement("H1", direction, t, TF_CONFIG.H1.cooldownHrs * 3600000 * 2) : null;
         const m15Agree = tfs.includes("M15")
@@ -943,6 +1017,8 @@ async function runBacktest() {
       for (const evt of timelines.H1) {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
         if (cooldowns[`${direction}_H1`] && (t - cooldowns[`${direction}_H1`]) < TF_CONFIG.H1.cooldownHrs * 3600000) continue;
+        const vote = resolveVoteAsOf(t);
+        if (!vote || vote.direction !== direction) { blockedByConv++; continue; }
         const conv = computeConviction(gwp, math, ms, "H1", false, false, d1Bias, candleHour);
         if (conv.score < TF_CONFIG.H1.minConviction) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: conv.score, gate: TF_CONFIG.H1.minConviction }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
@@ -958,6 +1034,8 @@ async function runBacktest() {
       for (const evt of timelines.M15) {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
         if (cooldowns[`${direction}_M15`] && (t - cooldowns[`${direction}_M15`]) < TF_CONFIG.M15.cooldownHrs * 3600000) continue;
+        const vote = resolveVoteAsOf(t);
+        if (!vote || vote.direction !== direction) { blockedByConv++; continue; }
         const conv = computeConviction(gwp, math, ms, "M15", false, false, d1Bias, candleHour);
         if (conv.score < TF_CONFIG.M15.minConviction) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: conv.score, gate: TF_CONFIG.M15.minConviction }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');

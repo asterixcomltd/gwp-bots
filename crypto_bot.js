@@ -464,6 +464,42 @@ function hasVolumeSpike(sigCandle, allCandles, sigIdx, volLookback, mult) {
 }
 
 // ── MARKET STRUCTURE ENGINE ───────────────────────────────────────────────────
+// ── TIMEFRAME BIAS VOTE (ported from the MVS bot's proven 2-of-3 design) ──────
+// One compressed BULL/BEAR/NEUTRAL read per timeframe: price vs POC/VAH/VAL
+// plus price vs the midpoint of the recent swing range. 3-4 of 4 pillars
+// agreeing BULL -> BULLISH, 0-1 -> BEARISH, a 2-2 split -> NEUTRAL (this TF
+// abstains from the vote rather than forcing a weak lean either way).
+function computeTfBias(candles, vp, fibLookback = 50) {
+  if (!candles || !vp || candles.length < fibLookback) return null;
+  const price = candles[candles.length - 1].close;
+  const fibData = candles.slice(-fibLookback);
+  const swingHigh = Math.max(...fibData.map(c => c.high));
+  const swingLow = Math.min(...fibData.map(c => c.low));
+  const fibMid = (swingHigh + swingLow) / 2;
+  const votes = {
+    poc: price >= vp.poc ? "BULL" : "BEAR",
+    vah: price >= vp.vah ? "BULL" : "BEAR",
+    val: price >= vp.val ? "BULL" : "BEAR",
+    fib: price >= fibMid ? "BULL" : "BEAR",
+  };
+  const bullVotes = Object.values(votes).filter(v => v === "BULL").length;
+  let bias;
+  if (bullVotes >= 3) bias = "BULLISH";
+  else if (bullVotes <= 1) bias = "BEARISH";
+  else bias = "NEUTRAL";
+  return { bias, bullVotes, votes, swingHigh, swingLow, fibMid };
+}
+// 2-of-3 timeframe direction resolution. votes: [{tf, result: computeTfBias(...) | null}, ...]
+// Returns {direction:"BULL"|"BEAR", agreeing:[tf,...], tally} or null if no 2-of-3 agreement.
+function resolveVoteDirection(votes) {
+  const usable = votes.filter(v => v.result && v.result.bias !== "NEUTRAL");
+  const bulls = usable.filter(v => v.result.bias === "BULLISH").map(v => v.tf);
+  const bears = usable.filter(v => v.result.bias === "BEARISH").map(v => v.tf);
+  if (bulls.length >= 2) return { direction: "BULL", agreeing: bulls, tally: `${bulls.length}/3` };
+  if (bears.length >= 2) return { direction: "BEAR", agreeing: bears, tally: `${bears.length}/3` };
+  return null;
+}
+
 function detectSwings(candles,strength){
   const highs=[],lows=[],str=strength||3;
   for(let i=str;i<candles.length-str;i++){
@@ -1548,6 +1584,29 @@ async function runBot(){
       const vp15m=c15m&&c15m.length>=15?computeVolumeProfile(c15m,TF_CONFIG.M15.vpLookback):null;
       if(!vp4h){console.log("  4H VP failed");continue;}
 
+      // ── 2-OF-3 TIMEFRAME VOTE (primary gate) ──────────────────────────────
+      // Ported from the MVS bot's proven design: each TF casts ONE compressed
+      // BULL/BEAR/NEUTRAL read from 4 structural pillars (price vs POC/VAH/VAL
+      // vs recent-swing midpoint). At least 2 of the 3 available TFs must agree
+      // before ANYTHING downstream (GWP detection, conviction scoring, TRIPLE/
+      // CONFLUENCE) is even evaluated. This does NOT replace the GWP trigger
+      // pattern below — MVS itself still requires a real price-action trigger
+      // after its vote resolves (zone proximity + rejection pattern), and GWP's
+      // existing detectGWP/conviction logic plays that same role here. Vote
+      // decides direction; the existing trigger logic still decides entry.
+      const bias4h  = computeTfBias(c4h,  vp4h);
+      const bias1h  = vp1h  ? computeTfBias(c1h,  vp1h)  : null;
+      const bias15m = vp15m ? computeTfBias(c15m, vp15m) : null;
+      const vote = resolveVoteDirection([
+        { tf:"H4",  result: bias4h  },
+        { tf:"H1",  result: bias1h  },
+        { tf:"M15", result: bias15m },
+      ]);
+      console.log(`  🗳️ VOTE: 4H=${bias4h?bias4h.bias:"N/A"} | 1H=${bias1h?bias1h.bias:"N/A"} | 15M=${bias15m?bias15m.bias:"N/A"}`+
+        (vote?` → ${vote.direction} (${vote.tally}: ${vote.agreeing.join("+")})`:" → NO 2-OF-3 AGREEMENT"));
+      if(!vote){console.log("  🔒 Vote gate: no 2-of-3 agreement, skipping symbol this scan");continue;}
+      const voteDir = vote.direction;
+
       const av4h=computeAVWAP(c4h,TF_CONFIG.H4.avwapLookback);
       const av1h=c1h?computeAVWAP(c1h,TF_CONFIG.H1.avwapLookback):null;
       const av15m=c15m?computeAVWAP(c15m,TF_CONFIG.M15.avwapLookback):null;
@@ -1580,7 +1639,7 @@ async function runBot(){
       }
 
       // ─ TRIPLE CONFLUENCE ──────────────────────────────────────────────────
-      if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction){
+      if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction&&r4h.direction===voteDir){
         const dir=r4h.direction;
         if(!isDuplicate(symbol,dir,"TRIPLE")){
           const conv4h=computeConviction(r4h,m4h,ms4h,"H4",false,true,d1Bias);
@@ -1603,7 +1662,7 @@ async function runBot(){
       }
 
       // ─ 4H + 1H CONFLUENCE ─────────────────────────────────────────────────
-      if(r4h&&r1h&&r4h.direction===r1h.direction){
+      if(r4h&&r1h&&r4h.direction===r1h.direction&&r4h.direction===voteDir){
         const dir=r4h.direction;
         if(isOnCooldown(symbol,dir,"H4")&&isOnCooldown(symbol,dir,"H1")){console.log("  🔒 Both TF cooldowns");continue;}
         if(!isDuplicate(symbol,dir,"CONF")){
@@ -1626,7 +1685,7 @@ async function runBot(){
       }
 
       // ─ 4H SOLO ────────────────────────────────────────────────────────────
-      if(r4h&&(!firedDir||r4h.direction===firedDir)){
+      if(r4h&&(!firedDir||r4h.direction===firedDir)&&r4h.direction===voteDir){
         if(isOnCooldown(symbol,r4h.direction,"H4")){console.log("  🔒 4H cooldown");}
         else{
           const conv=computeConviction(r4h,m4h,ms4h,"H4",false,false,d1Bias);
@@ -1657,7 +1716,7 @@ async function runBot(){
       }
 
       // ─ 1H SOLO ────────────────────────────────────────────────────────────
-      if(r1h&&(!firedDir||r1h.direction===firedDir)){
+      if(r1h&&(!firedDir||r1h.direction===firedDir)&&r1h.direction===voteDir){
         if(isOnCooldown(symbol,r1h.direction,"H1")){console.log("  🔒 1H cooldown");}
         else{
           const conv=computeConviction(r1h,m1h,ms1h,"H1",false,false,d1Bias);
@@ -1689,7 +1748,7 @@ async function runBot(){
       // ─ 15M MICRO (only with higher TF present for context) ────────────────
       if(r15m&&(r4h||r1h)){
         const parentDir=(r4h||r1h).direction;
-        if(r15m.direction===parentDir&&!isOnCooldown(symbol,r15m.direction,"M15")){
+        if(r15m.direction===parentDir&&parentDir===voteDir&&!isOnCooldown(symbol,r15m.direction,"M15")){
           const conv=computeConviction(r15m,m15m,ms15m,"M15",true,false,d1Bias);
           console.log(`  15M conv: ${conv.score}/123 ${conv.grade}`);
           if(parseFloat(conv.score)>=TF_CONFIG.M15.minConviction&&!isDuplicate(symbol,r15m.direction,"M15")){
