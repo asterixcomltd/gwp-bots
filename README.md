@@ -13,7 +13,7 @@ Three production Node.js bots running on GitHub Actions, delivering institutiona
 
 | Bot | File | Data Source | Assets |
 |---|---|---|---|
-| 🪙 **GWP Crypto** | `crypto_bot.js` | KuCoin (no key needed) | DEXE · UNI · SUSHI · SOL · BTC · ETH · LINK · ARB · INJ · COMP |
+| 🪙 **GWP Crypto** | `crypto_bot.js` | KuCoin (no key needed) | DEXE · UNI · COMP · SOL · BTC · LINK · ETH · NEAR · AVAX · AAVE · ARB · INJ · DOT · FIL · SUI · ATOM (16 pairs) |
 | 💱 **GWP Forex** | `forex_bot.js` | Twelve Data API | XAU/USD · EUR/USD · GBP/USD · USD/JPY · GBP/JPY |
 | 📈 **GWP Stocks** | `stocks_bot.js` | Yahoo Finance (no key) | TSLA · NVDA · MSTR · COIN · PLTR · AMD · SMCI · SPCX |
 
@@ -82,11 +82,62 @@ a bug where the report writer used a hardcoded path that didn't exist outside
 the original dev sandbox — it now writes to `backtest-reports/` in the repo
 and uploads a full artifact.
 
+**Backtest reliability fixes (July 2026):** a chain of real bugs that made
+full 16-pair backtests take 1–3+ hours or hang indefinitely, now fixed:
+- A KuCoin-throttling backoff/retry loop (429s were previously untracked —
+  the fetcher would silently truncate data instead of retrying).
+- A genuine infinite-loop bug: if a pair's requested history predates its
+  actual listing date, KuCoin kept returning the same "earliest available"
+  page forever with no error — now detected and stopped.
+- A fast (~5s) KuCoin connectivity preflight check that fails loud immediately
+  if the runner's IP is being throttled, instead of discovering it 3 hours in.
+- The 16-pair sweep is now split across parallel GitHub Actions jobs (`plan` →
+  N chunk jobs → `combine`), configurable via the `pair_chunks` input
+  (default 4), each with its own `max_minutes` time budget. A `combine` job
+  merges every chunk's results into one clean report per day-window.
+
 **New stock: `SPCX`** — SpaceX itself IPO'd on Nasdaq (June 12, 2026), so it's
 now added directly to the Stocks bot pair list (no proxy needed). Its price
 history is short right now, so H4/TRIPLE-confluence signals for it may take a
 few more weeks to start firing — that's the existing insufficient-data guard
 working as intended, not a bug.
+
+**Entry gate redesign (July 2026) — replaces the old score-threshold gate:**
+All three bots (crypto/forex/stocks) previously required a cumulative
+conviction score (out of 123) to clear a fixed threshold (58–68 depending on
+timeframe) before a signal could fire. Real 360-day backtest data showed this
+threshold was throwing away the vast majority of genuine setups — most
+blocked signals scored far below the gate, not narrowly missing it, meaning
+the scoring formula itself (not where the bar was set) was the bottleneck.
+
+The gate has been replaced with a simpler, count-based check
+(`checkEntryConfirmations`), modeled on the MVS bot's proven design: a signal
+now needs **at least 2 of 5** independent confirmations — volume spike,
+AVWAP trap, a confirmed Wyckoff Spring/Upthrust, confirmed market structure
+(BOS/CHoCH), or reward:risk ≥ 1.5. The old 123-point conviction score is
+**still computed and shown** in every signal (for grading and position
+sizing — see the Conviction Grade Scale below) but is **no longer the
+pass/fail gate**.
+
+A compressed 2-of-3 timeframe "vote" (`computeTfBias` / `resolveVoteDirection`,
+also ported from MVS) is computed and logged on every scan for visibility, but
+is **informational only** — it is deliberately NOT a blocking gate. Testing
+showed requiring it to agree with GWP's own signal on the *same* timeframe is
+architecturally contradictory: `detectGWP` is a reversal detector (it fires
+when price is still low, expecting a bounce), while the vote is a
+trend-following read (price above its own average = bullish) — requiring both
+on the same timeframe blocked 86 of 90 real signals in backtesting. If this
+vote proves useful later, the right way to use it is as *cross-timeframe*
+context (checking slower timeframes against a faster trigger), not a
+same-timeframe requirement — that redesign hasn't been done yet.
+
+**⚠️ No backtest coverage for forex/stocks:** the confirmation-count gate
+change was validated against real historical data for crypto only — there is
+no `forex_backtest.js` or `stocks_backtest.js` in this repo. The same change
+was ported to `forex_bot.js` and `stocks_bot.js` (verified byte-identical
+core logic across all three files), but it is running live with no backtest
+safety net behind it for those two. Build a backtest harness for them before
+fully trusting their signal frequency/quality.
 
 ---
 
@@ -163,14 +214,20 @@ TP1  83.09  ·  TP2  81.80  ·  TP3  76.63
 
 ## Conviction Grade Scale (out of 105)
 
-| Score | Grade | Action |
+> **This score no longer gates whether a signal fires** (see "Entry gate
+> redesign" above). It's now purely a grading/sizing label shown on every
+> signal that already passed the 2-of-5 confirmation-count gate. A signal
+> can fire at any score shown below, including "SOLID" or lower — position
+> size scales down accordingly, but nothing here blocks the entry itself.
+
+| Score | Grade | Size |
 |---|---|---|
-| 96–105 | 🏆 SUPREME★★★★ | 2.5× size — maximum institutional |
-| 84–95 | ⚡ SUPREME★★ | 2.0× size — high conviction |
-| 72–83 | 🔥 SUPREME★ | 1.5× size — elevated |
-| 60–71 | 🔥 ELITE | 1.0× size — standard |
-| 52–59 | ✅ SOLID | 0.5× size — reduced |
-| <52 | blocked | Signal does not fire |
+| 96–105 | 🏆 SUPREME★★★★ | 2.5× — maximum institutional |
+| 84–95 | ⚡ SUPREME★★ | 2.0× — high conviction |
+| 72–83 | 🔥 SUPREME★ | 1.5× — elevated |
+| 60–71 | 🔥 ELITE | 1.0× — standard |
+| 52–59 | ✅ SOLID | 0.5× — reduced |
+| <52 | ⚠️ MARGINAL | 0.5× — reduced (fires only if it separately clears the 2-of-5 confirmation gate) |
 
 ---
 
@@ -298,10 +355,10 @@ gwp-bots/
 │   ├── stocks_bot.yml        ← Stocks bot (staggered 30min, US hours)
 │   ├── backtest.yml          ← NEW: 360d/720d historical backtest (on-demand + monthly)
 │   └── keepalive.yml         ← NEW: 30-day heartbeat, prevents 60-day auto-disable
-├── crypto_bot.js             ← Crypto signal engine v3.6
-├── forex_bot.js              ← Forex signal engine
-├── stocks_bot.js             ← Stocks signal engine (now incl. SPCX)
-├── backtest.js               ← Historical backtester (crypto) — report-path bug fixed
+├── crypto_bot.js             ← Crypto signal engine (2-of-5 confirmation gate, July 2026)
+├── forex_bot.js              ← Forex signal engine (same gate redesign, no backtest coverage)
+├── stocks_bot.js             ← Stocks signal engine (same gate redesign, no backtest coverage; now incl. SPCX)
+├── backtest.js               ← Historical backtester (crypto only) — preflight check, infinite-loop fix, parallel-chunk aware
 ├── backtest-reports/         ← NEW: generated .md summaries (json gitignored)
 ├── crypto_state.json         ← Persistent state (auto-committed)
 ├── forex_state.json          ← Persistent state (auto-committed)

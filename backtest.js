@@ -366,6 +366,17 @@ function resolveVoteDirection(votes) {
   return null;
 }
 
+// ── ENTRY CONFIRMATION COUNT — mirrors crypto_bot.js exactly ──────────────────
+function checkEntryConfirmations(gwp, ms) {
+  const confirmations = [];
+  if (gwp.volumeSpike) confirmations.push("VOLUME_SPIKE");
+  if (gwp.avwapTrap) confirmations.push("AVWAP_TRAP");
+  if (gwp.wyckoff && (gwp.wyckoff.phase === "SPRING" || gwp.wyckoff.phase === "UPTHRUST")) confirmations.push("WYCKOFF");
+  if (ms && ms.confirmed) confirmations.push("MS_CONFIRMED");
+  if (parseFloat(gwp.rr) >= 1.5) confirmations.push("RR_FLOOR");
+  return { count: confirmations.length, confirmations, valid: confirmations.length >= 2 };
+}
+
 function detectSwings(candles,strength){
   const highs=[],lows=[],str=strength||3;
   for(let i=str;i<candles.length-str;i++){
@@ -981,11 +992,6 @@ async function runBacktest() {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
         if (cooldowns[`${direction}_H4`] && (t - cooldowns[`${direction}_H4`]) < TF_CONFIG.H4.cooldownHrs * 3600000) continue;
 
-        // 2-of-3 vote gate (primary — mirrors crypto_bot.js): must resolve AND
-        // match this signal's own direction before anything else is evaluated.
-        const vote = resolveVoteAsOf(t);
-        if (!vote || vote.direction !== direction) { blockedByConv++; continue; }
-
         const h1Agree = tfs.includes("H1")
           ? checkAgreement("H1", direction, t, TF_CONFIG.H1.cooldownHrs * 3600000 * 2) : null;
         const m15Agree = tfs.includes("M15")
@@ -994,11 +1000,9 @@ async function runBacktest() {
         const isConfluence = !isTriple && !!h1Agree;
 
         const conv = computeConviction(gwp, math, ms, "H4", isConfluence, isTriple, d1Bias, candleHour);
-        const gate = (isTriple || isConfluence)
-          ? TF_CONFIG.H4.minConviction - CONFIG.CONFLUENCE_GATE_REDUCTION
-          : TF_CONFIG.H4.minConviction;
+        const gateCheck = checkEntryConfirmations(gwp, ms);
 
-        if (conv.score < gate) { blockedByConv++; blockedScores.push({ tf: "H4", signalType: isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4", score: conv.score, gate }); continue; }
+        if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "H4", signalType: isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4", score: gateCheck.count, gate: 2 }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
         if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
         passedGate++;
@@ -1017,10 +1021,9 @@ async function runBacktest() {
       for (const evt of timelines.H1) {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
         if (cooldowns[`${direction}_H1`] && (t - cooldowns[`${direction}_H1`]) < TF_CONFIG.H1.cooldownHrs * 3600000) continue;
-        const vote = resolveVoteAsOf(t);
-        if (!vote || vote.direction !== direction) { blockedByConv++; continue; }
         const conv = computeConviction(gwp, math, ms, "H1", false, false, d1Bias, candleHour);
-        if (conv.score < TF_CONFIG.H1.minConviction) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: conv.score, gate: TF_CONFIG.H1.minConviction }); continue; }
+        const gateCheck = checkEntryConfirmations(gwp, ms);
+        if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: gateCheck.count, gate: 2 }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
         if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
         passedGate++;
@@ -1034,10 +1037,9 @@ async function runBacktest() {
       for (const evt of timelines.M15) {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
         if (cooldowns[`${direction}_M15`] && (t - cooldowns[`${direction}_M15`]) < TF_CONFIG.M15.cooldownHrs * 3600000) continue;
-        const vote = resolveVoteAsOf(t);
-        if (!vote || vote.direction !== direction) { blockedByConv++; continue; }
         const conv = computeConviction(gwp, math, ms, "M15", false, false, d1Bias, candleHour);
-        if (conv.score < TF_CONFIG.M15.minConviction) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: conv.score, gate: TF_CONFIG.M15.minConviction }); continue; }
+        const gateCheck = checkEntryConfirmations(gwp, ms);
+        if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: gateCheck.count, gate: 2 }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
         if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
         passedGate++;
