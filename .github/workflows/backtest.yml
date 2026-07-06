@@ -81,7 +81,8 @@ jobs:
           const FUNCS = [
             'calcATR','calcATRPercentile','calcVolumeRatio','calcHurst','calcZScore',
             'kalmanFilter','calcMomentumBurst','calcZoneRevisit','computeVolumeProfile',
-            'computeAVWAP','hasVolumeSpike','detectSwings','getD1Bias'
+            'computeAVWAP','hasVolumeSpike','detectSwings','getD1Bias',
+            'computeTfBias','resolveVoteDirection'
           ];
           function extract(src, name) {
             const m = src.match(new RegExp('function ' + name + '\\('));
