@@ -62,6 +62,29 @@
 //   ✅ REMOVED: RSI bonus/penalty — lagging, replaced by Kalman+ZScore+Wyckoff
 // ════════════════════════════════════════════════════════════════════════════
 
+// v4.0 CHANGES (ported from MVS bot, data-validated before porting — not
+// theorized): 
+//   ✅ POC PROMINENCE — decisive POC (clear volume peak, ratio >= 1.5) scores
+//      +5 conviction; contested POC (barely edges out 2nd-loudest row) -3.
+//      MVS's own 360d/720d backtests found ~10pp WR gap between the two.
+//   ✅ POC MIGRATION — POC drifting WITH the trade's direction across this
+//      window now scores -4 (a level already "spent"/re-rated); MVS found
+//      this was backwards from the original theory, which had rewarded it.
+//      Against/static drift stays neutral, exactly as MVS settled on.
+//   ✅ Equity curve — new crypto_equity_curve.json, a small append-only log
+//      of every closed trade (ts, trade P&L, cumulative P&L, equity index),
+//      used to report real peak-equity / max-drawdown in weekly reports
+//      instead of only a single running P&L total.
+//   NOT ported: MVS's separate POC_REQUIRE_1H_CONFIRM hard gate and
+//   MIN_CONFLUENCE_POC — GWP's POC is one of four TF-bias-vote pillars here,
+//   not its own pivot/entry type the way it is in MVS, so a hard gate on it
+//   would remove signal frequency for no clean equivalent gain; the scoring
+//   adjustment above captures the validated part of the finding without that
+//   frequency cost. Backtest.js received the identical changes (+slippage,
+//   below) so live and backtest can't drift apart, this repo's own stated
+//   discipline for every prior gate.
+//
+
 const https = require("https");
 const fs    = require("fs");
 const path  = require("path");
@@ -100,7 +123,7 @@ const CONFIG = {
   TELEGRAM_TOKEN : process.env.CRYPTO_TG_TOKEN || "",
   CHAT_ID        : process.env.CRYPTO_CHAT_ID  || "",
 
-  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT","AVAX-USDT","AAVE-USDT","ARB-USDT","INJ-USDT","DOT-USDT","FIL-USDT","SUI-USDT","ATOM-USDT"],  // v3.6: 16 pairs — removed SUSHI (0% WR), added 8 high-liquidity pairs for compounding
+  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT","AVAX-USDT","AAVE-USDT","ARB-USDT","INJ-USDT","DOT-USDT","FIL-USDT","SUI-USDT","ATOM-USDT","MNT-USDT"],  // v4.0: added MNT (Mantle) — 17 pairs, high-liquidity KuCoin listing
 
   CAPITAL:50, RISK_PCT:1.5, LEVERAGE:20,  // v3.5: scaled 5 → 50 USD
   VP_ROWS:24, MIN_WICK_DEPTH_PCT:0.12, MIN_BODY_GAP_PCT:0.08,
@@ -133,7 +156,7 @@ const CONFIG = {
   TP_HIT_DEDUP_MS: 14400000,
 };
 
-const V = "GWP Crypto v3.6 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
+const V = "GWP Crypto v4.0 | Elite Max™ | 24/7 | Asterix.COM | Abdin";
 
 // v3.2: Per-pair volatility multiplier for SL sizing (higher = wider SL)
 const PAIR_VOL_MULT = {
@@ -143,13 +166,15 @@ const PAIR_VOL_MULT = {
   // v3.6: new pairs — volatility-calibrated from 30-day ATR%
   "AVAX-USDT":1.4, "AAVE-USDT":1.3, "ARB-USDT":1.5, "INJ-USDT":1.6,
   "DOT-USDT":1.3, "FIL-USDT":1.5, "SUI-USDT":1.5, "ATOM-USDT":1.2,
+  // v4.0: MNT (Mantle) — L2 infra token, volatility comparable to ARB/AVAX class
+  "MNT-USDT":1.4,
 };
 
 const CORR_GROUPS = [
   ["SOL-USDT","NEAR-USDT","SUI-USDT","AVAX-USDT","APT-USDT","DOT-USDT","ATOM-USDT"], // L1s
   ["BTC-USDT","ETH-USDT"], // majors
   ["DEXE-USDT","COMP-USDT","AAVE-USDT"], // DeFi governance
-  ["UNI-USDT","LINK-USDT","ARB-USDT"], // DeFi/infra
+  ["UNI-USDT","LINK-USDT","ARB-USDT","MNT-USDT"], // DeFi/infra + L2s
   ["INJ-USDT","FIL-USDT"], // infra/storage
 ];
 function getCorrelatedPairs(sym){
@@ -173,6 +198,38 @@ function saveState()  { fs.writeFileSync(STATE_FILE, JSON.stringify(state, null,
 function getProp(k)   { return state[k] || null; }
 function setProp(k,v) { state[k] = v; }
 function delProp(k)   { delete state[k]; }
+
+// ── EQUITY CURVE (v4.0, ported from MVS equity-curve.json) ───────────────────
+// A dedicated, small, append-only time series of every closed trade's P&L —
+// separate from crypto_state.json so weekly reports can compute a real max
+// drawdown / peak-equity instead of only ever showing a single running total.
+const EQUITY_FILE = path.join(__dirname, "crypto_equity_curve.json");
+function appendEquityPoint(tradePnlPct, cumPnlPct) {
+  try {
+    let curve = [];
+    try { curve = JSON.parse(fs.readFileSync(EQUITY_FILE, "utf8")); } catch(e) {}
+    if (!Array.isArray(curve)) curve = [];
+    const equityIndex = parseFloat((100 * (1 + cumPnlPct / 100)).toFixed(3));
+    // Newest-first, matching this repo's established log convention.
+    curve.unshift({ ts: Date.now(), tradePnlPct: parseFloat((tradePnlPct||0).toFixed(3)), cumPnlPct: parseFloat((cumPnlPct||0).toFixed(3)), equityIndex });
+    if (curve.length > 500) curve = curve.slice(0, 500);
+    fs.writeFileSync(EQUITY_FILE, JSON.stringify(curve, null, 2));
+  } catch(e) { console.error("appendEquityPoint error:", e.message); }
+}
+function getEquityStats() {
+  try {
+    const curve = JSON.parse(fs.readFileSync(EQUITY_FILE, "utf8"));
+    if (!Array.isArray(curve) || !curve.length) return null;
+    const chronological = [...curve].reverse(); // oldest → newest for peak/DD math
+    let peak = -Infinity, maxDD = 0;
+    for (const pt of chronological) {
+      if (pt.equityIndex > peak) peak = pt.equityIndex;
+      const dd = peak > 0 ? ((peak - pt.equityIndex) / peak) * 100 : 0;
+      if (dd > maxDD) maxDD = dd;
+    }
+    return { points: curve.length, current: curve[0].equityIndex, peak, maxDrawdownPct: parseFloat(maxDD.toFixed(2)) };
+  } catch(e) { return null; }
+}
 
 // ── SIGNAL FILE WRITER ────────────────────────────────────────────────────────
 function appendSignalToFile(symbol, r, conv, tfKey) {
@@ -447,7 +504,30 @@ function computeVolumeProfile(candles,lookback){
   const total=buck.reduce((a,b)=>a+b,0);let covered=buck[pocIdx],valIdx=pocIdx,vahIdx=pocIdx;
   while(covered<total*0.70){const up=vahIdx+1<rows?buck[vahIdx+1]:0,dn=valIdx-1>=0?buck[valIdx-1]:0;if(up>=dn){vahIdx++;covered+=up;}else{valIdx--;covered+=dn;}if(valIdx<=0&&vahIdx>=rows-1)break;}
   const val=lo+valIdx*rowH;
-  return{poc:lo+(pocIdx+0.5)*rowH,val,vah:lo+(vahIdx+1)*rowH,valBandBot:val,valBandTop:val+rowH,valBandMid:val+rowH*0.5,rowHeight:rowH,hi,lo};
+
+  // v4.0 (ported from MVS v10.13, data-validated): POC PROMINENCE + MIGRATION.
+  // Prominence — is POC a clear, decisive peak or a contested one that barely
+  // edges out the next-loudest price row? MVS's 360d/720d backtests found
+  // decisive POC (ratio >= 1.5) scored ~10pp higher win rate than contested POC.
+  let secondVol=0; for(let i=0;i<rows;i++){ if(i===pocIdx) continue; if(buck[i]>secondVol) secondVol=buck[i]; }
+  const prominenceRatio = secondVol>0 ? buck[pocIdx]/secondVol : 99;
+  const pocDecisive = prominenceRatio >= 1.5;
+
+  // Migration — has POC drifted between the first and second half of this
+  // window? MVS found migration-TOWARD-trade-direction was a WORSE signal (a
+  // level already "spent"/re-rated), not a confirming one as first assumed —
+  // so this is reported as a raw signed row-distance; the caller (which knows
+  // trade direction) interprets it, same split MVS used between its POC math
+  // and its strategy-level direction check.
+  let pocMigrationRows = 0;
+  if (sl.length >= 20) {
+    const half=Math.floor(sl.length/2), firstHalf=sl.slice(0,half), secondHalf=sl.slice(half);
+    const bIdx=(chunk)=>{const b=new Array(rows).fill(0);chunk.forEach(c=>{for(let r=0;r<rows;r++){const rB=lo+r*rowH,rT=rB+rowH,ov=Math.min(c.high,rT)-Math.max(c.low,rB);if(ov>0)b[r]+=c.vol*(ov/((c.high-c.low)||rowH));}});let idx=0;for(let i=1;i<rows;i++)if(b[i]>b[idx])idx=i;return idx;};
+    pocMigrationRows = bIdx(secondHalf) - bIdx(firstHalf);
+  }
+
+  return{poc:lo+(pocIdx+0.5)*rowH,val,vah:lo+(vahIdx+1)*rowH,valBandBot:val,valBandTop:val+rowH,valBandMid:val+rowH*0.5,rowHeight:rowH,hi,lo,
+    prominenceRatio:parseFloat(prominenceRatio.toFixed(2)),pocDecisive,pocMigrationRows};
 }
 function computeAVWAP(candles,lookback){
   const n=Math.min(lookback,candles.length),sl=candles.slice(candles.length-n);let tv=0,v=0;
@@ -685,6 +765,16 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
     else if(math.volRatio>=1.2) score+=1;
   }
 
+  // v4.0 POC QUALITY (ported from MVS v10.13 — checked against 360d/720d
+  // MVS backtests before porting, not just theorized). Decisive POC (a clear
+  // volume peak) outperformed contested POC by ~10pp win rate in both MVS
+  // backtest windows; POC migrating WITH the trade direction underperformed
+  // migration against/static (a level already "spent"/re-rated) — the
+  // opposite of the original theory, so it's a penalty here, not a bonus.
+  if(gwp.pocDecisive===true) score+=5;
+  else if(gwp.pocDecisive===false) score-=3;
+  if(gwp.pocMigration==="WITH") score-=4;
+
   // WYCKOFF STRUCTURAL CONFIRMATION (0–10) — Institutional cycle
   if(gwp.wyckoff){
     if(gwp.direction==="BULL"&&gwp.wyckoff.spring)   score+=10;
@@ -889,8 +979,18 @@ function detectGWP(candles,vp,avwap,math,tfCfg,symbol){
 
     const limitEntry = avwap ? (direction==="BEAR" ? Math.max(cur.close, avwap) : Math.min(cur.close, avwap)) : cur.close;
 
+    // v4.0 (ported from MVS v10.13): resolve POC migration relative to THIS
+    // trade's direction. Small drift (<1 row) is treated as static/noise.
+    let pocMigration="STATIC";
+    if (Math.abs(vp.pocMigrationRows||0) >= 1) {
+      const migratingUp=(vp.pocMigrationRows||0)>0;
+      const withTrade=(direction==="BULL"&&migratingUp)||(direction==="BEAR"&&!migratingUp);
+      pocMigration=withTrade?"WITH":"AGAINST";
+    }
+
     return{
       direction,grade,score:adjustedScore.toFixed(1),rawScore,age,
+      pocDecisive:vp.pocDecisive,pocProminenceRatio:vp.prominenceRatio,pocMigration,
       tf:tfCfg.tf,tfLabel:tfCfg.label,
       path:isPathB?"B — Sweep + Return ⚠️":"A — Direct Return 🎯",
       isPathB,volumeSpike,avwapTrap,momentumBurst,zoneRevisit,
@@ -1072,6 +1172,7 @@ async function trackClose(symbol, direction, pnlPct, isWin, convScore = null) {
   const cumPnl = updateCumulativePnl(pnlFloat);
   const eCap = getEffectiveCapital();
   console.log(`  💰 Compounding: cumPnl=${cumPnl}%, effectiveCapital=$${eCap.capital}`);
+  appendEquityPoint(pnlFloat, cumPnl); // v4.0: log this closed trade to the equity curve
   // v3.2: Per-pair stats
   if(!w.byPair) w.byPair={};
   if(!w.byPair[symbol]) w.byPair[symbol]={wins:0,losses:0,pnl:0};
@@ -1114,6 +1215,10 @@ async function sendWeeklyReport() {
   // v3.6: Compounding status
   const eCap = getEffectiveCapital();
   msg += `\n📈 <b>Compounding:</b> $${eCap.capital.toFixed(2)} effective (${eCap.cumPnlPct>=0?'+':''}${eCap.cumPnlPct.toFixed(2)}% cumulative)\n`;
+  // v4.0: equity curve summary (ported from MVS) — peak/drawdown over all
+  // logged closes, not just this week's, since drawdown is a running concept.
+  const eq = getEquityStats();
+  if (eq) msg += `📉 <b>Equity Curve:</b> index ${eq.current.toFixed(2)} (peak ${eq.peak.toFixed(2)}, max DD ${eq.maxDrawdownPct}%) · ${eq.points} closes logged\n`;
   msg += `\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;
   await tgSend(msg);
 }
