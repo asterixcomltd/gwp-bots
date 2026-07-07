@@ -171,7 +171,7 @@ const PAIR_VOL_MULT = {
 };
 
 const CORR_GROUPS = [
-  ["SOL-USDT","NEAR-USDT","SUI-USDT","AVAX-USDT","APT-USDT","DOT-USDT","ATOM-USDT"], // L1s
+  ["SOL-USDT","NEAR-USDT","SUI-USDT","AVAX-USDT","DOT-USDT","ATOM-USDT"], // L1s
   ["BTC-USDT","ETH-USDT"], // majors
   ["DEXE-USDT","COMP-USDT","AAVE-USDT"], // DeFi governance
   ["UNI-USDT","LINK-USDT","ARB-USDT","MNT-USDT"], // DeFi/infra + L2s
@@ -1771,7 +1771,9 @@ async function runBot(){
           const conv1h=computeConviction(r1h,m1h,ms1h,"H1",false,true,d1Bias);
           const conv15m=computeConviction(r15m,m15m,ms15m,"M15",false,true,d1Bias);
           const gate=checkEntryConfirmations(r4h,ms4h);
-          if(gate.valid){
+          const convOk=parseFloat(conv4h.score)>=TF_CONFIG.H4.minConviction;
+          if(!convOk)console.log(`  ⚠️ TRIPLE conv4H ${conv4h.score} below ${TF_CONFIG.H4.minConviction} — blocked`);
+          if(gate.valid&&convOk){
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock=hasCorrelatedPosition(symbol,dir);
             if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
@@ -1794,8 +1796,9 @@ async function runBot(){
           const conv4h=computeConviction(r4h,m4h,ms4h,"H4",true,false,d1Bias);
           const conv1h=computeConviction(r1h,m1h,ms1h,"H1",true,false,d1Bias);
           const gate=checkEntryConfirmations(r4h,ms4h);
-          console.log(`  🔥🔥 CONFLUENCE! ${dir} confirmations=${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if(gate.valid){
+          const convOk=parseFloat(conv4h.score)>=TF_CONFIG.H4.minConviction;
+          console.log(`  🔥🔥 CONFLUENCE! ${dir} confirmations=${gate.count}/5 (${gate.confirmations.join(",")}) conv4H=${conv4h.score}/${TF_CONFIG.H4.minConviction}`);
+          if(gate.valid&&convOk){
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock=hasCorrelatedPosition(symbol,dir);
             if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
@@ -1816,7 +1819,7 @@ async function runBot(){
           const conv=computeConviction(r4h,m4h,ms4h,"H4",false,false,d1Bias);
           const gate=checkEntryConfirmations(r4h,ms4h);
           console.log(`  4H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if(gate.valid&&!isDuplicate(symbol,r4h.direction,"H4")){
+          if(gate.valid&&parseFloat(conv.score)>=TF_CONFIG.H4.minConviction&&!isDuplicate(symbol,r4h.direction,"H4")){
             if(isD1CounterBlocked(r4h.direction,parseFloat(conv.score))){/* skip */}
             else{
             // v3.1 Fix #4: Funding rate adjustment
@@ -1848,7 +1851,7 @@ async function runBot(){
           const conv=computeConviction(r1h,m1h,ms1h,"H1",false,false,d1Bias);
           const gate=checkEntryConfirmations(r1h,ms1h);
           console.log(`  1H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if(gate.valid&&!isDuplicate(symbol,r1h.direction,"H1")){
+          if(gate.valid&&parseFloat(conv.score)>=TF_CONFIG.H1.minConviction&&!isDuplicate(symbol,r1h.direction,"H1")){
             if(isD1CounterBlocked(r1h.direction,parseFloat(conv.score))){/* skip */}
             else{
             // v3.1 Fix #4: Funding rate adjustment
@@ -1879,7 +1882,7 @@ async function runBot(){
           const conv=computeConviction(r15m,m15m,ms15m,"M15",true,false,d1Bias);
           const gate=checkEntryConfirmations(r15m,ms15m);
           console.log(`  15M conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if(gate.valid&&!isDuplicate(symbol,r15m.direction,"M15")){
+          if(gate.valid&&parseFloat(conv.score)>=TF_CONFIG.M15.minConviction&&!isDuplicate(symbol,r15m.direction,"M15")){
             if(isD1CounterBlocked(r15m.direction,parseFloat(conv.score))){/* skip */}
             else{
             // v3.1 Fix #4: Funding rate adjustment

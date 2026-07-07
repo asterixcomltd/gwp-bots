@@ -1702,7 +1702,9 @@ async function runBot() {
           const conv1h  = computeConviction(r1h,  m1h,  ms1h,  "H1",  false, true, d1Bias);
           const conv15m = computeConviction(r15m, m15m, ms15m, "M15", false, true, d1Bias);
           const gate    = checkEntryConfirmations(r4h, ms4h);
-          if (gate.valid) {
+          const convOk  = parseFloat(conv4h.score) >= TF_CONFIG.H4.minConviction;
+          if (!convOk) console.log(`  ⚠️ TRIPLE conv4H ${conv4h.score} below ${TF_CONFIG.H4.minConviction} — blocked`);
+          if (gate.valid && convOk) {
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock = hasCorrelatedPosition(symbol, dir);
             if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${dir}`); } else {
@@ -1726,8 +1728,9 @@ async function runBot() {
           const conv4h = computeConviction(r4h, m4h, ms4h, "H4", true, false, d1Bias);
           const conv1h = computeConviction(r1h, m1h, ms1h, "H1", true, false, d1Bias);
           const gate   = checkEntryConfirmations(r4h, ms4h);
-          console.log(`  🔥🔥 CONFLUENCE! ${dir} confirmations=${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if (gate.valid) {
+          const convOk = parseFloat(conv4h.score) >= TF_CONFIG.H4.minConviction;
+          console.log(`  🔥🔥 CONFLUENCE! ${dir} confirmations=${gate.count}/5 (${gate.confirmations.join(",")}) conv4H=${conv4h.score}/${TF_CONFIG.H4.minConviction}`);
+          if (gate.valid && convOk) {
             if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
             const corrBlock = hasCorrelatedPosition(symbol, dir);
             if (corrBlock) { console.log(`  🔗 Correlation filter: ${symbol} blocked by open ${corrBlock} ${dir}`); } else {
@@ -1749,7 +1752,7 @@ async function runBot() {
           const conv = computeConviction(r4h, m4h, ms4h, "H4", false, false, d1Bias);
           const gate = checkEntryConfirmations(r4h, ms4h);
           console.log(`  4H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if (gate.valid && !isDuplicate(symbol, r4h.direction, "H4")) {
+          if (gate.valid && parseFloat(conv.score) >= TF_CONFIG.H4.minConviction && !isDuplicate(symbol, r4h.direction, "H4")) {
             if(isD1CounterBlocked(r4h.direction,parseFloat(conv.score))){/* skip */}
             else{
             const corrBlock = hasCorrelatedPosition(symbol, r4h.direction);
@@ -1763,13 +1766,13 @@ async function runBot() {
       }
 
       // ─ 1H SOLO ──────────────────────────────────────────────────────────────
-      if (r1h) {
+      if (r1h && (!firedDir || r1h.direction === firedDir)) {
         if (isOnCooldown(symbol, r1h.direction, "H1")) { console.log("  🔒 1H cooldown"); }
         else {
           const conv = computeConviction(r1h, m1h, ms1h, "H1", false, false, d1Bias);
           const gate = checkEntryConfirmations(r1h, ms1h);
           console.log(`  1H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if (gate.valid && !isDuplicate(symbol, r1h.direction, "H1")) {
+          if (gate.valid && parseFloat(conv.score) >= TF_CONFIG.H1.minConviction && !isDuplicate(symbol, r1h.direction, "H1")) {
             if(isD1CounterBlocked(r1h.direction,parseFloat(conv.score))){/* skip */}
             else{
             const corrBlock = hasCorrelatedPosition(symbol, r1h.direction);
@@ -1789,7 +1792,7 @@ async function runBot() {
           const conv = computeConviction(r15m, m15m, ms15m, "M15", true, false, d1Bias);
           const gate = checkEntryConfirmations(r15m, ms15m);
           console.log(`  15M conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if (gate.valid && !isDuplicate(symbol, r15m.direction, "M15")) {
+          if (gate.valid && parseFloat(conv.score) >= TF_CONFIG.M15.minConviction && !isDuplicate(symbol, r15m.direction, "M15")) {
             if(isD1CounterBlocked(r15m.direction,parseFloat(conv.score))){/* skip */}
             else{
             const corrBlock = hasCorrelatedPosition(symbol, r15m.direction);
