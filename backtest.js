@@ -1078,6 +1078,7 @@ async function runBacktest() {
         const gateCheck = checkEntryConfirmations(gwp, ms);
 
         if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "H4", signalType: isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4", score: gateCheck.count, gate: 2 }); continue; }
+        if (conv.score < TF_CONFIG.H4.minConviction) { blockedByConv++; blockedScores.push({ tf: "H4", signalType: isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4", score: conv.score, gate: "minConviction" }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
         if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
         passedGate++;
@@ -1099,6 +1100,7 @@ async function runBacktest() {
         const conv = computeConviction(gwp, math, ms, "H1", false, false, d1Bias, candleHour);
         const gateCheck = checkEntryConfirmations(gwp, ms);
         if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: gateCheck.count, gate: 2 }); continue; }
+        if (conv.score < TF_CONFIG.H1.minConviction) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: conv.score, gate: "minConviction" }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
         if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
         passedGate++;
@@ -1115,6 +1117,7 @@ async function runBacktest() {
         const conv = computeConviction(gwp, math, ms, "M15", false, false, d1Bias, candleHour);
         const gateCheck = checkEntryConfirmations(gwp, ms);
         if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: gateCheck.count, gate: 2 }); continue; }
+        if (conv.score < TF_CONFIG.M15.minConviction) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: conv.score, gate: "minConviction" }); continue; }
         const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
         if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
         passedGate++;
