@@ -70,6 +70,14 @@
 //              Added firedDir lock — e.g. TSLA LONG [4H] blocks TSLA SHORT [1H]
 //   ✅ Fixed "ms is not defined" crash in detectGWP() checks array
 // ════════════════════════════════════════════════════════════════════════════
+//
+// v4.0 CHANGES (ported from MVS bot, data-validated in MVS's own backtests
+// before porting): POC prominence scoring (+5 decisive / -3 contested) and
+// POC migration scoring (-4 if migrating with trade direction) added to
+// computeConviction; new stocks_equity_curve.json logs every closed trade for
+// real peak-equity/max-drawdown reporting in weekly summaries. See
+// crypto_bot.js's v4.0 header note for the full rationale — identical logic.
+// ════════════════════════════════════════════════════════════════════════════
 
 const https = require("https");
 const fs    = require("fs");
@@ -144,7 +152,7 @@ const CONFIG = {
   GIST_ID: process.env.GIST_ID || "",
 };
 
-const V = "GWP Stocks v3.1 | Elite Max™ | Asterix Holdings Ltd. | Abdin";
+const V = "GWP Stocks v4.0 | Elite Max™ | Asterix Holdings Ltd. | Abdin";
 
 // v3.2: Per-pair volatility multiplier based on beta
 const PAIR_VOL_MULT = {
@@ -177,6 +185,37 @@ function saveState()  { fs.writeFileSync(STATE_FILE, JSON.stringify(state, null,
 function getProp(k)   { return state[k] || null; }
 function setProp(k,v) { state[k] = v; }
 function delProp(k)   { delete state[k]; }
+
+// ── EQUITY CURVE (v4.0, ported from MVS equity-curve.json) ───────────────────
+// A dedicated, small, append-only time series of every closed trade's P&L —
+// separate from stocks_state.json so weekly reports can compute a real max
+// drawdown / peak-equity instead of only ever showing a single running total.
+const EQUITY_FILE = path.join(__dirname, "stocks_equity_curve.json");
+function appendEquityPoint(tradePnlPct, cumPnlPct) {
+  try {
+    let curve = [];
+    try { curve = JSON.parse(fs.readFileSync(EQUITY_FILE, "utf8")); } catch(e) {}
+    if (!Array.isArray(curve)) curve = [];
+    const equityIndex = parseFloat((100 * (1 + cumPnlPct / 100)).toFixed(3));
+    curve.unshift({ ts: Date.now(), tradePnlPct: parseFloat((tradePnlPct||0).toFixed(3)), cumPnlPct: parseFloat((cumPnlPct||0).toFixed(3)), equityIndex });
+    if (curve.length > 500) curve = curve.slice(0, 500);
+    fs.writeFileSync(EQUITY_FILE, JSON.stringify(curve, null, 2));
+  } catch(e) { console.error("appendEquityPoint error:", e.message); }
+}
+function getEquityStats() {
+  try {
+    const curve = JSON.parse(fs.readFileSync(EQUITY_FILE, "utf8"));
+    if (!Array.isArray(curve) || !curve.length) return null;
+    const chronological = [...curve].reverse();
+    let peak = -Infinity, maxDD = 0;
+    for (const pt of chronological) {
+      if (pt.equityIndex > peak) peak = pt.equityIndex;
+      const dd = peak > 0 ? ((peak - pt.equityIndex) / peak) * 100 : 0;
+      if (dd > maxDD) maxDD = dd;
+    }
+    return { points: curve.length, current: curve[0].equityIndex, peak, maxDrawdownPct: parseFloat(maxDD.toFixed(2)) };
+  } catch(e) { return null; }
+}
 
 // ── SIGNAL FILE WRITER ────────────────────────────────────────────────────────
 function appendSignalToFile(symbol, r, conv, tfKey) {
@@ -584,7 +623,30 @@ function computeVolumeProfile(candles, lookback) {
     if (valIdx <= 0 && vahIdx >= rows - 1) break;
   }
   const val = lo + valIdx * rowH;
-  return { poc: lo + (pocIdx + 0.5) * rowH, val, vah: lo + (vahIdx + 1) * rowH, valBandBot: val, valBandTop: val + rowH, valBandMid: val + rowH * 0.5, rowHeight: rowH, hi, lo };
+
+  // v4.0 (ported from MVS v10.13, data-validated): POC PROMINENCE + MIGRATION.
+  // Prominence — is POC a clear, decisive peak or a contested one that barely
+  // edges out the next-loudest price row? MVS's 360d/720d backtests found
+  // decisive POC (ratio >= 1.5) scored ~10pp higher win rate than contested POC.
+  let secondVol = 0; for (let i = 0; i < rows; i++) { if (i === pocIdx) continue; if (buck[i] > secondVol) secondVol = buck[i]; }
+  const prominenceRatio = secondVol > 0 ? buck[pocIdx] / secondVol : 99;
+  const pocDecisive = prominenceRatio >= 1.5;
+
+  // Migration — has POC drifted between the first and second half of this
+  // window? MVS found migration-TOWARD-trade-direction was a WORSE signal (a
+  // level already "spent"/re-rated), not a confirming one as first assumed —
+  // so this is reported as a raw signed row-distance; the caller (which knows
+  // trade direction) interprets it, same split MVS used between its POC math
+  // and its strategy-level direction check.
+  let pocMigrationRows = 0;
+  if (sl.length >= 20) {
+    const half = Math.floor(sl.length / 2), firstHalf = sl.slice(0, half), secondHalf = sl.slice(half);
+    const bIdx = (chunk) => { const b = new Array(rows).fill(0); chunk.forEach(c => { for (let r = 0; r < rows; r++) { const rB = lo + r * rowH, rT = rB + rowH, ov = Math.min(c.high, rT) - Math.max(c.low, rB); if (ov > 0) b[r] += (c.vol || 1) * (ov / ((c.high - c.low) || rowH)); } }); let idx = 0; for (let i = 1; i < rows; i++) if (b[i] > b[idx]) idx = i; return idx; };
+    pocMigrationRows = bIdx(secondHalf) - bIdx(firstHalf);
+  }
+
+  return { poc: lo + (pocIdx + 0.5) * rowH, val, vah: lo + (vahIdx + 1) * rowH, valBandBot: val, valBandTop: val + rowH, valBandMid: val + rowH * 0.5, rowHeight: rowH, hi, lo,
+    prominenceRatio: parseFloat(prominenceRatio.toFixed(2)), pocDecisive, pocMigrationRows };
 }
 function computeAVWAP(candles, lookback) {
   const n = Math.min(lookback, candles.length), sl = candles.slice(candles.length - n); let tv = 0, v = 0;
@@ -805,6 +867,16 @@ function computeConviction(gwp, math, ms, tfKey, isConfluence = false, isTriple 
     else if (math.volRatio >= 1.2) score += 1;
   }
 
+  // v4.0 POC QUALITY (ported from MVS v10.13 — checked against 360d/720d
+  // MVS backtests before porting, not just theorized). Decisive POC (a clear
+  // volume peak) outperformed contested POC by ~10pp win rate in both MVS
+  // backtest windows; POC migrating WITH the trade direction underperformed
+  // migration against/static (a level already "spent"/re-rated) — the
+  // opposite of the original theory, so it's a penalty here, not a bonus.
+  if (gwp.pocDecisive === true) score += 5;
+  else if (gwp.pocDecisive === false) score -= 3;
+  if (gwp.pocMigration === "WITH") score -= 4;
+
   // WYCKOFF (0–10)
   if (gwp.wyckoff) {
     if (gwp.direction === "BULL" && gwp.wyckoff.spring)   score += 10;
@@ -1007,8 +1079,18 @@ function detectGWP(candles, vp, avwap, math, tfCfg, symbol) {
     // v3.2: Limit entry — prefer AVWAP as entry for better fills
     const limitEntry = avwap ? (direction === "BEAR" ? Math.max(cur.close, avwap) : Math.min(cur.close, avwap)) : cur.close;
 
+    // v4.0 (ported from MVS v10.13): resolve POC migration relative to THIS
+    // trade's direction. Small drift (<1 row) is treated as static/noise.
+    let pocMigration = "STATIC";
+    if (Math.abs(vp.pocMigrationRows || 0) >= 1) {
+      const migratingUp = (vp.pocMigrationRows || 0) > 0;
+      const withTrade = (direction === "BULL" && migratingUp) || (direction === "BEAR" && !migratingUp);
+      pocMigration = withTrade ? "WITH" : "AGAINST";
+    }
+
     return {
       direction, grade: "GWP", score: adjustedScore.toFixed(1), rawScore, age,
+      pocDecisive: vp.pocDecisive, pocProminenceRatio: vp.prominenceRatio, pocMigration,
       tf: tfCfg.tf, tfLabel: tfCfg.label, limitEntry: f(limitEntry),
       path: isPathB ? "B — Sweep + Return ⚠️" : "A — Direct Return 🎯",
       isPathB, volumeSpike, avwapTrap, momentumBurst, zoneRevisit,
@@ -1125,6 +1207,12 @@ async function trackClose(symbol, direction, pnlPct, isWin, convScore = null) {
     else       { w.lossConvSum = (w.lossConvSum || 0) + convScore; w.lossConvN = (w.lossConvN || 0) + 1; }
   }
   setProp(wk, JSON.stringify(w));
+  // v4.0: all-time equity curve (ported from MVS equity-curve.json). Stocks
+  // has no compounding/effective-capital engine, so this keeps its own simple
+  // all-time cumulative P&L counter, separate from the weekly `w.pnl` reset.
+  const allTimeCum = parseFloat((parseFloat(getProp("S1_CUM_PNL") || "0") + p).toFixed(3));
+  setProp("S1_CUM_PNL", String(allTimeCum));
+  appendEquityPoint(p, allTimeCum);
 }
 async function sendWeeklyReport() {
   let w; try { w = JSON.parse(getProp("S1_W_" + getWeekKey()) || "{}"); } catch(e) { w = {}; }
@@ -1150,6 +1238,9 @@ async function sendWeeklyReport() {
       msg += `  $${sym}: ${d.wins}W/${d.losses}L (${t > 0 ? ((d.wins/t)*100).toFixed(0) : '—'}%) P&L: ${d.pnl >= 0 ? '+' : ''}${d.pnl.toFixed(2)}%\n`;
     }
   }
+  // v4.0: equity curve summary (ported from MVS)
+  const eq = getEquityStats();
+  if (eq) msg += `\n📉 <b>Equity Curve:</b> index ${eq.current.toFixed(2)} (peak ${eq.peak.toFixed(2)}, max DD ${eq.maxDrawdownPct}%) · ${eq.points} closes logged\n`;
   msg += `\n⏰ ${new Date().toUTCString()}\n<i>${V}</i>`;
   await tgSend(msg);
 }

@@ -8,6 +8,23 @@
 //
 // © 2026 Asterix Holdings Ltd. / Abdin. Ghost Wick Protocol™ is proprietary.
 // ════════════════════════════════════════════════════════════════════════════
+//
+// v4.0 CHANGES (ported from MVS bot, data-validated in MVS's own backtests
+// before porting — see crypto_bot.js's v4.0 header note for full rationale):
+//   ✅ POC prominence + migration scoring — identical logic to crypto_bot.js,
+//      kept in lockstep here so live and backtest can't drift apart.
+//   ✅ SLIPPAGE SIMULATION (new) — every fill (entry + every TP/SL exit) is
+//      now executed at CONFIG.SLIPPAGE_PCT (default 0.05%/side) worse than
+//      the theoretical signal level, same direction real order execution
+//      slips. Every P&L number in this report already has this baked in;
+//      set SLIPPAGE_PCT to 0 to reproduce the old (unrealistic) numbers.
+//   ✅ Max-drawdown fix — the running equity walk now sorts closedTrades by
+//      signalTime first. It was previously walked in per-pair/per-tf loop
+//      order, which could net an early loss against a later, unrelated win
+//      instead of experiencing them in the order they actually happened —
+//      the same class of ordering bug MVS's v10.9 changelog fixed for its
+//      own equity-curve.json.
+// ════════════════════════════════════════════════════════════════════════════
 
 const https = require("https");
 const fs    = require("fs");
@@ -54,7 +71,7 @@ const TF_CONFIG = {
 };
 
 const CONFIG = {
-  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT","AVAX-USDT","AAVE-USDT","ARB-USDT","INJ-USDT","DOT-USDT","FIL-USDT","SUI-USDT","ATOM-USDT"],  // v3.6: 16 pairs
+  PAIRS: ["DEXE-USDT","UNI-USDT","COMP-USDT","SOL-USDT","BTC-USDT","LINK-USDT","ETH-USDT","NEAR-USDT","AVAX-USDT","AAVE-USDT","ARB-USDT","INJ-USDT","DOT-USDT","FIL-USDT","SUI-USDT","ATOM-USDT","MNT-USDT"],  // v4.0: added MNT (Mantle) — 17 pairs, kept in sync with crypto_bot.js
   CAPITAL: 50, RISK_PCT: 1.5, LEVERAGE: 20,  // kept in sync with crypto_bot.js v3.5 (5→50 USD); currently unused in PnL math but here for consistency
   VP_ROWS: 24, MIN_WICK_DEPTH_PCT: 0.12, MIN_BODY_GAP_PCT: 0.08,
   VOLUME_FILTER: true,
@@ -64,6 +81,12 @@ const CONFIG = {
   TP3_MULT: 2.0,
   CRYPTO_MIN_SL_PCT: 1.5,
   ATR_SL_FLOOR_MULT: 1.0,
+  // v4.0 (ported from MVS): realistic fill slippage, applied against the
+  // trader on every fill (entry + every exit). 0.05% per side is a
+  // conservative estimate for KuCoin spot on the liquid pairs this bot
+  // trades at modest size — not a worst-case, not a best-case number.
+  // Set to 0 to reproduce the old (unrealistic, zero-slippage) numbers.
+  SLIPPAGE_PCT: 0.05,
 };
 
 const PAIR_VOL_MULT = {
@@ -72,6 +95,8 @@ const PAIR_VOL_MULT = {
   "ETH-USDT":0.9, "NEAR-USDT":1.4,
   "AVAX-USDT":1.4, "AAVE-USDT":1.3, "ARB-USDT":1.5, "INJ-USDT":1.6,
   "DOT-USDT":1.3, "FIL-USDT":1.5, "SUI-USDT":1.5, "ATOM-USDT":1.2,
+  // v4.0: MNT (Mantle) — L2 infra token, volatility comparable to ARB/AVAX class
+  "MNT-USDT":1.4,
 };
 
 // ─── HTTP ────────────────────────────────────────────────────────────────────
@@ -320,7 +345,22 @@ function computeVolumeProfile(candles,lookback){
   const total=buck.reduce((a,b)=>a+b,0);let covered=buck[pocIdx],valIdx=pocIdx,vahIdx=pocIdx;
   while(covered<total*0.70){const up=vahIdx+1<rows?buck[vahIdx+1]:0,dn=valIdx-1>=0?buck[valIdx-1]:0;if(up>=dn){vahIdx++;covered+=up;}else{valIdx--;covered+=dn;}if(valIdx<=0&&vahIdx>=rows-1)break;}
   const val=lo+valIdx*rowH;
-  return{poc:lo+(pocIdx+0.5)*rowH,val,vah:lo+(vahIdx+1)*rowH,valBandBot:val,valBandTop:val+rowH,valBandMid:val+rowH*0.5,rowHeight:rowH,hi,lo};
+
+  // v4.0 (ported from MVS v10.13, data-validated): POC PROMINENCE + MIGRATION.
+  // Kept identical to crypto_bot.js's v4.0 addition — same drift-prevention
+  // discipline this repo already uses for every other live/backtest gate.
+  let secondVol=0; for(let i=0;i<rows;i++){ if(i===pocIdx) continue; if(buck[i]>secondVol) secondVol=buck[i]; }
+  const prominenceRatio = secondVol>0 ? buck[pocIdx]/secondVol : 99;
+  const pocDecisive = prominenceRatio >= 1.5;
+  let pocMigrationRows = 0;
+  if (sl.length >= 20) {
+    const half=Math.floor(sl.length/2), firstHalf=sl.slice(0,half), secondHalf=sl.slice(half);
+    const bIdx=(chunk)=>{const b=new Array(rows).fill(0);chunk.forEach(c=>{for(let r=0;r<rows;r++){const rB=lo+r*rowH,rT=rB+rowH,ov=Math.min(c.high,rT)-Math.max(c.low,rB);if(ov>0)b[r]+=c.vol*(ov/((c.high-c.low)||rowH));}});let idx=0;for(let i=1;i<rows;i++)if(b[i]>b[idx])idx=i;return idx;};
+    pocMigrationRows = bIdx(secondHalf) - bIdx(firstHalf);
+  }
+
+  return{poc:lo+(pocIdx+0.5)*rowH,val,vah:lo+(vahIdx+1)*rowH,valBandBot:val,valBandTop:val+rowH,valBandMid:val+rowH*0.5,rowHeight:rowH,hi,lo,
+    prominenceRatio:parseFloat(prominenceRatio.toFixed(2)),pocDecisive,pocMigrationRows};
 }
 function computeAVWAP(candles,lookback){
   const n=Math.min(lookback,candles.length),sl=candles.slice(candles.length-n);let tv=0,v=0;
@@ -570,8 +610,18 @@ function detectGWP(candles,vp,avwap,math,tfCfg,symbol){
     const adjustedScore=Math.max(0,score-touchPenalty);
     if(adjustedScore<4.5)continue;
 
+    // v4.0 (ported from MVS v10.13): resolve POC migration relative to THIS
+    // trade's direction. Small drift (<1 row) is treated as static/noise.
+    let pocMigration="STATIC";
+    if (Math.abs(vp.pocMigrationRows||0) >= 1) {
+      const migratingUp=(vp.pocMigrationRows||0)>0;
+      const withTrade=(direction==="BULL"&&migratingUp)||(direction==="BEAR"&&!migratingUp);
+      pocMigration=withTrade?"WITH":"AGAINST";
+    }
+
     return{
       direction,score:adjustedScore.toFixed(1),age,isPathB,volumeSpike,avwapTrap,
+      pocDecisive:vp.pocDecisive,pocProminenceRatio:vp.prominenceRatio,pocMigration,
       momentumBurst,zoneRevisit,wyckoff,
       entry,sl,tp1,tp2,tp3,rr,
       slPct:Math.abs(entry-sl)/entry*100,
@@ -617,6 +667,12 @@ function computeConviction(gwp,math,ms,tfKey,isConfluence=false,isTriple=false,d
     else if(math.volRatio>=1.5)score+=3;
     else if(math.volRatio>=1.2)score+=1;
   }
+
+  // v4.0 POC QUALITY (ported from MVS v10.13 — see crypto_bot.js for the full
+  // rationale comment; kept identical here for live/backtest parity).
+  if(gwp.pocDecisive===true)score+=5;
+  else if(gwp.pocDecisive===false)score-=3;
+  if(gwp.pocMigration==="WITH")score-=4;
 
   if(gwp.wyckoff){
     if(gwp.direction==="BULL"&&gwp.wyckoff.spring)score+=10;
@@ -686,6 +742,20 @@ function simulateTrade(signal, futureCandles) {
   let sizeRemaining = 1.0;
   let totalPnlPct = 0;
 
+  // v4.0 (ported from MVS): slippage — every fill (entry + every exit) is
+  // executed at a slightly worse price than the theoretical signal level.
+  // Trigger levels (whether a candle's hi/lo touched TP/SL) are untouched;
+  // only the REALIZED fill price used in PnL math is adjusted, exactly like
+  // real order execution vs. a chart level.
+  const slip = CONFIG.SLIPPAGE_PCT / 100;
+  const entryFill = isLong ? entry * (1 + slip) : entry * (1 - slip);
+  const fillPrice = (level, isExitFavorable) => {
+    // isExitFavorable=true → TP-style exit (worse for the trader = smaller gain).
+    // isExitFavorable=false → SL-style exit (worse for the trader = bigger loss).
+    if (isLong) return isExitFavorable ? level * (1 - slip) : level * (1 - slip);
+    return isExitFavorable ? level * (1 + slip) : level * (1 + slip);
+  };
+
   for (let i = 0; i < futureCandles.length; i++) {
     const c = futureCandles[i];
     const hi = c.high, lo = c.low;
@@ -699,7 +769,8 @@ function simulateTrade(signal, futureCandles) {
 
     if (tp1Check && !slHit) {
       tp1Hit = true;
-      const pnl = isLong ? (signal.tp1 - entry) / entry * 100 : (entry - signal.tp1) / entry * 100;
+      const tp1Fill = fillPrice(signal.tp1, true);
+      const pnl = isLong ? (tp1Fill - entryFill) / entryFill * 100 : (entryFill - tp1Fill) / entryFill * 100;
       totalPnlPct += pnl * 0.40; // 40% exit
       sizeRemaining = 0.60;
       sl = entry; // move to BE
@@ -707,33 +778,36 @@ function simulateTrade(signal, futureCandles) {
 
     if (tp2Check && !slHit) {
       tp2Hit = true;
-      const pnl = isLong ? (signal.tp2 - entry) / entry * 100 : (entry - signal.tp2) / entry * 100;
+      const tp2Fill = fillPrice(signal.tp2, true);
+      const pnl = isLong ? (tp2Fill - entryFill) / entryFill * 100 : (entryFill - tp2Fill) / entryFill * 100;
       totalPnlPct += pnl * 0.40; // 40% exit
       sizeRemaining = 0.20;
       sl = signal.tp1; // trail to TP1
     }
 
     if (tp3Check) {
-      const pnl = isLong ? (signal.tp3 - entry) / entry * 100 : (entry - signal.tp3) / entry * 100;
+      const tp3Fill = fillPrice(signal.tp3, true);
+      const pnl = isLong ? (tp3Fill - entryFill) / entryFill * 100 : (entryFill - tp3Fill) / entryFill * 100;
       totalPnlPct += pnl * 0.20; // final 20%
       tp3Hit = true;
-      exitPrice = signal.tp3;
+      exitPrice = tp3Fill;
       exitReason = "TP3";
       exitBar = i + 1;
       return { tp1Hit, tp2Hit, tp3Hit, totalPnlPct, exitPrice, exitReason, exitBar, sizeRemaining: 0 };
     }
 
     if (slHit) {
+      const slFill = fillPrice(sl, false);
       if (tp1Hit || tp2Hit) {
         // Partial profit already taken
-        const slPnl = isLong ? (sl - entry) / entry * 100 : (entry - sl) / entry * 100;
+        const slPnl = isLong ? (slFill - entryFill) / entryFill * 100 : (entryFill - slFill) / entryFill * 100;
         totalPnlPct += slPnl * sizeRemaining;
       } else {
         // Full SL hit
-        const slPnl = isLong ? (sl - entry) / entry * 100 : (entry - sl) / entry * 100;
+        const slPnl = isLong ? (slFill - entryFill) / entryFill * 100 : (entryFill - slFill) / entryFill * 100;
         totalPnlPct = slPnl;
       }
-      exitPrice = sl;
+      exitPrice = slFill;
       exitReason = tp2Hit ? "SL@TP1" : tp1Hit ? "SL@BE" : "SL";
       exitBar = i + 1;
       return { tp1Hit, tp2Hit, tp3Hit, totalPnlPct, exitPrice, exitReason, exitBar, sizeRemaining: 0 };
@@ -742,7 +816,8 @@ function simulateTrade(signal, futureCandles) {
 
   // Still open after all candles — mark to market
   const lastClose = futureCandles[futureCandles.length - 1].close;
-  const mtmPnl = isLong ? (lastClose - entry) / entry * 100 : (entry - lastClose) / entry * 100;
+  const lastCloseFill = fillPrice(lastClose, true);
+  const mtmPnl = isLong ? (lastCloseFill - entryFill) / entryFill * 100 : (entryFill - lastCloseFill) / entryFill * 100;
   totalPnlPct += mtmPnl * sizeRemaining;
   return { tp1Hit, tp2Hit, tp3Hit: false, totalPnlPct, exitPrice: lastClose, exitReason: "OPEN", exitBar: futureCandles.length, sizeRemaining };
 }
@@ -1165,9 +1240,15 @@ async function runBacktest() {
   const tp3Rate = closedTrades.filter(t => t.tp3Hit).length / (closedTrades.length || 1) * 100;
 
   // Max drawdown
+  // v4.0 fix (same class of bug MVS's v10.9 changelog fixed for its own
+  // equity-curve.json): closedTrades is in per-pair/per-tf loop order, not
+  // chronological order, so walking it directly can understate drawdown by
+  // netting an early loss against a later, unrelated win instead of the
+  // other way around. Sort a copy by signalTime first.
   let peak = 0, maxDD = 0, running = 0;
   const equity = [0];
-  for (const t of closedTrades) {
+  const chronoTrades = [...closedTrades].sort((a, b) => new Date(a.signalTime) - new Date(b.signalTime));
+  for (const t of chronoTrades) {
     running += t.totalPnlPct;
     equity.push(running);
     if (running > peak) peak = running;
@@ -1197,6 +1278,7 @@ async function runBacktest() {
   console.log(`  Profit Factor:  ${profitFactor === Infinity ? "∞" : profitFactor.toFixed(2)}`);
   console.log(`  Expectancy:     ${expectancy >= 0 ? "+" : ""}${expectancy.toFixed(4)}% per trade`);
   console.log(`  Max Drawdown:   -${maxDD.toFixed(2)}%`);
+  console.log(`  Equity Curve:   start 0.00% → end ${running >= 0 ? "+" : ""}${running.toFixed(2)}% (peak +${peak.toFixed(2)}%, ${chronoTrades.length} pts, chronological)`);
   console.log(`  Avg Bars Held:  ${avgBarsHeld.toFixed(1)}`);
   console.log(`  Still Open:     ${allTrades.filter(t => t.exitReason === "OPEN").length}`);
   console.log();
@@ -1481,6 +1563,7 @@ async function runBacktest() {
       expectancy: parseFloat(expectancy.toFixed(4)),
       maxDrawdown: parseFloat(maxDD.toFixed(2)),
       avgBarsHeld: parseFloat(avgBarsHeld.toFixed(1)),
+      slippagePctPerFill: CONFIG.SLIPPAGE_PCT, // v4.0: all P&L above already has this baked in
     },
     gaps,
     trades: allTrades,
