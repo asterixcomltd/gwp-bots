@@ -258,6 +258,8 @@ jobs:
             const allPairs = [...new Set(reports.flatMap(r => r.meta?.pairs || []))];
             const totalSignals   = reports.reduce((s, r) => s + (r.summary?.totalSignals || 0), 0);
             const passedGate     = reports.reduce((s, r) => s + (r.summary?.passedGate || 0), 0);
+            const blockedByVote  = reports.reduce((s, r) => s + (r.summary?.blockedByVote || 0), 0);
+            const blockedByCooldown = reports.reduce((s, r) => s + (r.summary?.blockedByCooldown || 0), 0);
             const blockedByConv  = reports.reduce((s, r) => s + (r.summary?.blockedByConv || 0), 0);
             const anyPartial     = reports.some(r => r.meta?.partialRun);
             const skipped        = [...new Set(reports.flatMap(r => r.meta?.skippedPairs || []))];
@@ -278,7 +280,7 @@ jobs:
                 partialRun: anyPartial, skippedPairs: skipped, generated: new Date().toISOString(),
               },
               summary: {
-                totalSignals, passedGate, blockedByConv, closedTrades: closed.length,
+                totalSignals, passedGate, blockedByVote, blockedByCooldown, blockedByConv, closedTrades: closed.length,
                 winRate: +winRate.toFixed(1), totalPnl: +totalPnl.toFixed(2), avgPnl: +avgPnl.toFixed(3),
                 profitFactor: profitFactor === Infinity ? null : +profitFactor.toFixed(2),
               },
@@ -301,7 +303,7 @@ jobs:
               `| Total P&L | ${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}% |`,
               `| Avg P&L / trade | ${avgPnl >= 0 ? '+' : ''}${avgPnl.toFixed(3)}% |`,
               `| Profit Factor | ${profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)} |`,
-              `| Signal funnel | ${totalSignals} raw → ${blockedByConv} blocked → ${passedGate} passed gate |`,
+              `| Signal funnel | ${totalSignals} raw → ${blockedByVote} failed vote → ${blockedByCooldown} cooldown → ${blockedByConv} conviction/confirm → ${passedGate} passed gate |`,
               ``,
             ].join('\n');
             fs.writeFileSync(`backtest-reports/COMBINED_${days}d_${stamp}.md`, md);
