@@ -1,7 +1,7 @@
 "use strict";
 // ════════════════════════════════════════════════════════════════════════════
 // GHOST WICK PROTOCOL — CRYPTO EDITION  v3.1  MONEY PRINTING MACHINE ELITE MAX™
-// Strategy : Ghost Wick Protocol™ (GWP) — 4H + 1H + 15M Triple Timeframe Engine
+// Strategy : Ghost Wick Protocol™ (GWP) — 1D+4H+1H+30M+15M, 3-of-5 vote + entry trigger
 // Author   : Abdin · asterixcomltd@gmail.com · Asterix Holdings Ltd. · Accra, Ghana
 // Exchange : KuCoin (Public REST API — no auth key needed)
 // Pairs    : DEXE · UNI · SUSHI · SOL · BTC · LINK · COMP
@@ -90,7 +90,18 @@ const fs    = require("fs");
 const path  = require("path");
 
 // ── TF CONFIGS ────────────────────────────────────────────────────────────────
+// v5.0: extended from 3 TFs (H4/H1/M15) to 5 (D1/H4/H1/M30/M15), ported from
+// the MVS bot's validated 5-timeframe/3-of-5-vote design. D1 and M30 are new;
+// H4/H1/M15 values are unchanged from v3.5/v3.6.
 const TF_CONFIG = {
+  D1: {
+    tf:"D1", label:"1D",
+    vpLookback:60, avwapLookback:10,
+    minRR:1.5, minConviction:70, cooldownHrs:20,
+    atrBufMult:0.50, maxAge:1, avwapProx:0.0035,
+    volLookback:20, msLookback:60, swingStrength:3,
+    volSpikeMult:1.15,
+  },
   H4: {
     tf:"H4", label:"4H",
     vpLookback:100, avwapLookback:30,
@@ -108,6 +119,14 @@ const TF_CONFIG = {
     volLookback:20, msLookback:60, swingStrength:3,
     volSpikeMult:1.3,
   },
+  M30: {
+    tf:"M30", label:"30M",
+    vpLookback:45, avwapLookback:15,
+    minRR:1.4, minConviction:60, cooldownHrs:1.5,
+    atrBufMult:0.62, maxAge:1, avwapProx:0.0055,
+    volLookback:18, msLookback:55, swingStrength:2,
+    volSpikeMult:1.4,
+  },
   M15: {
     tf:"M15", label:"15M",
     vpLookback:40, avwapLookback:12,
@@ -117,6 +136,8 @@ const TF_CONFIG = {
     volSpikeMult:1.5,
   },
 };
+
+
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const CONFIG = {
@@ -308,7 +329,7 @@ async function pollTelegram() {
 }
 
 // ── KUCOIN DATA ───────────────────────────────────────────────────────────────
-const KU_TF = { H4:"4hour", H1:"1hour", M15:"15min", D1:"1day" };
+const KU_TF = { H4:"4hour", H1:"1hour", M30:"30min", M15:"15min", D1:"1day" };
 
 async function fetchKlines(symbol, tf, limit, retry=0) {
   const url=`https://api.kucoin.com/api/v1/market/candles?type=${KU_TF[tf]||tf}&symbol=${symbol}&limit=${Math.min(limit||150,300)}`;
@@ -569,14 +590,17 @@ function computeTfBias(candles, vp, fibLookback = 50) {
   else bias = "NEUTRAL";
   return { bias, bullVotes, votes, swingHigh, swingLow, fibMid };
 }
-// 2-of-3 timeframe direction resolution. votes: [{tf, result: computeTfBias(...) | null}, ...]
-// Returns {direction:"BULL"|"BEAR", agreeing:[tf,...], tally} or null if no 2-of-3 agreement.
-function resolveVoteDirection(votes) {
+// N-of-M timeframe direction resolution. votes: [{tf, result: computeTfBias(...) | null}, ...]
+// Returns {direction:"BULL"|"BEAR", agreeing:[tf,...], tally:"3/5"} or null if no minAgree agreement.
+// v5.0: generalized from a hardcoded 2-of-3 to a configurable minAgree (default 3, now used
+// as 3-of-5 across D1/H4/H1/M30/M15).
+function resolveVoteDirection(votes, minAgree = 3) {
   const usable = votes.filter(v => v.result && v.result.bias !== "NEUTRAL");
+  const total = votes.length;
   const bulls = usable.filter(v => v.result.bias === "BULLISH").map(v => v.tf);
   const bears = usable.filter(v => v.result.bias === "BEARISH").map(v => v.tf);
-  if (bulls.length >= 2) return { direction: "BULL", agreeing: bulls, tally: `${bulls.length}/3` };
-  if (bears.length >= 2) return { direction: "BEAR", agreeing: bears, tally: `${bears.length}/3` };
+  if (bulls.length >= minAgree) return { direction: "BULL", agreeing: bulls, tally: `${bulls.length}/${total}` };
+  if (bears.length >= minAgree) return { direction: "BEAR", agreeing: bears, tally: `${bears.length}/${total}` };
   return null;
 }
 
@@ -890,7 +914,7 @@ function detectGWP(candles,vp,avwap,math,tfCfg,symbol){
     if(!direction)continue;
 
     // Smarter stale check
-    const staleZone=atr*(tfCfg.tf==="M15"?0.3:0.5);
+    const staleZone=atr*((tfCfg.tf==="M15"||tfCfg.tf==="M30")?0.3:0.5);
     if(direction==="BEAR"&&cur.close<=(bMid-staleZone)){console.log(`  GWP BEAR ${tfCfg.label} age=${age}: stale`);continue;}
     if(direction==="BULL"&&cur.close>=(bMid+staleZone)){console.log(`  GWP BULL ${tfCfg.label} age=${age}: stale`);continue;}
 
@@ -1160,7 +1184,9 @@ function trackFired(symbol,r,mode){
   const dk="A8_D_"+getDateKey();let d;try{d=JSON.parse(getProp(dk)||"[]");}catch(e){d=[];}
   d.push({sym:symbol,dir:r.direction,grade:r.grade,tf:r.tf,mode,rr:r.rr,ts:Date.now()});setProp(dk,JSON.stringify(d));
   const wk="A8_W_"+getWeekKey();let w;try{w=JSON.parse(getProp(wk)||"{}");}catch(e){w={};}
-  w.signals=(w.signals||0)+1;if(mode==="TRIPLE")w.triple=(w.triple||0)+1;else if(mode==="CONFLUENCE")w.confluence=(w.confluence||0)+1;setProp(wk,JSON.stringify(w));
+  w.signals=(w.signals||0)+1;
+  w.byTf=w.byTf||{};w.byTf[mode]=(w.byTf[mode]||0)+1;
+  setProp(wk,JSON.stringify(w));
 }
 // v3.1 Fix #10: Enhanced performance tracker with conviction score + weekly report
 async function trackClose(symbol, direction, pnlPct, isWin, convScore = null) {
@@ -1197,7 +1223,7 @@ async function sendWeeklyReport() {
   let msg = `📊 <b>GWP CRYPTO — WEEKLY PERFORMANCE REPORT</b>\n`;
   msg += `📆 ${getWeekKey().replace("_", " ")}\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  msg += `📡 Signals: ${w.signals || 0}  |  Conf: ${w.confluence || 0}  |  Triple: ${w.triple || 0}\n`;
+  msg += `📡 Signals: ${w.signals || 0}  |  By TF: ${w.byTf ? Object.entries(w.byTf).map(([tf,n])=>`${tf}:${n}`).join(" ") : "—"}\n`;
   if (closed > 0) {
     msg += `✅ Wins: ${w.wins || 0}  ❌ Losses: ${w.losses || 0}  |  Win Rate: <b>${wr}</b>\n`;
     msg += `💰 Net P&L: <b>${(w.pnl || 0) >= 0 ? "+" : ""}${w.pnl || 0}%</b>\n`;
@@ -1330,6 +1356,7 @@ function formatSingleSignal(r,symbol,conv,ms,_label,d1Bias='NEUTRAL',math=null){
   return(
     `\n`+
     `🎯  <b>GWP · ${pairLabel} · ${dir} [${r.tfLabel}]</b>\n`+
+    (_label?`${_label}\n`:"")+
     `${dirEmoji}  <b>${conv.score}/123</b>  ·  ${conv.grade}  ·  R:R <b>${r.rr}:1</b>${ageNote}${biasNote}\n`+
     `─────────────────────────────\n`+
     `<b>ENTRY</b>  <code>${r.entry}</code>   <b>SL</b>  <code>${r.sl}</code>  (-${r.slPct}%)\n`+
@@ -1517,7 +1544,7 @@ async function sendWeeklySummary(){
   let w;try{w=JSON.parse(getProp("A8_W_"+getWeekKey())||"{}");}catch(e){w={};}
   const closed=(w.wins||0)+(w.losses||0),wr=closed>0?((w.wins||0)/closed*100).toFixed(0)+"%":"—";
   let msg=`📆 <b>WEEKLY SUMMARY — ${getWeekKey().replace("_"," ")}</b>\n━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  msg+=`📊 Signals: ${w.signals||0}  Confluences: ${w.confluence||0}  Triples: ${w.triple||0}\n`;
+  msg+=`📊 Signals: ${w.signals||0}  By TF: ${w.byTf?Object.entries(w.byTf).map(([tf,n])=>`${tf}:${n}`).join(" "):"—"}\n`;
   if(closed>0)msg+=`✅ ${w.wins||0}W  ❌ ${w.losses||0}L  Win Rate: <b>${wr}</b>\n💰 Net P&L: <b>${(w.pnl||0)>=0?"+":""}${w.pnl||0}%</b>\n`;
   else msg+=`  No closed trades yet.\n`;
   // v3.6: Compounding status
@@ -1545,8 +1572,8 @@ async function sendStatus(){
   await tgSend(
     `📡 <b>GWP Crypto v3.1 ELITE MAX — ONLINE</b> ✅\n\n`+
     `Pairs: ${CONFIG.PAIRS.map(s=>s.replace("-USDT","")).join(", ")}\n`+
-    `TFs: 4H + 1H + 15M (Triple Engine)\n`+
-    `Gates: 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n`+
+    `TFs: 1D + 4H + 1H + 30M + 15M — 3-of-5 vote + entry trigger\n`+
+    `Gates: D1≥${TF_CONFIG.D1.minConviction} | 4H≥${TF_CONFIG.H4.minConviction} | 1H≥${TF_CONFIG.H1.minConviction} | 30M≥${TF_CONFIG.M30.minConviction} | 15M≥${TF_CONFIG.M15.minConviction}\n`+
     `Session: 24/7 — ALWAYS ON\n`+
     `Confluence: +${CONFIG.CONFLUENCE_CONVICTION_BOOST} | Triple: +${CONFIG.TRIPLE_TF_BOOST}\n`+
     `SL: crypto min ${CONFIG.CRYPTO_MIN_SL_PCT}% | ATR floor ${CONFIG.ATR_SL_FLOOR_MULT}×ATR\n`+
@@ -1568,15 +1595,15 @@ async function sendHelp(){
     `👻 <b>GWP CRYPTO v3.1 ELITE MAX™</b>\n`+
     `<b>Money Printing Machine — 24/7 Always On</b>\n\n`+
     `<b>Commands:</b>\n`+
-    `/scan — full scan (4H+1H+15M)\n`+
+    `/scan — full scan (1D+4H+1H+30M+15M)\n`+
     `/dexe · /uni · /comp · /sol · /sushi · /btc · /link\n`+
     `/daily · /weekly · /health · /positions · /status · /reset · /help\n\n`+
-    `<b>v8.0 Engine:</b>\n`+
+    `<b>v5.0 Engine:</b>\n`+
     `▸ 👻 GWP — VAL band wick (king)\n`+
     `▸ 📐 Math — Hurst · Z · Kalman · ATR% · Volume (NO lagging indicators)\n`+
     `▸ 🏛 MS — CHoCH · BOS · LiqSweep · FVG (additive, no penalty)\n`+
-    `▸ 📅 D1 Bias — daily AVWAP context filter\n`+
-    `▸ 🔥 Triple TF: 4H+1H+15M alignment = MAX conviction\n`+
+    `▸ 🗳️ 5-TF Vote: 1D+4H+1H+30M+15M, 3-of-5 must agree on direction\n`+
+    `▸ 🎯 Entry trigger: fastest TF with a live GWP pattern + confirmations fires the trade\n`+
     `▸ 💎 TP3 = 3.0× VAL band (big crypto moves need big targets)\n`+
     `▸ 🛑 ATR floor: SL always ≥ 1.5× ATR from entry\n`+
     `▸ 🚪 Vol+AVWAP gate: at least 1 must pass\n`+
@@ -1632,7 +1659,7 @@ async function sendWelcome(){
     `<b>Ghost Wick Protocol™ v3.1 — Institutional Crypto</b>\n\n`+
     `🏛 <b>What you'll receive:</b>\n`+
     `▸ Institutional-grade BULL/BEAR signals on DeFi altcoins\n`+
-    `▸ Triple TF confluence: 4H + 1H + 15M alignment\n`+
+    `▸ 5-TF vote: 1D + 4H + 1H + 30M + 15M, 3-of-5 agreement + entry trigger\n`+
     `▸ Entry · SL · TP1 · TP2 · TP3 with conviction score /123\n`+
     `▸ Live TP/SL hit alerts as trade unfolds\n`+
     `▸ Pairs: DEXE · UNI · SUSHI · SOL · BTC · LINK · COMP\n\n`+
@@ -1692,220 +1719,134 @@ async function runBot(){
       console.log(`\n▶ ${symbol}`);
       if(isCircuitBroken(symbol)){console.log("  ⛔ Circuit breaker");continue;}
 
-      // v3.0 SPEED: parallel TF fetches (~4x faster)
-      const [c4h,c1h,c15m,cd1]=await Promise.all([
+      // v5.0 SPEED: parallel fetch across all 5 timeframes
+      const [cd1,c4h,c1h,c30m,c15m]=await Promise.all([
+        fetchKlines(symbol,"D1", TF_CONFIG.D1.vpLookback+150),
         fetchKlines(symbol,"H4", TF_CONFIG.H4.vpLookback+50),
         fetchKlines(symbol,"H1", TF_CONFIG.H1.vpLookback+80),
+        fetchKlines(symbol,"M30",TF_CONFIG.M30.vpLookback+120),
         fetchKlines(symbol,"M15",TF_CONFIG.M15.vpLookback+100),
-        fetchKlines(symbol,"D1", 30),
       ]);
       if(!c4h||c4h.length<30){console.log("  No 4H data");continue;}
 
-      const d1Bias = getD1Bias(cd1);
+      const d1Bias = getD1Bias(cd1); // context field only (shown in signal footer)
       console.log(`  D1 Bias: ${d1Bias}`);
 
-      const vp4h=computeVolumeProfile(c4h,TF_CONFIG.H4.vpLookback);
-      const vp1h=c1h&&c1h.length>=20?computeVolumeProfile(c1h,TF_CONFIG.H1.vpLookback):null;
+      const vpD1 =cd1 &&cd1.length>=40 ?computeVolumeProfile(cd1, TF_CONFIG.D1.vpLookback) :null;
+      const vp4h =computeVolumeProfile(c4h,TF_CONFIG.H4.vpLookback);
+      const vp1h =c1h &&c1h.length>=20 ?computeVolumeProfile(c1h, TF_CONFIG.H1.vpLookback) :null;
+      const vp30m=c30m&&c30m.length>=25?computeVolumeProfile(c30m,TF_CONFIG.M30.vpLookback):null;
       const vp15m=c15m&&c15m.length>=15?computeVolumeProfile(c15m,TF_CONFIG.M15.vpLookback):null;
       if(!vp4h){console.log("  4H VP failed");continue;}
 
-      // ── 2-OF-3 TIMEFRAME VOTE (primary gate) ──────────────────────────────
-      // Ported from the MVS bot's proven design: each TF casts ONE compressed
-      // BULL/BEAR/NEUTRAL read from 4 structural pillars (price vs POC/VAH/VAL
-      // vs recent-swing midpoint). At least 2 of the 3 available TFs must agree
-      // before ANYTHING downstream (GWP detection, conviction scoring, TRIPLE/
-      // CONFLUENCE) is even evaluated. This does NOT replace the GWP trigger
-      // pattern below — MVS itself still requires a real price-action trigger
-      // after its vote resolves (zone proximity + rejection pattern), and GWP's
-      // existing detectGWP/conviction logic plays that same role here. Vote
-      // decides direction; the existing trigger logic still decides entry.
-      const bias4h  = computeTfBias(c4h,  vp4h);
-      const bias1h  = vp1h  ? computeTfBias(c1h,  vp1h)  : null;
-      const bias15m = vp15m ? computeTfBias(c15m, vp15m) : null;
-      const vote = resolveVoteDirection([
+      // ── 5-TIMEFRAME VOTE (1D/4H/1H/30M/15M) — primary directional gate ────
+      // v5.0: extended from the 2-of-3 (4H/1H/15M) informational vote to a
+      // full 5-TF, 3-of-5 HARD gate (ported from the MVS bot's validated
+      // design). Each TF casts ONE compressed BULL/BEAR/NEUTRAL read
+      // (computeTfBias, from price vs POC/VAH/VAL vs recent-swing midpoint).
+      // At least 3 of the 5 TFs must agree on direction before ANY GWP entry
+      // trigger below is even eligible to fire. This supersedes the old
+      // separate D1-counter-trend hard block — D1 is now just one of five
+      // voters, so a lone D1-vs-the-rest disagreement is naturally outvoted
+      // instead of needing a bespoke rule.
+      const biasD1 =vpD1 ?computeTfBias(cd1, vpD1) :null;
+      const bias4h =computeTfBias(c4h, vp4h);
+      const bias1h =vp1h ?computeTfBias(c1h, vp1h) :null;
+      const bias30m=vp30m?computeTfBias(c30m,vp30m):null;
+      const bias15m=vp15m?computeTfBias(c15m,vp15m):null;
+      const vote=resolveVoteDirection([
+        { tf:"D1",  result: biasD1  },
         { tf:"H4",  result: bias4h  },
         { tf:"H1",  result: bias1h  },
+        { tf:"M30", result: bias30m },
         { tf:"M15", result: bias15m },
-      ]);
-      console.log(`  🗳️ VOTE: 4H=${bias4h?bias4h.bias:"N/A"} | 1H=${bias1h?bias1h.bias:"N/A"} | 15M=${bias15m?bias15m.bias:"N/A"}`+
-        (vote?` → ${vote.direction} (${vote.tally}: ${vote.agreeing.join("+")})`:" → NO 2-OF-3 AGREEMENT"));
-      if(!vote){console.log("  🗳️ Vote: no 2-of-3 agreement (informational only — does not block; see conviction/trigger gate below)");}
-      const voteDir = vote ? vote.direction : null;
+      ], 3);
+      console.log(`  🗳️ VOTE: D1=${biasD1?biasD1.bias:"N/A"} 4H=${bias4h?bias4h.bias:"N/A"} 1H=${bias1h?bias1h.bias:"N/A"} 30M=${bias30m?bias30m.bias:"N/A"} 15M=${bias15m?bias15m.bias:"N/A"}`+
+        (vote?` → ${vote.direction} (${vote.tally}: ${vote.agreeing.join("+")})`:" → NO 3-OF-5 AGREEMENT — skip"));
+      if(!vote){continue;}
 
-      const av4h=computeAVWAP(c4h,TF_CONFIG.H4.avwapLookback);
-      const av1h=c1h?computeAVWAP(c1h,TF_CONFIG.H1.avwapLookback):null;
+      const avD1 =vpD1 ?computeAVWAP(cd1, TF_CONFIG.D1.avwapLookback) :null;
+      const av4h =computeAVWAP(c4h, TF_CONFIG.H4.avwapLookback);
+      const av1h =c1h ?computeAVWAP(c1h, TF_CONFIG.H1.avwapLookback) :null;
+      const av30m=c30m?computeAVWAP(c30m,TF_CONFIG.M30.avwapLookback):null;
       const av15m=c15m?computeAVWAP(c15m,TF_CONFIG.M15.avwapLookback):null;
 
-      const m4h=runMathEngine(c4h),m1h=c1h?runMathEngine(c1h):null,m15m=c15m?runMathEngine(c15m):null;
+      const mD1 =vpD1?runMathEngine(cd1):null;
+      const m4h =runMathEngine(c4h);
+      const m1h =c1h ?runMathEngine(c1h) :null;
+      const m30m=c30m?runMathEngine(c30m):null;
+      const m15m=c15m?runMathEngine(c15m):null;
 
-      console.log(`  4H: ${vp4h.valBandBot.toFixed(4)}–${vp4h.valBandTop.toFixed(4)} | Hurst:${m4h?m4h.hurst.toFixed(3):"?"}`);
-
-      const r4h=detectGWP(c4h,vp4h,av4h,m4h,TF_CONFIG.H4,symbol);
-      const r1h=vp1h?detectGWP(c1h,vp1h,av1h,m1h,TF_CONFIG.H1,symbol):null;
+      const rD1 =vpD1 ?detectGWP(cd1, vpD1, avD1, mD1, TF_CONFIG.D1, symbol) :null;
+      const r4h =detectGWP(c4h, vp4h, av4h, m4h, TF_CONFIG.H4, symbol);
+      const r1h =vp1h ?detectGWP(c1h, vp1h, av1h, m1h, TF_CONFIG.H1, symbol) :null;
+      const r30m=vp30m?detectGWP(c30m,vp30m,av30m,m30m,TF_CONFIG.M30,symbol):null;
       const r15m=vp15m?detectGWP(c15m,vp15m,av15m,m15m,TF_CONFIG.M15,symbol):null;
 
-      const ms4h=r4h?analyzeMarketStructure(c4h,r4h.direction,TF_CONFIG.H4):null;
-      const ms1h=r1h?analyzeMarketStructure(c1h,r1h.direction,TF_CONFIG.H1):null;
+      const msD1 =rD1 ?analyzeMarketStructure(cd1, rD1.direction, TF_CONFIG.D1) :null;
+      const ms4h =r4h ?analyzeMarketStructure(c4h, r4h.direction, TF_CONFIG.H4) :null;
+      const ms1h =r1h ?analyzeMarketStructure(c1h, r1h.direction, TF_CONFIG.H1) :null;
+      const ms30m=r30m?analyzeMarketStructure(c30m,r30m.direction,TF_CONFIG.M30):null;
       const ms15m=r15m?analyzeMarketStructure(c15m,r15m.direction,TF_CONFIG.M15):null;
 
-      console.log(`  4H:${r4h?r4h.direction+" "+r4h.score:"—"}  1H:${r1h?r1h.direction+" "+r1h.score:"—"}  15M:${r15m?r15m.direction+" "+r15m.score:"—"}`);
+      console.log(`  D1:${rD1?rD1.direction+" "+rD1.score:"—"}  4H:${r4h?r4h.direction+" "+r4h.score:"—"}  1H:${r1h?r1h.direction+" "+r1h.score:"—"}  30M:${r30m?r30m.direction+" "+r30m.score:"—"}  15M:${r15m?r15m.direction+" "+r15m.score:"—"}`);
 
-      // v3.0: directional lock — prevents SOL SHORT [4H] + SOL LONG [1H] same scan
-      let firedDir=null;
-
-      // v3.6: D1 counter-trend — hard block for conv < 78 (raised from 72).
-      // Backtest v3.5 showed 2 CT leakers at conv 74-75 (both SUSHI, 0% WR, -5.34% P&L).
-      // Raising gate to 78 ensures only genuine strong reversals pass through.
-      const _isCounterTrend = (d1Bias==='BULL'&&r4h&&r4h.direction==='BEAR')||(d1Bias==='BEAR'&&r4h&&r4h.direction==='BULL');
-      function isD1CounterBlocked(dir, convScore) {
-        const ct = (d1Bias==='BULL'&&dir==='BEAR')||(d1Bias==='BEAR'&&dir==='BULL');
-        if (ct && convScore < 78) { console.log(`  ⛔ D1 CT BLOCK: ${dir} vs D1 ${d1Bias}, conv ${convScore} < 78`); return true; }
-        return false;
-      }
-
-      // ─ TRIPLE CONFLUENCE ──────────────────────────────────────────────────
-      if(r4h&&r1h&&r15m&&r4h.direction===r1h.direction&&r1h.direction===r15m.direction){
-        const dir=r4h.direction;
-        if(!isDuplicate(symbol,dir,"TRIPLE")){
-          const conv4h=computeConviction(r4h,m4h,ms4h,"H4",false,true,d1Bias);
-          const conv1h=computeConviction(r1h,m1h,ms1h,"H1",false,true,d1Bias);
-          const conv15m=computeConviction(r15m,m15m,ms15m,"M15",false,true,d1Bias);
-          const gate=checkEntryConfirmations(r4h,ms4h);
-          const convOk=parseFloat(conv4h.score)>=TF_CONFIG.H4.minConviction;
-          if(!convOk)console.log(`  ⚠️ TRIPLE conv4H ${conv4h.score} below ${TF_CONFIG.H4.minConviction} — blocked`);
-          if(gate.valid&&convOk){
-            if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
-            const corrBlock=hasCorrelatedPosition(symbol,dir);
-            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
-            console.log(`  🔥🔥🔥 TRIPLE! ${dir} Conv4H=${conv4h.score}`);
-            await tgSend(formatTripleSignal(r4h,r1h,r15m,symbol,conv4h,conv1h,conv15m,ms4h,ms1h,ms15m,d1Bias));
-            storePosition(symbol,r4h,conv4h,"H4");storePosition(symbol,r1h,conv1h,"H1");
-            setCooldown(symbol,dir,"H4");setCooldown(symbol,dir,"H1");setCooldown(symbol,dir,"M15");
-            markFired(symbol,dir,"TRIPLE");
-            firedDir=dir;
-            trackFired(symbol,r4h,"TRIPLE");fired++;continue;
-          }
+      // ── ENTRY TRIGGER — fastest TF with a live GWP pattern in the vote's
+      // direction that clears BOTH checkEntryConfirmations (≥2-of-5 pattern
+      // confirmations) AND its own minConviction floor (after a vote-strength
+      // boost). Fastest-first means the tightest possible entry once the
+      // higher-TF vote has confirmed trend; if 15M hasn't triggered yet, we
+      // fall back to slower TFs so a valid 30M/1H/4H/D1 wick-reversal can
+      // still fire the trade. "3 TFs agree AND entry is triggered → fire."
+      const candidates=[
+        {tf:"M15",r:r15m,ms:ms15m,m:m15m},
+        {tf:"M30",r:r30m,ms:ms30m,m:m30m},
+        {tf:"H1", r:r1h, ms:ms1h, m:m1h },
+        {tf:"H4", r:r4h, ms:ms4h, m:m4h },
+        {tf:"D1", r:rD1, ms:msD1, m:mD1 },
+      ];
+      let entry=null;
+      for(const c of candidates){
+        if(!c.r||c.r.direction!==vote.direction)continue;
+        if(isOnCooldown(symbol,vote.direction,c.tf)){console.log(`  🔒 ${c.tf} cooldown`);continue;}
+        if(isDuplicate(symbol,vote.direction,c.tf))continue;
+        const gate=checkEntryConfirmations(c.r,c.ms);
+        if(!gate.valid)continue;
+        const conv=computeConviction(c.r,c.m,c.ms,c.tf,false,false,d1Bias);
+        // Vote-strength boost — more agreeing TFs = higher conviction
+        const voteBoost=vote.agreeing.length>=5?25:vote.agreeing.length===4?18:10;
+        conv.score=Math.min(parseFloat(conv.score)+voteBoost,123).toFixed(1);
+        if(parseFloat(conv.score)<TF_CONFIG[c.tf].minConviction){
+          console.log(`  ⚠️ ${c.tf} conv ${conv.score} below ${TF_CONFIG[c.tf].minConviction} (post-vote-boost) — trying next TF`);
+          continue;
         }
+        entry={...c,conv,gate};
+        break;
       }
+      if(!entry){console.log(`  Vote ${vote.direction} (${vote.tally}) confirmed, but no TF has triggered entry yet`);continue;}
 
-      // ─ 4H + 1H CONFLUENCE ─────────────────────────────────────────────────
-      if(r4h&&r1h&&r4h.direction===r1h.direction){
-        const dir=r4h.direction;
-        if(isOnCooldown(symbol,dir,"H4")&&isOnCooldown(symbol,dir,"H1")){console.log("  🔒 Both TF cooldowns");continue;}
-        if(!isDuplicate(symbol,dir,"CONF")){
-          const conv4h=computeConviction(r4h,m4h,ms4h,"H4",true,false,d1Bias);
-          const conv1h=computeConviction(r1h,m1h,ms1h,"H1",true,false,d1Bias);
-          const gate=checkEntryConfirmations(r4h,ms4h);
-          const convOk=parseFloat(conv4h.score)>=TF_CONFIG.H4.minConviction;
-          console.log(`  🔥🔥 CONFLUENCE! ${dir} confirmations=${gate.count}/5 (${gate.confirmations.join(",")}) conv4H=${conv4h.score}/${TF_CONFIG.H4.minConviction}`);
-          if(gate.valid&&convOk){
-            if(isD1CounterBlocked(dir,parseFloat(conv4h.score)))continue;
-            const corrBlock=hasCorrelatedPosition(symbol,dir);
-            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${dir}`);continue;}
-            await tgSend(formatConfluenceSignal(r4h,r1h,symbol,conv4h,conv1h,ms4h,ms1h,d1Bias));
-            storePosition(symbol,r4h,conv4h,"H4");storePosition(symbol,r1h,conv1h,"H1");
-            setCooldown(symbol,dir,"H4");setCooldown(symbol,dir,"H1");
-            markFired(symbol,dir,"CONF");
-            firedDir=dir;
-            trackFired(symbol,r4h,"CONFLUENCE");fired++;continue;
-          }
-        }
-      }
+      const corrBlock=hasCorrelatedPosition(symbol,vote.direction);
+      if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${vote.direction}`);continue;}
 
-      // ─ 4H SOLO ────────────────────────────────────────────────────────────
-      if(r4h&&(!firedDir||r4h.direction===firedDir)){
-        if(isOnCooldown(symbol,r4h.direction,"H4")){console.log("  🔒 4H cooldown");}
-        else{
-          const conv=computeConviction(r4h,m4h,ms4h,"H4",false,false,d1Bias);
-          const gate=checkEntryConfirmations(r4h,ms4h);
-          console.log(`  4H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if(gate.valid&&parseFloat(conv.score)>=TF_CONFIG.H4.minConviction&&!isDuplicate(symbol,r4h.direction,"H4")){
-            if(isD1CounterBlocked(r4h.direction,parseFloat(conv.score))){/* skip */}
-            else{
-            // v3.1 Fix #4: Funding rate adjustment
-            const funding = await getFundingRate(symbol.replace("-USDT",""));
-            if (funding.score !== 0) {
-              const fDir = r4h.direction;
-              if (fDir==="BEAR" && funding.rate > 0.0005) conv.score = Math.min(parseFloat(conv.score) + 4, 123).toFixed(1);
-              if (fDir==="BULL" && funding.rate > 0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
-              if (fDir==="BULL" && funding.rate < -0.0005) conv.score = Math.min(parseFloat(conv.score) + 4, 123).toFixed(1);
-              if (fDir==="BEAR" && funding.rate < -0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
-            }
-            r4h._fundingLabel = funding.label;
-            const corrBlock=hasCorrelatedPosition(symbol,r4h.direction);
-            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${r4h.direction}`);}
-            else{
-            await tgSend(formatSingleSignal(r4h,symbol,conv,ms4h,"",d1Bias,m4h));
-            storePosition(symbol,r4h,conv,"H4");setCooldown(symbol,r4h.direction,"H4");
-            markFired(symbol,r4h.direction,"H4");
-            firedDir=r4h.direction;
-            trackFired(symbol,r4h,"H4");fired++;}}
-          }else{console.log(`  ⚠️ 4H conv ${conv.score} below ${TF_CONFIG.H4.minConviction}`);}
-        }
+      // v3.1 Fix #4: Funding rate adjustment (crypto only)
+      const funding = await getFundingRate(symbol.replace("-USDT",""));
+      if (funding.score !== 0) {
+        const fDir = vote.direction;
+        if (fDir==="BEAR" && funding.rate > 0.0005) entry.conv.score = Math.min(parseFloat(entry.conv.score) + 4, 123).toFixed(1);
+        if (fDir==="BULL" && funding.rate > 0.0005) entry.conv.score = Math.max(parseFloat(entry.conv.score) - 2, 0).toFixed(1);
+        if (fDir==="BULL" && funding.rate < -0.0005) entry.conv.score = Math.min(parseFloat(entry.conv.score) + 4, 123).toFixed(1);
+        if (fDir==="BEAR" && funding.rate < -0.0005) entry.conv.score = Math.max(parseFloat(entry.conv.score) - 2, 0).toFixed(1);
       }
+      entry.r._fundingLabel = funding.label;
 
-      // ─ 1H SOLO ────────────────────────────────────────────────────────────
-      if(r1h&&(!firedDir||r1h.direction===firedDir)){
-        if(isOnCooldown(symbol,r1h.direction,"H1")){console.log("  🔒 1H cooldown");}
-        else{
-          const conv=computeConviction(r1h,m1h,ms1h,"H1",false,false,d1Bias);
-          const gate=checkEntryConfirmations(r1h,ms1h);
-          console.log(`  1H conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if(gate.valid&&parseFloat(conv.score)>=TF_CONFIG.H1.minConviction&&!isDuplicate(symbol,r1h.direction,"H1")){
-            if(isD1CounterBlocked(r1h.direction,parseFloat(conv.score))){/* skip */}
-            else{
-            // v3.1 Fix #4: Funding rate adjustment
-            const funding = await getFundingRate(symbol.replace("-USDT",""));
-            if (funding.score !== 0) {
-              const fDir = r1h.direction;
-              if (fDir==="BEAR" && funding.rate > 0.0005) conv.score = Math.min(parseFloat(conv.score) + 4, 123).toFixed(1);
-              if (fDir==="BULL" && funding.rate > 0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
-              if (fDir==="BULL" && funding.rate < -0.0005) conv.score = Math.min(parseFloat(conv.score) + 4, 123).toFixed(1);
-              if (fDir==="BEAR" && funding.rate < -0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
-            }
-            r1h._fundingLabel = funding.label;
-            const corrBlock=hasCorrelatedPosition(symbol,r1h.direction);
-            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${r1h.direction}`);}
-            else{
-            await tgSend(formatSingleSignal(r1h,symbol,conv,ms1h,"⚡ <b>SCALP</b> —",d1Bias,m1h));
-            storePosition(symbol,r1h,conv,"H1");setCooldown(symbol,r1h.direction,"H1");
-            markFired(symbol,r1h.direction,"H1");
-            trackFired(symbol,r1h,"H1");fired++;}}
-          }else{console.log(`  ⚠️ 1H conv ${conv.score} below ${TF_CONFIG.H1.minConviction}`);}
-        }
-      }
-
-      // ─ 15M MICRO (only with higher TF present for context) ────────────────
-      if(r15m&&(r4h||r1h)){
-        const parentDir=(r4h||r1h).direction;
-        if(r15m.direction===parentDir&&!isOnCooldown(symbol,r15m.direction,"M15")){
-          const conv=computeConviction(r15m,m15m,ms15m,"M15",true,false,d1Bias);
-          const gate=checkEntryConfirmations(r15m,ms15m);
-          console.log(`  15M conv: ${conv.score}/123 ${conv.grade} | confirmations: ${gate.count}/5 (${gate.confirmations.join(",")})`);
-          if(gate.valid&&parseFloat(conv.score)>=TF_CONFIG.M15.minConviction&&!isDuplicate(symbol,r15m.direction,"M15")){
-            if(isD1CounterBlocked(r15m.direction,parseFloat(conv.score))){/* skip */}
-            else{
-            // v3.1 Fix #4: Funding rate adjustment
-            const funding = await getFundingRate(symbol.replace("-USDT",""));
-            if (funding.score !== 0) {
-              const fDir = r15m.direction;
-              if (fDir==="BEAR" && funding.rate > 0.0005) conv.score = Math.min(parseFloat(conv.score) + 4, 123).toFixed(1);
-              if (fDir==="BULL" && funding.rate > 0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
-              if (fDir==="BULL" && funding.rate < -0.0005) conv.score = Math.min(parseFloat(conv.score) + 4, 123).toFixed(1);
-              if (fDir==="BEAR" && funding.rate < -0.0005) conv.score = Math.max(parseFloat(conv.score) - 2, 0).toFixed(1);
-            }
-            r15m._fundingLabel = funding.label;
-            const corrBlock=hasCorrelatedPosition(symbol,r15m.direction);
-            if(corrBlock){console.log(`  ⚠️ Correlation block: ${corrBlock} already open ${r15m.direction}`);}
-            else{
-            await tgSend(formatSingleSignal(r15m,symbol,conv,ms15m,"🔬 <b>MICRO SNIPER</b> —",d1Bias,m15m));
-            storePosition(symbol,r15m,conv,"M15");
-            setCooldown(symbol,r15m.direction,"M15");
-            markFired(symbol,r15m.direction,"M15");
-            trackFired(symbol,r15m,"M15");fired++;}}
-          }
-        }
-      }
+      console.log(`  🔥 FIRE [${entry.tf}] ${vote.direction} — vote ${vote.tally} (${vote.agreeing.join("+")}) | conv=${entry.conv.score}/123 | confirmations=${entry.gate.count}/5`);
+      const voteTag=`🗳️ <b>${vote.tally} TF VOTE</b> (${vote.agreeing.join("+")}) — `;
+      await tgSend(formatSingleSignal(entry.r,symbol,entry.conv,entry.ms,voteTag,d1Bias,entry.m));
+      storePosition(symbol,entry.r,entry.conv,entry.tf);
+      setCooldown(symbol,vote.direction,entry.tf);
+      markFired(symbol,vote.direction,entry.tf);
+      trackFired(symbol,entry.r,entry.tf);
+      fired++;
 
     }catch(e){console.error(`ERROR [${symbol}]:`,e.message,e.stack);}
   }

@@ -39,11 +39,19 @@ function getArg(name, def) {
 const BT_PAIR       = getArg("pair", "ALL");  // ALL or specific pair
 const BT_PAIRS_LIST = getArg("pairs", "");    // comma-separated override, e.g. for running one chunk of the full pair list in parallel
 const BT_DAYS       = parseInt(getArg("days", "90"));
-const BT_TF_FOCUS   = getArg("tf", "ALL");    // ALL, H4, H1, M15
+const BT_TF_FOCUS   = getArg("tf", "ALL");    // ALL, D1, H4, H1, M30, M15
 const BT_MAX_MINUTES = parseInt(getArg("max-minutes", "60")); // hard wall-clock budget for the whole run
 
-// ─── CONFIG (mirrors crypto_bot.js v3.4) ─────────────────────────────────────
+// ─── CONFIG (mirrors crypto_bot.js v5.0) ─────────────────────────────────────
 const TF_CONFIG = {
+  D1: {
+    tf:"D1", label:"1D",
+    vpLookback:60, avwapLookback:10,
+    minRR:1.5, minConviction:70, cooldownHrs:20,
+    atrBufMult:0.50, maxAge:1, avwapProx:0.0035,
+    volLookback:20, msLookback:60, swingStrength:3,
+    volSpikeMult:1.15,
+  },
   H4: {
     tf:"H4", label:"4H",
     vpLookback:100, avwapLookback:30,
@@ -59,6 +67,14 @@ const TF_CONFIG = {
     atrBufMult:0.65, maxAge:1, avwapProx:0.005,
     volLookback:20, msLookback:60, swingStrength:3,
     volSpikeMult:1.3,
+  },
+  M30: {
+    tf:"M30", label:"30M",
+    vpLookback:45, avwapLookback:15,
+    minRR:1.4, minConviction:60, cooldownHrs:1.5,
+    atrBufMult:0.62, maxAge:1, avwapProx:0.0055,
+    volLookback:18, msLookback:55, swingStrength:2,
+    volSpikeMult:1.4,
   },
   M15: {
     tf:"M15", label:"15M",
@@ -117,8 +133,8 @@ function httpGet(url) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ─── KUCOIN DATA FETCHER (with pagination for long history) ──────────────────
-const KU_TF = { H4: "4hour", H1: "1hour", M15: "15min", D1: "1day" };
-const TF_MS = { H4: 4*3600000, H1: 3600000, M15: 900000, D1: 86400000 };
+const KU_TF = { H4: "4hour", H1: "1hour", M30: "30min", M15: "15min", D1: "1day" };
+const TF_MS = { H4: 4*3600000, H1: 3600000, M30: 1800000, M15: 900000, D1: 86400000 };
 
 const FETCH_MAX_RETRIES = 6;         // per page, before giving up on that page
 const FETCH_BASE_BACKOFF_MS = 1000;  // doubles each retry, capped below
@@ -397,12 +413,13 @@ function computeTfBias(candles, vp, fibLookback = 50) {
   else bias = "NEUTRAL";
   return { bias, bullVotes, votes, swingHigh, swingLow, fibMid };
 }
-function resolveVoteDirection(votes) {
+function resolveVoteDirection(votes, minAgree = 3) {
   const usable = votes.filter(v => v.result && v.result.bias !== "NEUTRAL");
+  const total = votes.length;
   const bulls = usable.filter(v => v.result.bias === "BULLISH").map(v => v.tf);
   const bears = usable.filter(v => v.result.bias === "BEARISH").map(v => v.tf);
-  if (bulls.length >= 2) return { direction: "BULL", agreeing: bulls, tally: `${bulls.length}/3` };
-  if (bears.length >= 2) return { direction: "BEAR", agreeing: bears, tally: `${bears.length}/3` };
+  if (bulls.length >= minAgree) return { direction: "BULL", agreeing: bulls, tally: `${bulls.length}/${total}` };
+  if (bears.length >= minAgree) return { direction: "BEAR", agreeing: bears, tally: `${bears.length}/${total}` };
   return null;
 }
 
@@ -557,7 +574,7 @@ function detectGWP(candles,vp,avwap,math,tfCfg,symbol){
     }
     if(!direction)continue;
 
-    const staleZone=atr*(tfCfg.tf==="M15"?0.3:0.5);
+    const staleZone=atr*((tfCfg.tf==="M15"||tfCfg.tf==="M30")?0.3:0.5);
     if(direction==="BEAR"&&cur.close<=(bMid-staleZone))continue;
     if(direction==="BULL"&&cur.close>=(bMid+staleZone))continue;
 
@@ -862,7 +879,7 @@ async function runBacktest() {
   const pairs = BT_PAIRS_LIST
     ? BT_PAIRS_LIST.split(",").map(p => p.trim()).filter(Boolean)
     : (BT_PAIR === "ALL" ? CONFIG.PAIRS : [BT_PAIR]);
-  const tfs = BT_TF_FOCUS === "ALL" ? ["H4", "H1", "M15"] : [BT_TF_FOCUS];
+  const tfs = BT_TF_FOCUS === "ALL" ? ["D1", "H4", "H1", "M30", "M15"] : [BT_TF_FOCUS];
 
   const kucoinOk = await checkKucoinConnectivity();
   if (!kucoinOk) {
@@ -906,18 +923,17 @@ async function runBacktest() {
     console.log(`\n▶ [${pairIdx}/${pairs.length}] Fetching ${symbol} historical data... (${totalElapsedMin.toFixed(1)}m elapsed overall)`);
     tradesByPair[symbol] = [];
 
-    // Fetch each timeframe SEQUENTIALLY (not as 4 concurrent streams). KuCoin's
-    // public rate limit is per-IP; firing H4+H1+M15+D1 all at once from a shared
-    // GitHub Actions IP was triggering repeated throttling that a burst of retries
-    // couldn't outrun. One stream at a time is slower per-pair in isolation but
-    // avoids the throttling that was making the overall run take 3+ hours.
+    // Fetch each timeframe SEQUENTIALLY (not as concurrent streams). KuCoin's
+    // public rate limit is per-IP; firing D1+H4+H1+M30+M15 all at once from a
+    // shared GitHub Actions IP was triggering repeated throttling that a burst
+    // of retries couldn't outrun. One stream at a time is slower per-pair in
+    // isolation but avoids the throttling that was making the overall run
+    // take 3+ hours.
     const data = {};
     for (const tf of tfs) {
       data[tf] = await fetchKlinesRange(symbol, tf, startMs - TF_MS[tf] * 200, endMs);
       console.log(`  ${tf}: ${data[tf].length} candles fetched`);
     }
-    data.D1 = await fetchKlinesRange(symbol, "D1", startMs - 86400000 * 60, endMs);
-    console.log(`  D1: ${data.D1.length} candles fetched`);
 
     const symbolFetchS = ((Date.now() - symbolStart) / 1000).toFixed(1);
     console.log(`  ✓ ${symbol} data ready in ${symbolFetchS}s`);
@@ -946,7 +962,7 @@ async function runBacktest() {
       if (!tradesByTf[tf]) tradesByTf[tf] = [];
       const tfCfg = TF_CONFIG[tf];
       const windowSize = tfCfg.vpLookback + 50;
-      const stepSize = tf === "M15" ? 4 : tf === "H1" ? 2 : 1;
+      const stepSize = tf === "M15" ? 4 : tf === "M30" ? 3 : tf === "H1" ? 2 : 1;
       const tl = [];
       const bl = [];
       for (let i = windowSize; i < candles.length - 5; i += stepSize) {
@@ -987,17 +1003,17 @@ async function runBacktest() {
       }
       return ans >= 0 ? bl[ans].bias : null;
     }
-    // Resolve the 2-of-3 vote as of a given anchor timestamp, using whichever
+    // Resolve the 3-of-5 vote as of a given anchor timestamp, using whichever
     // TFs are actually in `tfs` (mirrors crypto_bot.js's live vote, which also
-    // only uses whichever of H4/H1/M15 it has data for).
+    // only uses whichever of D1/H4/H1/M30/M15 it has data for).
     function resolveVoteAsOf(atT) {
       const votes = [];
-      for (const tf of ["H4", "H1", "M15"]) {
+      for (const tf of ["D1", "H4", "H1", "M30", "M15"]) {
         if (!tfs.includes(tf)) continue;
         const bias = biasAsOf(tf, atT);
         votes.push({ tf, result: bias ? { bias } : null });
       }
-      return resolveVoteDirection(votes);
+      return resolveVoteDirection(votes, 3);
     }
 
     // Binary search: most recent timeline entry at or before `atT` (never looks ahead).
@@ -1027,7 +1043,7 @@ async function runBacktest() {
     // move — mirrors crypto_bot.js calling setCooldown() for every TF involved.
     const cooldowns = {}; // `${direction}_${tf}` -> last-fired timestamp
 
-    function recordTrade(tf, evt, conv, signalType) {
+    function recordTrade(tf, evt, conv, signalType, voteTally) {
       const candles = data[tf];
       const futureStart = evt.i + 1;
       const futureEnd = Math.min(candles.length, futureStart + 100);
@@ -1036,9 +1052,8 @@ async function runBacktest() {
       const result = simulateTrade(evt.gwp, futureCandles);
       const trade = {
         symbol,
-        tf: signalType, // "H4"/"H1"/"M15" for solo, or "CONFLUENCE"/"TRIPLE" — preserves
-                         // which path fired, for reporting (matches live bot's distinct
-                         // Telegram formats for solo vs confluence vs triple signals)
+        tf: signalType, // triggering TF ("D1"/"H4"/"H1"/"M30"/"M15")
+        voteTally: voteTally || null, // e.g. "3/5" — how many TFs agreed on direction
         direction: evt.direction,
         entry: evt.gwp.entry, sl: evt.gwp.sl, tp1: evt.gwp.tp1, tp2: evt.gwp.tp2, tp3: evt.gwp.tp3,
         rr: evt.gwp.rr,
@@ -1059,70 +1074,35 @@ async function runBacktest() {
       (tradesByGrade[conv.grade] = tradesByGrade[conv.grade] || []).push(trade);
     }
 
-    // ─── PHASE 2a: H4 anchor — TRIPLE → CONFLUENCE → solo H4 (priority order
-    // mirrors crypto_bot.js's live scan: TRIPLE checked first, then CONFLUENCE,
-    // else solo falls through) ────────────────────────────────────────────────
-    if (timelines.H4 && timelines.H4.length) {
-      for (const evt of timelines.H4) {
+    // ─── PHASE 2: unified entry trigger — walk each TF's raw GWP timeline,
+    // fastest TF first. An event only converts into a trade if the 5-TF vote
+    // (as of that event's own timestamp, via resolveVoteAsOf — no lookahead)
+    // has ≥3-of-5 agreement in the SAME direction as the event, AND the event
+    // clears checkEntryConfirmations + its own TF's minConviction floor
+    // (after a vote-strength boost). Mirrors crypto_bot.js's live
+    // "fastest-TF-first" entry-trigger search exactly. Supersedes the old
+    // separate D1-counter-trend hard block — D1 is now one of five voters.
+    for (const tf of ["M15", "M30", "H1", "H4", "D1"]) {
+      if (!timelines[tf] || !timelines[tf].length) continue;
+      for (const evt of timelines[tf]) {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
-        if (cooldowns[`${direction}_H4`] && (t - cooldowns[`${direction}_H4`]) < TF_CONFIG.H4.cooldownHrs * 3600000) continue;
+        if (cooldowns[`${direction}_${tf}`] && (t - cooldowns[`${direction}_${tf}`]) < TF_CONFIG[tf].cooldownHrs * 3600000) continue;
 
-        const h1Agree = tfs.includes("H1")
-          ? checkAgreement("H1", direction, t, TF_CONFIG.H1.cooldownHrs * 3600000 * 2) : null;
-        const m15Agree = tfs.includes("M15")
-          ? checkAgreement("M15", direction, t, TF_CONFIG.M15.cooldownHrs * 3600000 * 2) : null;
-        const isTriple = !!(h1Agree && m15Agree);
-        const isConfluence = !isTriple && !!h1Agree;
+        const vote = resolveVoteAsOf(t);
+        if (!vote || vote.direction !== direction) continue;
 
-        const conv = computeConviction(gwp, math, ms, "H4", isConfluence, isTriple, d1Bias, candleHour);
         const gateCheck = checkEntryConfirmations(gwp, ms);
+        if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf, signalType: tf, score: gateCheck.count, gate: 2 }); continue; }
 
-        if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "H4", signalType: isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4", score: gateCheck.count, gate: 2 }); continue; }
-        if (conv.score < TF_CONFIG.H4.minConviction) { blockedByConv++; blockedScores.push({ tf: "H4", signalType: isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4", score: conv.score, gate: "minConviction" }); continue; }
-        const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
-        if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
+        const conv = computeConviction(gwp, math, ms, tf, false, false, d1Bias, candleHour);
+        const voteBoost = vote.agreeing.length >= 5 ? 25 : vote.agreeing.length === 4 ? 18 : 10;
+        conv.score = Math.min(conv.score + voteBoost, 123);
+
+        if (conv.score < TF_CONFIG[tf].minConviction) { blockedByConv++; blockedScores.push({ tf, signalType: tf, score: conv.score, gate: "minConviction" }); continue; }
         passedGate++;
 
-        cooldowns[`${direction}_H4`] = t;
-        if (isConfluence || isTriple) cooldowns[`${direction}_H1`] = t;
-        if (isTriple) cooldowns[`${direction}_M15`] = t;
-
-        recordTrade("H4", evt, conv, isTriple ? "TRIPLE" : isConfluence ? "CONFLUENCE" : "H4");
-      }
-    }
-
-    // ─── PHASE 2b: H1 solo (cooldowns already set by a fired CONFLUENCE/TRIPLE
-    // above suppress duplicate entries on the same underlying move) ──────────
-    if (timelines.H1 && timelines.H1.length) {
-      for (const evt of timelines.H1) {
-        const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
-        if (cooldowns[`${direction}_H1`] && (t - cooldowns[`${direction}_H1`]) < TF_CONFIG.H1.cooldownHrs * 3600000) continue;
-        const conv = computeConviction(gwp, math, ms, "H1", false, false, d1Bias, candleHour);
-        const gateCheck = checkEntryConfirmations(gwp, ms);
-        if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: gateCheck.count, gate: 2 }); continue; }
-        if (conv.score < TF_CONFIG.H1.minConviction) { blockedByConv++; blockedScores.push({ tf: "H1", signalType: "H1", score: conv.score, gate: "minConviction" }); continue; }
-        const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
-        if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
-        passedGate++;
-        cooldowns[`${direction}_H1`] = t;
-        recordTrade("H1", evt, conv, "H1");
-      }
-    }
-
-    // ─── PHASE 2c: M15 solo ──────────────────────────────────────────────────
-    if (timelines.M15 && timelines.M15.length) {
-      for (const evt of timelines.M15) {
-        const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
-        if (cooldowns[`${direction}_M15`] && (t - cooldowns[`${direction}_M15`]) < TF_CONFIG.M15.cooldownHrs * 3600000) continue;
-        const conv = computeConviction(gwp, math, ms, "M15", false, false, d1Bias, candleHour);
-        const gateCheck = checkEntryConfirmations(gwp, ms);
-        if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: gateCheck.count, gate: 2 }); continue; }
-        if (conv.score < TF_CONFIG.M15.minConviction) { blockedByConv++; blockedScores.push({ tf: "M15", signalType: "M15", score: conv.score, gate: "minConviction" }); continue; }
-        const isCounterTrend = (d1Bias === 'BULL' && direction === 'BEAR') || (d1Bias === 'BEAR' && direction === 'BULL');
-        if (isCounterTrend && conv.score < 78) { blockedByConv++; continue; }
-        passedGate++;
-        cooldowns[`${direction}_M15`] = t;
-        recordTrade("M15", evt, conv, "M15");
+        cooldowns[`${direction}_${tf}`] = t;
+        recordTrade(tf, evt, conv, tf, vote.tally);
       }
     }
     await sleep(500); // rate limit between pairs
