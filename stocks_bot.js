@@ -683,7 +683,7 @@ function hasVolumeSpike(sigCandle, allCandles, sigIdx, volLookback, mult) {
 
 // ── MARKET STRUCTURE ENGINE ───────────────────────────────────────────────────
 // ── TIMEFRAME BIAS VOTE + ENTRY CONFIRMATION COUNT (ported from crypto_bot.js,
-// which itself ports the MVS bot's proven 2-of-3 vote design) ─────────────────
+// which itself ports the MVS bot's 5-TF 3-of-5 vote design) ────────────────────
 function computeTfBias(candles, vp, fibLookback = 50) {
   if (!candles || !vp || candles.length < fibLookback) return null;
   const price = candles[candles.length - 1].close;
@@ -1822,7 +1822,14 @@ async function runBot() {
   if (mode === "weekly")        await sendWeeklySummary();
   if (mode === "weeklyreport")  await sendWeeklyReport();
   if (mode === "health")        await sendHealth();
-  if (mode === "scan" && new Date().getUTCDay() === 5 && new Date().getUTCHours() === 21) await sendWeeklyReport();
+  // v5.0 fix: the scan cron fires twice per hour (:10/:40), so a bare
+  // getUTCHours()===21 check was sending this report twice every Friday.
+  // Guarded with a same-day sent-flag, mirroring the startup-message dedup
+  // pattern elsewhere in this file.
+  if (mode === "scan" && new Date().getUTCDay() === 5 && new Date().getUTCHours() === 21) {
+    const wrKey = "WR_sent_" + getDateKey();
+    if (!getProp(wrKey)) { setProp(wrKey, "1"); await sendWeeklyReport(); }
+  }
 
   if (mode === "scan") {
     if (commandsHandled === 0) {

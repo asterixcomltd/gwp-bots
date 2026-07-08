@@ -1,0 +1,346 @@
+# ════════════════════════════════════════════════════════════════════
+# GWP BACKTEST WORKFLOW — 360-day & 720-day historical validation
+# Runs backtest.js against real KuCoin history for the crypto bot's
+# current CONFIG/TF_CONFIG (kept in sync with crypto_bot.js — see the
+# "Sync check" step, which fails the run if they drift apart).
+#
+# WHY THIS IS SPLIT INTO PARALLEL CHUNKS:
+# A single job pulling all 16 pairs sequentially was taking 1-3+ hours,
+# even for modest day-windows, because sustained request volume over
+# time gets throttled by KuCoin's rate limiter — backoff/retry alone
+# can't fix a "too many requests over a sustained window" limit, only
+# fewer requests per job or more parallel IPs can. So instead of one
+# job doing all 16 pairs, this fans out into N parallel jobs (default
+# 4), each handling a subset of pairs on its own runner. A final
+# "combine" job merges everyone's results into one clean report.
+#
+# Triggers:
+#   • Manual (workflow_dispatch) — pick your own days/pair/tf/chunk count
+#   • Monthly, 1st of month 03:00 UTC — runs BOTH 360d and 720d automatically
+#
+# Outputs:
+#   • Per-chunk JSON + Markdown uploaded as build artifacts (debugging)
+#   • ONE combined JSON + Markdown per day-window, merged across all chunks
+#   • Combined Markdown written into the GitHub Actions job summary
+#   • Combined Markdown committed to backtest-reports/ in the repo
+#
+# © 2026 Asterix Holdings Ltd. / Abdin.
+# ════════════════════════════════════════════════════════════════════
+
+name: GWP Backtest (360d / 720d)
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Lookback window in days (leave default to run BOTH 360 and 720)"
+        required: false
+        default: "both"
+      pair:
+        description: "Pair to test, or ALL (chunking below only applies when this is ALL)"
+        required: false
+        default: "ALL"
+      tf:
+        description: "Timeframe to test: H4 / H1 / M15 / ALL"
+        required: false
+        default: "ALL"
+      max_minutes:
+        description: "Hard time budget PER CHUNK JOB (minutes) — stops fetching and saves partial results if exceeded"
+        required: false
+        default: "150"
+      pair_chunks:
+        description: "How many parallel jobs to split the ALL-pairs sweep across (ignored if pair is not ALL)"
+        required: false
+        default: "4"
+  schedule:
+    # Monthly health-check — 1st of month, 03:00 UTC. Runs both 360d and 720d.
+    - cron: "0 3 1 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gwp-backtest
+  cancel-in-progress: false
+
+jobs:
+  # ── Guard: fail fast if backtest.js core logic has drifted from crypto_bot.js
+  sync-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Verify backtest.js mirrors crypto_bot.js core functions
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const bot = fs.readFileSync('crypto_bot.js', 'utf8');
+          const bt  = fs.readFileSync('backtest.js', 'utf8');
+          const FUNCS = [
+            'calcATR','calcATRPercentile','calcVolumeRatio','calcHurst','calcZScore',
+            'kalmanFilter','calcMomentumBurst','calcZoneRevisit','computeVolumeProfile',
+            'computeAVWAP','hasVolumeSpike','detectSwings','getD1Bias',
+            'computeTfBias','resolveVoteDirection'
+          ];
+          function extract(src, name) {
+            const m = src.match(new RegExp('function ' + name + '\\('));
+            if (!m) return null;
+            const start = m.index;
+            const i = src.indexOf('{', start);
+            let depth = 0;
+            for (let j = i; j < src.length; j++) {
+              if (src[j] === '{') depth++;
+              else if (src[j] === '}') { depth--; if (depth === 0) return src.slice(start, j + 1); }
+            }
+            return null;
+          }
+          function normalize(s) { return s.replace(/\/\/.*$/gm, '').replace(/\s+/g, ''); }
+          let failed = false;
+          for (const f of FUNCS) {
+            const a = extract(bot, f), b = extract(bt, f);
+            if (!a || !b) { console.log(`⚠️  ${f}: missing in one file (bot=${!!a}, backtest=${!!b})`); continue; }
+            if (normalize(a) !== normalize(b)) {
+              console.log(`❌ ${f}: LOGIC DRIFT between crypto_bot.js and backtest.js`);
+              failed = true;
+            } else {
+              console.log(`✅ ${f}: in sync`);
+            }
+          }
+          if (failed) {
+            console.log('\n🛑 backtest.js no longer mirrors crypto_bot.js — backtest results would not represent live bot behavior. Fix before trusting results.');
+            process.exit(1);
+          }
+          EOF
+
+  plan:
+    needs: sync-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      days_matrix: ${{ steps.compute_days.outputs.days_matrix }}
+      groups_matrix: ${{ steps.compute_groups.outputs.groups_matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Compute which day-windows to run
+        id: compute_days
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            DAYS="[360,720]"
+          elif [ "${{ github.event.inputs.days }}" = "both" ] || [ -z "${{ github.event.inputs.days }}" ]; then
+            DAYS="[360,720]"
+          else
+            DAYS="[${{ github.event.inputs.days }}]"
+          fi
+          echo "Resolved day-windows: $DAYS"
+          echo "days_matrix=$DAYS" >> "$GITHUB_OUTPUT"
+
+      - name: Compute pair chunks (splits ALL 16 pairs across N parallel jobs)
+        id: compute_groups
+        env:
+          INPUT_PAIR: ${{ github.event.inputs.pair || 'ALL' }}
+          INPUT_CHUNKS: ${{ github.event.inputs.pair_chunks || '4' }}
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const src = fs.readFileSync('backtest.js', 'utf8');
+          const m = src.match(/PAIRS:\s*\[([^\]]+)\]/);
+          if (!m) { console.error('Could not find CONFIG.PAIRS in backtest.js'); process.exit(1); }
+          const allPairs = m[1].split(',')
+            .map(s => s.trim().replace(/^["']|["']$/g, ''))
+            .filter(Boolean);
+
+          const singlePair = process.env.INPUT_PAIR;
+          let groups;
+          if (singlePair && singlePair !== 'ALL') {
+            groups = [singlePair];
+            console.log(`Single pair requested (${singlePair}) — running as one job, no chunking.`);
+          } else {
+            const chunkCount = Math.max(1, parseInt(process.env.INPUT_CHUNKS || '4', 10));
+            const chunks = Array.from({ length: chunkCount }, () => []);
+            allPairs.forEach((p, i) => chunks[i % chunkCount].push(p));
+            groups = chunks.filter(c => c.length > 0).map(c => c.join(','));
+            console.log(`Split ${allPairs.length} pairs into ${groups.length} chunks:`);
+            groups.forEach((g, i) => console.log(`  chunk ${i}: ${g}`));
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `groups_matrix=${JSON.stringify(groups)}\n`);
+          EOF
+
+  backtest:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        days: ${{ fromJSON(needs.plan.outputs.days_matrix) }}
+        pairGroup: ${{ fromJSON(needs.plan.outputs.groups_matrix) }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Run ${{ matrix.days }}-day backtest (chunk ${{ strategy.job-index }})
+        run: |
+          echo "This chunk covers: ${{ matrix.pairGroup }}"
+          node backtest.js --days ${{ matrix.days }} \
+            --pairs "${{ matrix.pairGroup }}" \
+            --tf "${{ github.event.inputs.tf || 'ALL' }}" \
+            --max-minutes "${{ github.event.inputs.max_minutes || '150' }}"
+
+      - name: Upload chunk report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gwp-backtest-chunk-${{ matrix.days }}d-${{ strategy.job-index }}-${{ github.run_id }}
+          path: backtest-reports/*
+          retention-days: 90
+
+  # ── Merge every chunk's results into one clean report per day-window.
+  # Runs even if some chunks failed/timed out, so partial coverage still
+  # produces a usable combined result instead of nothing.
+  combine:
+    needs: backtest
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all chunk reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gwp-backtest-chunk-*-${{ github.run_id }}
+          path: chunk-reports
+          merge-multiple: true
+
+      - name: Merge chunks into one combined report per day-window
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const dir = 'chunk-reports';
+          const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')) : [];
+          if (!files.length) {
+            console.log('No chunk report JSON files found — nothing to combine (all chunks may have failed).');
+            process.exit(0);
+          }
+
+          const byDays = {};
+          for (const f of files) {
+            let raw;
+            try { raw = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); }
+            catch (e) { console.warn(`Skipping unreadable report ${f}: ${e.message}`); continue; }
+            const days = raw?.meta?.days;
+            if (days === undefined) continue;
+            (byDays[days] = byDays[days] || []).push(raw);
+          }
+
+          fs.mkdirSync('backtest-reports', { recursive: true });
+          const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+          let summaryMd = '';
+
+          for (const [days, reports] of Object.entries(byDays)) {
+            const allTrades = reports.flatMap(r => r.trades || []);
+            const allPairs = [...new Set(reports.flatMap(r => r.meta?.pairs || []))];
+            const totalSignals   = reports.reduce((s, r) => s + (r.summary?.totalSignals || 0), 0);
+            const passedGate     = reports.reduce((s, r) => s + (r.summary?.passedGate || 0), 0);
+            const blockedByVote  = reports.reduce((s, r) => s + (r.summary?.blockedByVote || 0), 0);
+            const blockedByCooldown = reports.reduce((s, r) => s + (r.summary?.blockedByCooldown || 0), 0);
+            const blockedByConv  = reports.reduce((s, r) => s + (r.summary?.blockedByConv || 0), 0);
+            const anyPartial     = reports.some(r => r.meta?.partialRun);
+            const skipped        = [...new Set(reports.flatMap(r => r.meta?.skippedPairs || []))];
+
+            const closed = allTrades.filter(t => t.exitReason !== 'OPEN');
+            const wins = closed.filter(t => t.totalPnlPct > 0);
+            const losses = closed.filter(t => t.totalPnlPct <= 0);
+            const winRate = closed.length ? (wins.length / closed.length * 100) : 0;
+            const totalPnl = closed.reduce((s, t) => s + t.totalPnlPct, 0);
+            const avgPnl = closed.length ? totalPnl / closed.length : 0;
+            const grossWin = wins.reduce((s, t) => s + t.totalPnlPct, 0);
+            const grossLoss = Math.abs(losses.reduce((s, t) => s + t.totalPnlPct, 0));
+            const profitFactor = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? Infinity : 0);
+
+            const combined = {
+              meta: {
+                days: Number(days), pairs: allPairs, chunksCombined: reports.length,
+                partialRun: anyPartial, skippedPairs: skipped, generated: new Date().toISOString(),
+              },
+              summary: {
+                totalSignals, passedGate, blockedByVote, blockedByCooldown, blockedByConv, closedTrades: closed.length,
+                winRate: +winRate.toFixed(1), totalPnl: +totalPnl.toFixed(2), avgPnl: +avgPnl.toFixed(3),
+                profitFactor: profitFactor === Infinity ? null : +profitFactor.toFixed(2),
+              },
+              trades: allTrades,
+            };
+            fs.writeFileSync(`backtest-reports/COMBINED_${days}d_${stamp}.json`, JSON.stringify(combined, null, 2));
+
+            const md = [
+              `# GWP Backtest — COMBINED ${days}-day window (${reports.length} parallel chunks merged)`,
+              ``,
+              `**Pairs covered:** ${allPairs.join(', ') || '(none — all chunks failed)'}`,
+              `**Generated:** ${new Date().toISOString()}`,
+              anyPartial ? `\n> ⚠️ One or more chunks hit their time budget. Skipped pairs: ${skipped.join(', ') || 'none'}\n` : '',
+              ``,
+              `## Overall performance (${closed.length} closed trades)`,
+              ``,
+              `| Metric | Value |`,
+              `|---|---|`,
+              `| Win Rate | ${winRate.toFixed(1)}% (${wins.length}W / ${losses.length}L) |`,
+              `| Total P&L | ${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}% |`,
+              `| Avg P&L / trade | ${avgPnl >= 0 ? '+' : ''}${avgPnl.toFixed(3)}% |`,
+              `| Profit Factor | ${profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)} |`,
+              `| Signal funnel | ${totalSignals} raw → ${blockedByVote} failed vote → ${blockedByCooldown} cooldown → ${blockedByConv} conviction/confirm → ${passedGate} passed gate |`,
+              ``,
+            ].join('\n');
+            fs.writeFileSync(`backtest-reports/COMBINED_${days}d_${stamp}.md`, md);
+            summaryMd += md + '\n';
+            console.log(`Combined ${days}d: ${closed.length} trades from ${reports.length} chunks, win rate ${winRate.toFixed(1)}%`);
+          }
+
+          if (process.env.GITHUB_STEP_SUMMARY && summaryMd) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryMd);
+          }
+          EOF
+
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gwp-backtest-COMBINED-${{ github.run_id }}
+          path: backtest-reports/COMBINED_*
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Commit combined summaries to repo
+        run: |
+          git config user.email "gwp-backtest@asterixcom.ltd"
+          git config user.name  "GWP Backtest"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch origin main --quiet
+          git reset --hard origin/main
+          git add backtest-reports/COMBINED_*.md 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No new combined summaries to commit."
+            exit 0
+          fi
+          git commit -m "backtest: combined report $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
+          for i in 1 2 3; do
+            if git push origin main; then break; fi
+            echo "Push rejected, retrying ($i/3)..."
+            git fetch origin main --quiet
+            git rebase origin/main
+            sleep $((RANDOM % 5 + 1))
+          done
