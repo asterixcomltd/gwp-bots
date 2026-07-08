@@ -391,7 +391,7 @@ function hasVolumeSpike(sigCandle,allCandles,sigIdx,volLookback,mult){
 }
 
 // ─── MARKET STRUCTURE ────────────────────────────────────────────────────────
-// ── TIMEFRAME BIAS VOTE (ported from the MVS bot's proven 2-of-3 design) ──────
+// ── TIMEFRAME BIAS VOTE (ported from the MVS bot's 5-TF 3-of-5 design) ────────
 // Mirrors crypto_bot.js exactly — see that file for the full explanation.
 function computeTfBias(candles, vp, fibLookback = 50) {
   if (!candles || !vp || candles.length < fibLookback) return null;
@@ -902,6 +902,7 @@ async function runBacktest() {
   const tradesByGrade = {};
   const convictionBuckets = {};
   let totalSignals = 0, passedGate = 0, blockedByConv = 0, blockedByRR = 0;
+  let blockedByVote = 0, blockedByCooldown = 0;
   const blockedScores = []; // {tf, signalType, score, gate} for every blocked signal — lets
                              // future tuning see the real score distribution near the gate
                              // instead of guessing at a new threshold blind.
@@ -947,7 +948,7 @@ async function runBacktest() {
     //
     // ALSO builds a separate, denser "bias timeline" per TF (computed at every
     // bar with a valid volume profile, regardless of whether a GWP trigger
-    // fired) — the 2-of-3 vote (ported from the MVS bot) is a continuous
+    // fired) — the 3-of-5 vote (ported from the MVS bot) is a continuous
     // structural read, not a trigger event, so it needs its own timeline.
     const timelines = {};
     const biasTimelines = {};
@@ -1016,28 +1017,6 @@ async function runBacktest() {
       return resolveVoteDirection(votes, 3);
     }
 
-    // Binary search: most recent timeline entry at or before `atT` (never looks ahead).
-    function currentStateAsOf(tf, atT) {
-      const tl = timelines[tf];
-      if (!tl || !tl.length) return null;
-      let lo = 0, hi = tl.length - 1, ans = -1;
-      while (lo <= hi) {
-        const mid = (lo + hi) >> 1;
-        if (tl[mid].t <= atT) { ans = mid; lo = mid + 1; } else hi = mid - 1;
-      }
-      return ans >= 0 ? tl[ans] : null;
-    }
-    // Is `tf` currently (as of atT) showing the same direction, and recently enough
-    // to count as "live" rather than a stale leftover read? The freshness bound
-    // reuses that TF's own (already-tuned) cooldown window rather than inventing
-    // a new arbitrary constant.
-    function checkAgreement(tf, direction, atT, maxAgeMs) {
-      const s = currentStateAsOf(tf, atT);
-      if (!s || s.direction !== direction) return null;
-      if (atT - s.t > maxAgeMs) return null;
-      return s;
-    }
-
     // Shared across all TFs for this symbol so a fired CONFLUENCE/TRIPLE trade's
     // cooldown suppresses the solo loops from also firing on the same underlying
     // move — mirrors crypto_bot.js calling setCooldown() for every TF involved.
@@ -1086,10 +1065,10 @@ async function runBacktest() {
       if (!timelines[tf] || !timelines[tf].length) continue;
       for (const evt of timelines[tf]) {
         const { t, direction, gwp, ms, math, d1Bias, candleHour } = evt;
-        if (cooldowns[`${direction}_${tf}`] && (t - cooldowns[`${direction}_${tf}`]) < TF_CONFIG[tf].cooldownHrs * 3600000) continue;
+        if (cooldowns[`${direction}_${tf}`] && (t - cooldowns[`${direction}_${tf}`]) < TF_CONFIG[tf].cooldownHrs * 3600000) { blockedByCooldown++; continue; }
 
         const vote = resolveVoteAsOf(t);
-        if (!vote || vote.direction !== direction) continue;
+        if (!vote || vote.direction !== direction) { blockedByVote++; continue; }
 
         const gateCheck = checkEntryConfirmations(gwp, ms);
         if (!gateCheck.valid) { blockedByConv++; blockedScores.push({ tf, signalType: tf, score: gateCheck.count, gate: 2 }); continue; }
@@ -1130,9 +1109,11 @@ async function runBacktest() {
 
   // ─── SIGNAL FUNNEL ─────────────────────────────────────────────────────────
   console.log(`📊 SIGNAL FUNNEL:`);
-  console.log(`  Raw GWP detections:    ${totalSignals}`);
-  console.log(`  Blocked by conviction: ${blockedByConv} (${totalSignals ? ((blockedByConv/totalSignals)*100).toFixed(1) : 0}%)`);
-  console.log(`  Passed gate → traded:  ${passedGate} (${totalSignals ? ((passedGate/totalSignals)*100).toFixed(1) : 0}%)`);
+  console.log(`  Raw GWP detections:      ${totalSignals}`);
+  console.log(`  Blocked by cooldown:     ${blockedByCooldown} (${totalSignals ? ((blockedByCooldown/totalSignals)*100).toFixed(1) : 0}%)`);
+  console.log(`  Blocked by 3-of-5 vote:  ${blockedByVote} (${totalSignals ? ((blockedByVote/totalSignals)*100).toFixed(1) : 0}%)`);
+  console.log(`  Blocked by conviction:   ${blockedByConv} (${totalSignals ? ((blockedByConv/totalSignals)*100).toFixed(1) : 0}%)`);
+  console.log(`  Passed gate → traded:    ${passedGate} (${totalSignals ? ((passedGate/totalSignals)*100).toFixed(1) : 0}%)`);
   const nearMisses = blockedScores.filter(b => b.gate - b.score <= 5);
   if (nearMisses.length) {
     console.log(`  Near-misses (within 5 pts of gate): ${nearMisses.length}`);
@@ -1173,7 +1154,7 @@ async function runBacktest() {
         partialRun: ranOutOfTime,
         skippedPairs,
       },
-      summary: { totalSignals, passedGate, blockedByConv, closedTrades: 0, nearMisses: nearMisses.length },
+      summary: { totalSignals, passedGate, blockedByVote, blockedByCooldown, blockedByConv, closedTrades: 0, nearMisses: nearMisses.length },
       blockedScores,
       trades: [],
     };
@@ -1192,10 +1173,12 @@ async function runBacktest() {
       `## ❌ No trades generated`,
       ``,
       `- Raw GWP detections: ${totalSignals}`,
-      `- Blocked by conviction: ${blockedByConv}`,
+      `- Blocked by cooldown: ${blockedByCooldown}`,
+      `- Blocked by 3-of-5 vote (direction didn't match): ${blockedByVote}`,
+      `- Blocked by conviction/confirmations: ${blockedByConv}`,
       `- Passed gate: ${passedGate}`,
       ``,
-      `Possible causes: conviction gates too strict for this window, GWP criteria too strict, insufficient candles fetched, or the window/pair/tf combo is too narrow (common for short diagnostic runs) for confluence setups to occur.`,
+      `Possible causes: the 3-of-5 vote requiring simultaneous multi-timeframe agreement is the dominant filter (see "Blocked by 3-of-5 vote" above) — this is expected to be far stricter than the old 2-of-3/TRIPLE system since a GWP pattern must fire AND 3 of 5 independent timeframe biases must already agree at that moment. Also check: conviction gates too strict for this window, GWP criteria too strict, insufficient candles fetched, or the window/pair/tf combo is too narrow (common for short diagnostic runs) for confluence setups to occur.`,
       ``,
     ].join("\n");
     fs.writeFileSync(summaryFile, minimalMd);
@@ -1532,7 +1515,7 @@ async function runBacktest() {
       skippedPairs,
     },
     summary: {
-      totalSignals, passedGate, blockedByConv, nearMisses: nearMisses.length,
+      totalSignals, passedGate, blockedByVote, blockedByCooldown, blockedByConv, nearMisses: nearMisses.length,
       closedTrades: closedTrades.length,
       winRate: parseFloat(winRate.toFixed(1)),
       tp1Rate: parseFloat(tp1Rate.toFixed(1)),
@@ -1585,6 +1568,16 @@ async function runBacktest() {
     `| Expectancy | ${expectancy >= 0 ? "+" : ""}${expectancy.toFixed(4)}% per trade |`,
     `| Max Drawdown | -${maxDD.toFixed(2)}% |`,
     `| Still Open (unresolved at window end) | ${allTrades.filter(t => t.exitReason === "OPEN").length} |`,
+    ``,
+    `## Signal funnel`,
+    ``,
+    `| Stage | Count |`,
+    `|---|---|`,
+    `| Raw GWP detections | ${totalSignals} |`,
+    `| Blocked by cooldown | ${blockedByCooldown} |`,
+    `| Blocked by 3-of-5 vote | ${blockedByVote} |`,
+    `| Blocked by conviction/confirmations | ${blockedByConv} |`,
+    `| Passed gate → traded | ${passedGate} |`,
     ``,
     `## By conviction grade`,
     ``,
