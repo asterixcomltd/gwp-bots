@@ -1,0 +1,30 @@
+{
+  "name": "gwp-bots",
+  "version": "1.0.0",
+  "description": "GWP — Ghost Wick Protocol. Three sub-bots (Crypto / Forex / Stocks) built from MVS-bot's shared-core architecture. 2H bias / 30M structure / 15M trigger, 2-of-3 timeframe vote, POC+VAH+VAL+Fibonacci, zero lagging indicators. Scans every 15 minutes.",
+  "private": true,
+  "workspaces": [],
+  "scripts": {
+    "crypto:start": "node bots/crypto/strategy.js",
+    "crypto:backtest": "node bots/crypto/backtest.js",
+    "crypto:commands": "node bots/crypto/commands.js",
+    "crypto:weekly": "node bots/crypto/weekly-summary.js",
+    "crypto:setup": "node bots/crypto/setup-bot.js",
+    "forex:start": "node bots/forex/strategy.js",
+    "forex:backtest": "node bots/forex/backtest.js",
+    "forex:commands": "node bots/forex/commands.js",
+    "forex:weekly": "node bots/forex/weekly-summary.js",
+    "forex:setup": "node bots/forex/setup-bot.js",
+    "stocks:start": "node bots/stocks/strategy.js",
+    "stocks:backtest": "node bots/stocks/backtest.js",
+    "stocks:commands": "node bots/stocks/commands.js",
+    "stocks:weekly": "node bots/stocks/weekly-summary.js",
+    "stocks:setup": "node bots/stocks/setup-bot.js"
+  },
+  "dependencies": {
+    "axios": "^1.18.1"
+  },
+  "keywords": ["gwp", "ghost-wick-protocol", "poc", "vah", "val", "fibonacci", "volume-profile", "kucoin", "twelvedata", "ghana", "github-actions"],
+  "author": "Abdin",
+  "license": "MIT"
+}
