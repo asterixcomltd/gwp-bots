@@ -1,0 +1,19 @@
+name: GWP Crypto — Bot Setup (manual)
+on:
+  workflow_dispatch: {}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: node setup-bot.js
+        working-directory: bots/crypto
+        env:
+          CRYPTO_TG_TOKEN: ${{ secrets.CRYPTO_TG_TOKEN }}
+          CRYPTO_CHAT_ID: ${{ secrets.CRYPTO_CHAT_ID }}
