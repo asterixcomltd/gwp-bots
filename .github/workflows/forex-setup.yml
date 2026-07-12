@@ -1,0 +1,20 @@
+name: GWP Forex — Bot Setup (manual)
+on:
+  workflow_dispatch: {}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: node setup-bot.js
+        working-directory: bots/forex
+        env:
+          FOREX_TG_TOKEN: ${{ secrets.FOREX_TG_TOKEN }}
+          FOREX_CHAT_ID: ${{ secrets.FOREX_CHAT_ID }}
+          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}

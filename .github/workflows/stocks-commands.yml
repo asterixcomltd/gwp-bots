@@ -1,0 +1,33 @@
+name: GWP Stocks — Commands
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: gwp-stocks-commands
+  cancel-in-progress: false
+
+jobs:
+  commands:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: node commands.js
+        working-directory: bots/stocks
+        env:
+          STOCKS_TG_TOKEN: ${{ secrets.STOCKS_TG_TOKEN }}
+          STOCKS_CHAT_ID: ${{ secrets.STOCKS_CHAT_ID }}
+          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
+      - name: Commit offset file
+        run: |
+          git config user.name "gwp-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add bots/stocks/tg-offset.json
+          git diff --cached --quiet || git commit -m "GWP Stocks: command offset update [skip ci]"
+          git push
