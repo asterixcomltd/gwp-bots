@@ -1,0 +1,33 @@
+name: GWP Forex — Scan
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: gwp-forex-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: node strategy.js
+        working-directory: bots/forex
+        env:
+          FOREX_TG_TOKEN: ${{ secrets.FOREX_TG_TOKEN }}
+          FOREX_CHAT_ID: ${{ secrets.FOREX_CHAT_ID }}
+          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
+      - name: Commit updated state/log files
+        run: |
+          git config user.name "gwp-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add bots/forex/state.json bots/forex/signals.log.json bots/forex/diag.log.json bots/forex/open-positions.json bots/forex/pending-alerts.json
+          git diff --cached --quiet || git commit -m "GWP Forex: scan update [skip ci]"
+          git push
