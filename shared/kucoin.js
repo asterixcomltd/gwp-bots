@@ -15,6 +15,24 @@ module.exports = function createKucoinClient(config) {
   const BAR_SECONDS = { '15min': 900, '30min': 1800, '1hour': 3600, '2hour': 7200, '4hour': 14400, '1day': 86400 };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+  // Surfaces the actual HTTP status + response body instead of just
+  // axios's generic "Request failed with status code NNN" message — the
+  // difference between "can't tell what's wrong" and "KuCoin returned
+  // 451, this IP/region is blocked" in the GitHub Actions log.
+  const describeAxiosError = (e) => {
+    const status = e.response?.status;
+    const body = e.response?.data;
+    const bodyStr = body ? (typeof body === 'string' ? body : JSON.stringify(body)).slice(0, 300) : '';
+    if (status === 451) {
+      return `HTTP 451 — KuCoin is refusing this request based on the requester's IP/region (GitHub-hosted runners run from US/EU cloud datacenter IPs, which KuCoin's Terms of Service block from spot trading endpoints in some jurisdictions). This is NOT a bug in this code — it needs a self-hosted runner or a proxy/VPN egress KuCoin doesn't block. Body: ${bodyStr}`;
+    }
+    if (status === 429 || (body && (body.code === '429000' || body.code === '200002'))) {
+      return `HTTP ${status || ''} rate-limited by KuCoin. Body: ${bodyStr}`;
+    }
+    if (status) return `HTTP ${status}${bodyStr ? ' — ' + bodyStr : ''} (${e.message})`;
+    return e.message; // no response at all — DNS failure, timeout, network-level block, etc.
+  };
+
   // ── Live fetch — most recent N candles (v10.4-style retry) ────────────
   const getKlines = async (symbol, interval, limit, maxRetries = 2) => {
     const safeLimit = Math.min(limit + 20, 1500); // buffer for ATR/VP warmup
@@ -34,7 +52,7 @@ module.exports = function createKucoinClient(config) {
           high: parseFloat(k[3]), low: parseFloat(k[4]), volume: parseFloat(k[5]),
         }));
       } catch (e) {
-        console.error(`  ❌ KuCoin fetch error for ${symbol} (${interval}, attempt ${attempt}/${maxRetries}):`, e.message);
+        console.error(`  ❌ KuCoin fetch error for ${symbol} (${interval}, attempt ${attempt}/${maxRetries}): ${describeAxiosError(e)}`);
         if (attempt === maxRetries) return [];
         await sleep(800);
       }
@@ -60,7 +78,7 @@ module.exports = function createKucoinClient(config) {
           .sort((a, b) => a.time - b.time);
         return { ok: true, bars };
       } catch (e) {
-        console.error(`\n  ⚠️  Fetch error for ${symbol} ${interval} (attempt ${attempt}/${FETCH_MAX_RETRIES}): ${e.message}`);
+        console.error(`\n  ⚠️  Fetch error for ${symbol} ${interval} (attempt ${attempt}/${FETCH_MAX_RETRIES}): ${describeAxiosError(e)}`);
         if (attempt === FETCH_MAX_RETRIES) return { ok: false, bars: [] };
         await sleep(500 * attempt);
       }

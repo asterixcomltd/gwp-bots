@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const core = require('./core');
 const createBacktestEngine = require('./backtest-engine');
+const createTelegram = require('./telegram');
 
 const isNumeric = (s) => /^\d+$/.test(s);
 
@@ -66,4 +67,22 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   fs.writeFileSync(path.join(dir, 'backtest-report.txt'), report);
   fs.writeFileSync(path.join(dir, 'backtest-report.json'), JSON.stringify(allTrades, null, 2));
   console.log('\n📄 Saved backtest-report.txt and backtest-report.json');
+
+  // Optional Telegram summary — used by the *-backtest.yml scheduled
+  // workflow (BACKTEST_NOTIFY=true) so a fresh, honest number lands in
+  // the chat weekly without anyone needing to run this by hand. Silently
+  // skipped for local/manual runs unless the env var is set.
+  if (process.env.BACKTEST_NOTIFY === 'true' && config.TELEGRAM_BOT_TOKEN && config.TELEGRAM_CHAT_ID) {
+    try {
+      const { sendSafe } = createTelegram(config);
+      const summaryLines = lines.slice(0, 24).join('\n'); // header + summary block only — full report lives in the repo file
+      await sendSafe(config.TELEGRAM_CHAT_ID,
+        `📊 *${botLabel} — Scheduled Backtest*\n\n\`\`\`\n${summaryLines}\n\`\`\`\n\nFull report committed to \`bots/${path.basename(dir)}/backtest-report.txt\` in the repo.`,
+        { parse_mode: 'Markdown' }
+      );
+      console.log('📨 Telegram summary sent.');
+    } catch (e) {
+      console.error('  ⚠️ Failed to send Telegram backtest summary (non-fatal):', e.message);
+    }
+  }
 };
