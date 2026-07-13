@@ -27,11 +27,11 @@ jobs:
           FOREX_TG_TOKEN: ${{ secrets.FOREX_TG_TOKEN }}
           FOREX_CHAT_ID: ${{ secrets.FOREX_CHAT_ID }}
           TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
-      - name: Commit offset file (race-safe)
+      - name: Commit offset/state files (race-safe)
         run: |
           git config user.name "gwp-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add bots/forex/tg-offset.json
+          git add bots/forex/*.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0

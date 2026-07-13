@@ -37,7 +37,7 @@ jobs:
         run: |
           git config user.name "gwp-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add bots/forex/backtest-report.txt bots/forex/backtest-report.json
+          git add bots/forex/*.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
