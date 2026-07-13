@@ -28,10 +28,37 @@
  */
 const axios = require('axios');
 
+// ── Process-wide rate limiter ──────────────────────────────────────────
+// Twelve Data's free/basic plan caps usage at a small number of API
+// credits PER MINUTE (the exact error seen in production: "You have run
+// out of API credits for the current minute... current limit being 8").
+// Nothing before this fix paced requests at all — engine.js fires 2H/
+// 30M/15M concurrently via Promise.all, and fetchHistory's chunked loop
+// only waited 1.2s between chunks, so a single symbol could burn 8+
+// credits in under 10 seconds. This queue serializes EVERY request made
+// through this module (both getKlines and fetchHistory, live scan and
+// backtest alike) and enforces a minimum gap between them, so concurrent
+// callers can never burst past the plan's per-minute cap.
+const MIN_GAP_MS = 8000; // ~7.5 requests/min — safely under an 8/min cap
+let queueTail = Promise.resolve();
+let lastCallAt = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const throttled = (fn) => {
+  const run = queueTail.then(async () => {
+    const wait = Math.max(0, lastCallAt + MIN_GAP_MS - Date.now());
+    if (wait > 0) await sleep(wait);
+    lastCallAt = Date.now();
+    return fn();
+  });
+  // Never let one failed call break the queue for everyone after it.
+  queueTail = run.then(() => {}, () => {});
+  return run;
+};
+
 module.exports = function createTwelveDataClient(config) {
   const BASE = 'https://api.twelvedata.com/time_series';
   const BAR_SECONDS = { '15min': 900, '30min': 1800, '45min': 2700, '1h': 3600, '2h': 7200, '4h': 14400, '1day': 86400 };
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   const toBars = (values) => (values || [])
     .map(v => ({
@@ -57,6 +84,8 @@ module.exports = function createTwelveDataClient(config) {
     return withProxy;
   };
 
+  const isCreditExhaustion = (msg) => /run out of api credits/i.test(msg || '');
+
   const request = async (params, maxRetries = 3) => {
     if (!config.TWELVE_DATA_KEY) {
       console.error(`  ❌ TWELVE_DATA_KEY is missing/empty — this bot cannot fetch ANY data until it's set. Check the TWELVE_DATA_KEY secret in your repo's Settings → Secrets and variables → Actions, and that the workflow passes it through (env: TWELVE_DATA_KEY: \${{ secrets.TWELVE_DATA_KEY }}).`);
@@ -64,13 +93,25 @@ module.exports = function createTwelveDataClient(config) {
     }
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const res = await axios.get(BASE, { params: { ...params, apikey: config.TWELVE_DATA_KEY, timezone: 'UTC' }, timeout: 20000 });
+        const res = await throttled(() => axios.get(BASE, { params: { ...params, apikey: config.TWELVE_DATA_KEY, timezone: 'UTC' }, timeout: 20000 }));
         if (res.data && res.data.status === 'error') {
           const code = res.data.code;
-          const authHint = (code === 401 || code === 403 || /api ?key/i.test(res.data.message || ''))
+          const msg = res.data.message || 'unknown';
+          if (isCreditExhaustion(msg)) {
+            // The per-minute credit window needs a FULL minute to refill —
+            // an 8-second gap (MIN_GAP_MS) isn't enough on its own if
+            // multiple bots/workflows share this same key concurrently.
+            // Wait out a full window plus buffer rather than retrying
+            // into the same exhausted window.
+            console.error(`  ⏳ Twelve Data credit limit hit (attempt ${attempt}/${maxRetries}): ${msg} — waiting 65s for the per-minute window to reset.`);
+            if (attempt === maxRetries) return res.data;
+            await sleep(65000);
+            continue;
+          }
+          const authHint = (code === 401 || code === 403 || /api ?key/i.test(msg))
             ? ' — this looks like an invalid/expired TWELVE_DATA_KEY, not a transient error. Retrying anyway in case it is transient, but check the key if this keeps happening.'
             : '';
-          console.error(`  ❌ Twelve Data error (attempt ${attempt}/${maxRetries}): [${code}] ${res.data.message || 'unknown'}${authHint}`);
+          console.error(`  ❌ Twelve Data error (attempt ${attempt}/${maxRetries}): [${code}] ${msg}${authHint}`);
           if (attempt === maxRetries) return res.data;
           await sleep(1200 * attempt);
           continue;
@@ -107,7 +148,11 @@ module.exports = function createTwelveDataClient(config) {
     // Twelve Data's time_series accepts start_date/end_date directly and
     // pages internally up to outputsize per call — chunk defensively in
     // ~4500-bar windows (per interval) so a single request never risks
-    // hitting the plan's per-call outputsize ceiling.
+    // hitting the plan's per-call outputsize ceiling. Pacing between
+    // chunks is handled centrally by the throttled() queue above, not
+    // here — every request, from every symbol/timeframe, shares one
+    // clock so the real per-minute cap can never be exceeded regardless
+    // of how many chunks or symbols are in flight.
     const barSeconds = BAR_SECONDS[interval] || 3600;
     const chunkSeconds = 4500 * barSeconds;
     let cursorEnd = endDate;
@@ -125,13 +170,13 @@ module.exports = function createTwelveDataClient(config) {
         // the 5,000-point per-call ceiling.
       });
       if (data && data.__noKey) { sawError = 'NO_API_KEY'; break; }
+      if (data && data.status === 'error' && isCreditExhaustion(data.message)) { sawError = 'credit limit exhausted even after backoff — plan may need a higher tier for this symbol/day count'; break; }
       if (!data || data.status === 'error') { sawError = data?.message || 'unknown Twelve Data error'; break; }
       if (!Array.isArray(data.values) || !data.values.length) break; // genuine end of history — not an error
       const bars = toBars(data.values);
       allBars = [...bars, ...allBars];
       cursorEnd = new Date(cursorStart.getTime() - 1000);
       process.stdout.write('.');
-      await sleep(1200); // Twelve Data free/basic tier is rate-limited (~8 req/min)
     }
     const seen = new Set();
     allBars = allBars.filter(b => (seen.has(b.time) ? false : (seen.add(b.time), true))).sort((a, b) => a.time - b.time);
