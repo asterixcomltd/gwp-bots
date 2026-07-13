@@ -1,41 +1,47 @@
-name: GWP Crypto — Scan
+name: GWP Crypto — Backtest
 on:
   schedule:
-    - cron: '*/15 * * * *'
-  workflow_dispatch: {}
-
-concurrency:
-  group: gwp-crypto-scan
-  cancel-in-progress: false
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: 'Comma-separated symbols (blank = all configured symbols)'
+        required: false
+        default: ''
+      days:
+        description: 'Days of history to backtest'
+        required: false
+        default: '360'
 
 permissions:
   contents: write
 
 jobs:
-  scan:
+  backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
-      - run: node strategy.js
+      - run: node backtest.js "${{ github.event.inputs.symbols }}" "${{ github.event.inputs.days || '360' }}"
         working-directory: bots/crypto
         env:
           CRYPTO_TG_TOKEN: ${{ secrets.CRYPTO_TG_TOKEN }}
           CRYPTO_CHAT_ID: ${{ secrets.CRYPTO_CHAT_ID }}
-      - name: Commit updated state/log files (race-safe)
+          BACKTEST_NOTIFY: 'true'
+      - name: Commit backtest report (race-safe)
         run: |
           git config user.name "gwp-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add bots/crypto/state.json bots/crypto/signals.log.json bots/crypto/diag.log.json bots/crypto/open-positions.json bots/crypto/pending-alerts.json
+          git add bots/crypto/backtest-report.txt bots/crypto/backtest-report.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "GWP Crypto: scan update [skip ci]"
+          git commit -m "GWP Crypto: weekly backtest report [skip ci]"
           for i in 1 2 3 4 5; do
             git pull --rebase origin "${GITHUB_REF_NAME}" && git push && break
             echo "Push attempt $i failed (likely a race with another bot's commit) — retrying..."

@@ -8,6 +8,9 @@ concurrency:
   group: gwp-crypto-commands
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   commands:
     runs-on: ubuntu-latest
@@ -23,10 +26,18 @@ jobs:
         env:
           CRYPTO_TG_TOKEN: ${{ secrets.CRYPTO_TG_TOKEN }}
           CRYPTO_CHAT_ID: ${{ secrets.CRYPTO_CHAT_ID }}
-      - name: Commit offset file
+      - name: Commit offset file (race-safe)
         run: |
           git config user.name "gwp-bot"
           git config user.email "actions@users.noreply.github.com"
           git add bots/crypto/tg-offset.json
-          git diff --cached --quiet || git commit -m "GWP Crypto: command offset update [skip ci]"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "GWP Crypto: command offset update [skip ci]"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && break
+            echo "Push attempt $i failed (likely a race with another bot's commit) — retrying..."
+            sleep $(( (RANDOM % 5) + 1 ))
+          done
