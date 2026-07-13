@@ -1,5 +1,5 @@
 {
-  "_lastRunAt": "2026-07-13T19:02:58.613Z",
+  "_lastRunAt": "2026-07-13T20:33:29.382Z",
   "ETH-USDT": {
     "signal": "NO_AGREEMENT",
     "direction": null,
@@ -37,21 +37,32 @@
     "updatedAt": "2026-07-13T09:59:50.637Z"
   },
   "MNT-USDT": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 0.4251,
+    "signal": "SCANNED",
+    "price": 0.4224,
+    "direction": "SELL",
+    "voteTally": "2/3",
+    "agreeing": [
+      "2H",
+      "30M"
+    ],
     "bias2h": "BEARISH",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BEARISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-13T19:02:58.613Z"
+    "poc": 0.423916,
+    "vah": 0.429036,
+    "val": 0.421612,
+    "swingHigh": 0.4291,
+    "swingLow": 0.4163,
+    "atrStruct": 0.0016823204505634585,
+    "updatedAt": "2026-07-13T20:33:29.381Z"
   },
   "DOT-USDT": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.8316,
+    "price": 0.8366,
     "bias2h": "NEUTRAL",
     "bias30m": "BEARISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-13T19:02:49.848Z"
+    "updatedAt": "2026-07-13T20:33:20.637Z"
   }
 }
