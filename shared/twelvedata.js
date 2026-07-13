@@ -118,7 +118,11 @@ module.exports = function createTwelveDataClient(config) {
       const data = await request({
         symbol, interval, order: 'ASC',
         start_date: fmt(cursorStart), end_date: fmt(cursorEnd),
-        outputsize: 5000,
+        // NOTE: deliberately NOT sending outputsize alongside start_date/
+        // end_date — Twelve Data's own docs warn that combining them can
+        // truncate/restrict the result. The date range alone bounds the
+        // request; chunkSeconds above already keeps each window under
+        // the 5,000-point per-call ceiling.
       });
       if (data && data.__noKey) { sawError = 'NO_API_KEY'; break; }
       if (!data || data.status === 'error') { sawError = data?.message || 'unknown Twelve Data error'; break; }
