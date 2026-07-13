@@ -1,3 +1,8 @@
+🚨🚨🚨 DATA FETCH FAILED FOR EVERY SYMBOL — THIS IS NOT "0 SIGNALS FOUND" 🚨🚨🚨
+All 10 symbol(s) returned insufficient/zero candle data.
+Most likely cause: missing/invalid API key, or the data source is rate-limited/blocking this request.
+Check the full GitHub Actions log for this run (the "run backtest.js" step) for the exact error line.
+
 ═══════════════════════════════════════════════════════════════════
  GWP Stocks v1.0.0 — BACKTEST REPORT
  Period: Last 360 days  |  Symbols: AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, AMD, NFLX, AVGO
@@ -60,10 +65,7 @@
   No closed POC-pivot trades yet on a run new enough to track this.
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
-  AAPL:
-    scanned=1133  voteOk=972(bull=641/bear=331)  volatilityOk=972  structureOk=972
-    notOverExtended=972  nearZone=2  prominenceOk=0  confluenceOk=0  htf2hAligned=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  AAPL: no funnel data
   MSFT: no funnel data
   NVDA: no funnel data
   AMZN: no funnel data
