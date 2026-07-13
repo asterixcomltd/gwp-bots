@@ -30,7 +30,7 @@ jobs:
         run: |
           git config user.name "gwp-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add bots/crypto/state.json bots/crypto/signals.log.json bots/crypto/diag.log.json bots/crypto/open-positions.json bots/crypto/pending-alerts.json
+          git add bots/crypto/*.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
