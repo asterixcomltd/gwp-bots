@@ -1,1 +1,58 @@
-[]
+[
+  {
+    "symbol": "AMZN",
+    "direction": "BUY",
+    "entryTime": 1775137500,
+    "entryPrice": 204.108,
+    "slPrice": 204.108,
+    "tp1Price": 210.5635632166787,
+    "tp2Price": 212.10814435,
+    "origSlPrice": 198.7283639861011,
+    "rr1": 1.2,
+    "rr2": 1.49,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "70%-mid",
+    "voteTally": "2/3",
+    "agreeing": [
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.4083389601700722,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 1.0605454500000064,
+      "currentPOC": 208.97204545,
+      "pastPOC": 207.9115
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "alignedBias": true,
+      "anyAligned": true,
+      "biasPOC": 209.20262245
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 212.10814435,
+    "rr": 1.34,
+    "exitTime": 1775140200,
+    "hoursHeld": 1
+  }
+]
