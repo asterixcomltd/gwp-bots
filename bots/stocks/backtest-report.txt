@@ -1,0 +1,81 @@
+═══════════════════════════════════════════════════════════════════
+ GWP Stocks v1.0.0 — BACKTEST REPORT
+ Period: Last 360 days  |  Symbols: AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, AMD, NFLX, AVGO
+ 2H+30M+15M — 2-of-3 timeframe vote (30M zone, 15M trigger)
+═══════════════════════════════════════════════════════════════════
+
+⚠️  This is a backtest, not a live-performance guarantee. No setting
+    here was chosen to hit a target win rate — see config.js header.
+
+── SUMMARY ─────────────────────────────────────────────────────────
+  Total signals fired    : 0  (~0.00/week across all symbols)
+  Closed trades          : 0
+  Open (unrealised)      : 0
+  Win rate (all closed)  : 0.0%  (0W / 0L)
+  No-real-loss rate      : 0.0%  (0 no-loss / 0 real loss — excludes 0 breakeven scratches; this is NOT the same as "win rate")
+  Profit factor          : ∞
+  Total R accumulated    : 0.00R
+  Avg win / avg loss     : +0.00R / 0.00R
+  Avg hours held         : 0h
+
+── OUTCOME BREAKDOWN ───────────────────────────────────────────────
+  TP1 reached (partial banked) : 0
+  TP2 reached (full target)    : 0
+    ..of which runner gave back to BE : 0
+  SL hits                      : 0
+  BE hits (never reached TP1)  : 0
+  Timeouts                     : 0
+
+── $ P&L SIMULATION (1.5% risk/trade + 0.1% slippage, $1000 start) ──
+  Final capital : $1000.00  (0.0% return)  |  Max drawdown: 0.0%
+
+── TIMEFRAME VOTE BREAKDOWN ────────────────────────────────────────
+
+── BY SYMBOL ───────────────────────────────────────────────────────
+  AAPL       0 trades — see funnel diagnostics below
+  MSFT       0 trades — see funnel diagnostics below
+  NVDA       0 trades — see funnel diagnostics below
+  AMZN       0 trades — see funnel diagnostics below
+  GOOGL      0 trades — see funnel diagnostics below
+  META       0 trades — see funnel diagnostics below
+  TSLA       0 trades — see funnel diagnostics below
+  AMD        0 trades — see funnel diagnostics below
+  NFLX       0 trades — see funnel diagnostics below
+  AVGO       0 trades — see funnel diagnostics below
+
+── BY DIRECTION ────────────────────────────────────────────────────
+  No closed trades to break down by direction.
+
+── BY CONFIDENCE TIER (drives RISK_TIER_MATRIX) ─────────────────────
+
+── BY PIVOT (drives RISK_TIER_MATRIX) ───────────────────────────────
+
+── BY FIB LEVEL ──────────────────────────────────────────────────────
+  No closed trades yet on a run new enough to track this.
+
+── BY VOTE TALLY (drives VOTE_STRENGTH_MULT) ────────────────────────
+  No closed trades to break down by vote tally.
+
+── BY MULTI-TF POC ALIGNMENT (POC pivot only) ───────────────────────
+  No closed POC-pivot trades yet on a run new enough to track this.
+
+── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
+  AAPL:
+    scanned=1133  voteOk=972(bull=641/bear=331)  volatilityOk=972  structureOk=972
+    notOverExtended=972  nearZone=2  prominenceOk=0  confluenceOk=0  htf2hAligned=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  MSFT: no funnel data
+  NVDA: no funnel data
+  AMZN: no funnel data
+  GOOGL: no funnel data
+  META: no funnel data
+  TSLA: no funnel data
+  AMD: no funnel data
+  NFLX: no funnel data
+  AVGO: no funnel data
+
+── PATTERN FREQUENCY ───────────────────────────────────────────────
+
+── RECENT TRADES (last 20) ─────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════
