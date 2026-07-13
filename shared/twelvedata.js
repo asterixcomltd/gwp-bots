@@ -86,11 +86,29 @@ module.exports = function createTwelveDataClient(config) {
 
   const isCreditExhaustion = (msg) => /run out of api credits/i.test(msg || '');
 
+  // NOTE ON CROSS-PROCESS CONTENTION: the throttled() queue above only
+  // serializes requests WITHIN this one Node process. It cannot see that
+  // Forex/Stocks' scan.yml (every 15min) and commands.js (every 5min)
+  // are SEPARATE GitHub Actions jobs, each with their own process and
+  // their own instance of this same queue, all sharing ONE Twelve Data
+  // account's per-minute credit budget. Three independently-paced
+  // processes can each individually stay under 8/min and still
+  // collectively exceed it when their schedules overlap — which is
+  // exactly what happened: some symbols got real data, others didn't,
+  // depending on which happened to hit a quiet window. There's no way
+  // to fix this from inside one process; the credit-exhaustion retry
+  // budget below is deliberately generous (up to ~30 minutes of patient
+  // waiting) specifically BECAUSE this is a genuinely recoverable,
+  // temporary condition — the shared quota refills every minute
+  // regardless of which process is waiting on it.
+  const CREDIT_MAX_RETRIES = 28; // ~28 × 65s ≈ 30 minutes of patience
+
   const request = async (params, maxRetries = 3) => {
     if (!config.TWELVE_DATA_KEY) {
       console.error(`  ❌ TWELVE_DATA_KEY is missing/empty — this bot cannot fetch ANY data until it's set. Check the TWELVE_DATA_KEY secret in your repo's Settings → Secrets and variables → Actions, and that the workflow passes it through (env: TWELVE_DATA_KEY: \${{ secrets.TWELVE_DATA_KEY }}).`);
       return { status: 'error', message: 'TWELVE_DATA_KEY missing', __noKey: true };
     }
+    let creditAttempt = 0;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const res = await throttled(() => axios.get(BASE, { params: { ...params, apikey: config.TWELVE_DATA_KEY, timezone: 'UTC' }, timeout: 20000 }));
@@ -98,13 +116,21 @@ module.exports = function createTwelveDataClient(config) {
           const code = res.data.code;
           const msg = res.data.message || 'unknown';
           if (isCreditExhaustion(msg)) {
-            // The per-minute credit window needs a FULL minute to refill —
-            // an 8-second gap (MIN_GAP_MS) isn't enough on its own if
+            creditAttempt++;
+            if (creditAttempt > CREDIT_MAX_RETRIES) {
+              console.error(`  ❌ Twelve Data credit limit still exhausted after ${CREDIT_MAX_RETRIES} patient retries (~30min) — giving up on this request. This usually means other scheduled workflows (scan/commands) are also actively competing for the same shared TWELVE_DATA_KEY right now.`);
+              return res.data;
+            }
+            // The per-minute credit window needs a FULL minute to refill
+            // — an 8-second gap (MIN_GAP_MS) isn't enough on its own when
             // multiple bots/workflows share this same key concurrently.
             // Wait out a full window plus buffer rather than retrying
-            // into the same exhausted window.
-            console.error(`  ⏳ Twelve Data credit limit hit (attempt ${attempt}/${maxRetries}): ${msg} — waiting 65s for the per-minute window to reset.`);
-            if (attempt === maxRetries) return res.data;
+            // into the same exhausted window. This does NOT count
+            // against the normal maxRetries budget — see CREDIT_MAX_RETRIES
+            // above for why credit exhaustion gets its own, much more
+            // patient, retry allowance.
+            console.error(`  ⏳ Twelve Data credit limit hit (patient retry ${creditAttempt}/${CREDIT_MAX_RETRIES}): ${msg} — waiting 65s for the per-minute window to reset.`);
+            attempt--; // don't consume the normal retry budget for this
             await sleep(65000);
             continue;
           }

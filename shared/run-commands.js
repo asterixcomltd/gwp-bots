@@ -277,42 +277,62 @@ Built by Abdin | Asterix Holdings Ltd | Accra, Ghana`
   let currentOffset = offsetData.offset || 0;
   console.log(`📌 Starting from offset: ${currentOffset}`);
 
-  const updRes = await tgCall('getUpdates', { offset: currentOffset, timeout: 0, limit: 100 }, 15000);
-  if (!updRes || !updRes.ok) {
-    console.error('❌ getUpdates failed:', JSON.stringify(updRes));
-    process.exit(1);
-  }
+  // GitHub Actions cron scheduling is best-effort — GitHub's own docs
+  // note schedule triggers "can be delayed during periods of high load,"
+  // and a repo running MANY scheduled workflows (this one has 3 bots ×
+  // scan/commands/weekly/backtest, plus keepalive) makes that worse. A
+  // single instant getUpdates check per run means a command sent right
+  // after this run finishes could sit unanswered until the NEXT run
+  // actually fires — which, per GitHub's own caveat, isn't guaranteed to
+  // be on time. Instead of one instant check, this run stays actively
+  // listening via Telegram's own long-poll for several minutes, so a
+  // command sent any time during this window gets caught by THIS run
+  // rather than waiting on the next (possibly delayed) cron tick.
+  const POLL_WINDOW_MS = 4.5 * 60 * 1000; // stays comfortably under the workflow's 6min timeout-minutes
+  const LONG_POLL_SECONDS = 25;           // Telegram holds the connection open this long per call if idle
+  const pollDeadline = Date.now() + POLL_WINDOW_MS;
+  let totalProcessed = 0;
 
-  const updates = updRes.result;
-  console.log(`📨 Received ${updates.length} update(s).`);
-  if (!updates.length) {
-    console.log('No new Telegram messages. Nothing to do.');
-    process.exit(0);
-  }
+  while (Date.now() < pollDeadline) {
+    const remainingS = Math.floor((pollDeadline - Date.now()) / 1000);
+    const thisTimeout = Math.max(1, Math.min(LONG_POLL_SECONDS, remainingS - 2));
+    if (thisTimeout < 3) break; // not enough time left for a meaningful long-poll — stop cleanly
 
-  const newOffset = updates[updates.length - 1].update_id + 1;
-  saveJSON(OFFSET_FILE, { offset: newOffset });
-  console.log(`💾 Offset advanced to ${newOffset} (saved before processing).`);
-
-  for (const update of updates) {
-    const msg = update.message || update.edited_message;
-    const rawText = (msg && msg.text || '').trim();
-    const chatId = msg && msg.chat && msg.chat.id;
-
-    if (!rawText) continue;
-    if (String(chatId) !== String(config.TELEGRAM_CHAT_ID)) {
-      console.log(`  Ignored update ${update.update_id} from chat ${chatId} (not our chat)`);
-      continue;
+    const updRes = await tgCall('getUpdates', { offset: currentOffset, timeout: thisTimeout, limit: 100 }, (thisTimeout + 10) * 1000);
+    if (!updRes || !updRes.ok) {
+      console.error('❌ getUpdates failed this cycle:', JSON.stringify(updRes), '— stopping this run cleanly (will retry next scheduled run).');
+      break;
     }
 
-    const cmd = rawText.toLowerCase().split(' ')[0].split('@')[0];
-    if (COMMANDS[cmd]) {
-      console.log(`▶️  Executing: ${cmd} (update_id ${update.update_id})`);
-      await COMMANDS[cmd]();
-    } else {
-      console.log(`  Unknown command/text: "${rawText}" — ignored`);
+    const updates = updRes.result;
+    if (!updates.length) continue; // long-poll already waited ~thisTimeout seconds — loop straight back in
+
+    const newOffset = updates[updates.length - 1].update_id + 1;
+    saveJSON(OFFSET_FILE, { offset: newOffset });
+    currentOffset = newOffset;
+    console.log(`📨 Received ${updates.length} update(s). Offset advanced to ${newOffset} (saved before processing).`);
+
+    for (const update of updates) {
+      const msg = update.message || update.edited_message;
+      const rawText = (msg && msg.text || '').trim();
+      const chatId = msg && msg.chat && msg.chat.id;
+
+      if (!rawText) continue;
+      if (String(chatId) !== String(config.TELEGRAM_CHAT_ID)) {
+        console.log(`  Ignored update ${update.update_id} from chat ${chatId} (not our chat)`);
+        continue;
+      }
+
+      const cmd = rawText.toLowerCase().split(' ')[0].split('@')[0];
+      if (COMMANDS[cmd]) {
+        console.log(`▶️  Executing: ${cmd} (update_id ${update.update_id})`);
+        await COMMANDS[cmd]();
+      } else {
+        console.log(`  Unknown command/text: "${rawText}" — ignored`);
+      }
     }
+    totalProcessed += updates.length;
   }
 
-  console.log(`✅ Done. Processed ${updates.length} update(s). Offset is now ${newOffset}.`);
+  console.log(`✅ Done. Processed ${totalProcessed} update(s) across this ~${(POLL_WINDOW_MS / 60000).toFixed(1)}min listening window. Offset is now ${currentOffset}.`);
 };
