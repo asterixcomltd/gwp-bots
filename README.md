@@ -49,9 +49,39 @@ gwp-bots/
 │   ├── crypto/   config.js + thin entrypoints + its own state/log JSON
 │   ├── forex/    config.js + thin entrypoints + its own state/log JSON
 │   └── stocks/   config.js + thin entrypoints + its own state/log JSON
-├── .github/workflows/      ← scan (15min) / commands (5min) / weekly / setup, ×3
+├── .github/workflows/      ← scan (15min) / commands (5min) / weekly / backtest (weekly) / setup, ×3, + one repo-wide keepalive
 └── tests/                  ← synthetic-data smoke tests (no network needed)
 ```
+
+## Workflows (16 total)
+
+Per bot (×3 — crypto/forex/stocks): `*-scan.yml` (every 15min), `*-commands.yml`
+(every 5min), `*-weekly.yml` (Mondays 07:00 UTC), `*-backtest.yml` (Sundays
+06:00 UTC + manual dispatch with optional symbol/day overrides — posts a
+summary to Telegram and commits the full report to the repo), `*-setup.yml`
+(manual, run once). Plus one repo-wide `keepalive.yml` (Mondays) that makes a
+trivial commit regardless of bot health, so GitHub never auto-disables the
+scheduled workflows after 60 days of apparent inactivity — belt-and-braces on
+top of the fact that every scan already commits `state.json` every 15
+minutes on its own.
+
+Every commit step (scan/commands/weekly/backtest) does `git pull --rebase`
+before `git push`, with retries — three bots' workflows can land on the same
+15-minute tick and would otherwise race to push and reject each other.
+
+### If GWP Crypto's scan shows a red ❌ in Actions
+
+Open the failed run → the "run strategy.js" step → read the actual error
+line. The most likely cause: **KuCoin returns HTTP 451 for GitHub-hosted
+runners** (their default runners are US/EU cloud IPs, and KuCoin's Terms of
+Service block spot-market endpoints from some jurisdictions when it detects
+cloud-datacenter IPs) — `shared/kucoin.js` now prints the exact HTTP status
+and response body when this happens, so the log will say so explicitly
+rather than a generic timeout. If that's what you see, the fix isn't a code
+bug — it needs either a self-hosted GitHub Actions runner (a small always-on
+VM/container you register to your repo) or an egress proxy KuCoin doesn't
+block. If the log shows something else entirely, that's a real bug — send me
+that log line.
 
 Every sub-bot's `strategy.js`, `backtest.js`, `commands.js`,
 `weekly-summary.js`, and `position-tracker.js` is a few lines: build the
