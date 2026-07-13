@@ -1,5 +1,5 @@
 {
-  "_lastRunAt": "2026-07-13T03:57:48.248Z",
+  "_lastRunAt": "2026-07-13T06:51:32.150Z",
   "EUR/JPY": {
     "signal": "NO_AGREEMENT",
     "direction": null,
@@ -8,5 +8,25 @@
     "bias30m": "NEUTRAL",
     "bias15m": "NEUTRAL",
     "updatedAt": "2026-07-13T02:26:00.190Z"
+  },
+  "GBP/JPY": {
+    "signal": "SCANNED",
+    "price": 217.12229,
+    "direction": "BUY",
+    "voteTally": "2/3",
+    "agreeing": [
+      "2H",
+      "15M"
+    ],
+    "bias2h": "BULLISH",
+    "bias30m": "NEUTRAL",
+    "bias15m": "BULLISH",
+    "poc": 216.7095953,
+    "vah": 218.0183989,
+    "val": 215.8140981,
+    "swingHigh": 218.03562,
+    "swingLow": 216.21382,
+    "atrStruct": 0.1945858325365288,
+    "updatedAt": "2026-07-13T06:51:02.836Z"
   }
 }
