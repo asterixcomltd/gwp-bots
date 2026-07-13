@@ -31,7 +31,7 @@ jobs:
         run: |
           git config user.name "gwp-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add bots/forex/state.json bots/forex/signals.log.json bots/forex/diag.log.json bots/forex/open-positions.json bots/forex/pending-alerts.json
+          git add bots/forex/*.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
