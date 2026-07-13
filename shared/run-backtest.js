@@ -34,6 +34,7 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
 
   const allTrades = [];
   const funnelsBySymbol = {};
+  const dataFetchFailures = [];
   // Fetch days+WARMUP_BUFFER_DAYS so short windows still have enough
   // history to warm up the 2H volume profile before the requested
   // evaluation window starts. evalWindowStartTime tells backtestSymbol()
@@ -50,8 +51,9 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
     // gives it live. 30M and 15M remain the two REQUIRED timeframes,
     // since 30M supplies the structural zone and 15M the trigger.
     if (data30m.length < 50 || data15m.length < 50) {
-      console.log(`  ⚠️ ${symbol}: insufficient 30M/15M data, skipping.`);
+      console.log(`  ⚠️ ${symbol}: insufficient 30M/15M data (30M=${data30m.length} bars, 15M=${data15m.length} bars), skipping.`);
       funnelsBySymbol[symbol] = null;
+      dataFetchFailures.push(symbol);
       continue;
     }
 
@@ -61,6 +63,22 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   }
 
   const { lines } = generateReport(allTrades, days, funnelsBySymbol);
+
+  // If EVERY symbol failed to fetch data, this isn't "0 signals found" —
+  // it's a broken data connection (missing/invalid API key, exhausted
+  // rate limit, unsupported plan tier, etc.). Say so loudly, right at the
+  // top, in both the file and the Telegram summary — not just buried in
+  // per-symbol log lines above, which the scheduled workflow's Telegram
+  // notification never shows (it only sends the first ~24 report lines).
+  if (dataFetchFailures.length === symbols.length && symbols.length > 0) {
+    lines.splice(0, 0,
+      '🚨🚨🚨 DATA FETCH FAILED FOR EVERY SYMBOL — THIS IS NOT "0 SIGNALS FOUND" 🚨🚨🚨',
+      `All ${symbols.length} symbol(s) returned insufficient/zero candle data.`,
+      'Most likely cause: missing/invalid API key, or the data source is rate-limited/blocking this request.',
+      'Check the full GitHub Actions log for this run (the "run backtest.js" step) for the exact error line.',
+      ''
+    );
+  }
   const report = lines.join('\n');
   console.log('\n' + report);
 

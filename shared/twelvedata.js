@@ -58,12 +58,20 @@ module.exports = function createTwelveDataClient(config) {
   };
 
   const request = async (params, maxRetries = 3) => {
+    if (!config.TWELVE_DATA_KEY) {
+      console.error(`  ❌ TWELVE_DATA_KEY is missing/empty — this bot cannot fetch ANY data until it's set. Check the TWELVE_DATA_KEY secret in your repo's Settings → Secrets and variables → Actions, and that the workflow passes it through (env: TWELVE_DATA_KEY: \${{ secrets.TWELVE_DATA_KEY }}).`);
+      return { status: 'error', message: 'TWELVE_DATA_KEY missing', __noKey: true };
+    }
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const res = await axios.get(BASE, { params: { ...params, apikey: config.TWELVE_DATA_KEY, timezone: 'UTC' }, timeout: 20000 });
         if (res.data && res.data.status === 'error') {
-          console.error(`  ❌ Twelve Data error (attempt ${attempt}/${maxRetries}): ${res.data.message || 'unknown'}`);
-          if (attempt === maxRetries) return null;
+          const code = res.data.code;
+          const authHint = (code === 401 || code === 403 || /api ?key/i.test(res.data.message || ''))
+            ? ' — this looks like an invalid/expired TWELVE_DATA_KEY, not a transient error. Retrying anyway in case it is transient, but check the key if this keeps happening.'
+            : '';
+          console.error(`  ❌ Twelve Data error (attempt ${attempt}/${maxRetries}): [${code}] ${res.data.message || 'unknown'}${authHint}`);
+          if (attempt === maxRetries) return res.data;
           await sleep(1200 * attempt);
           continue;
         }
@@ -82,7 +90,7 @@ module.exports = function createTwelveDataClient(config) {
   const getKlines = async (symbol, interval, limit) => {
     const safeLimit = Math.min(limit + 20, 5000);
     const data = await request({ symbol, interval, outputsize: safeLimit, order: 'ASC' });
-    if (!data || !Array.isArray(data.values)) return [];
+    if (!data || data.status === 'error' || !Array.isArray(data.values)) return [];
     const bars = toBars(data.values).slice(-limit);
     return applyVolumeFallback(bars);
   };
@@ -95,6 +103,7 @@ module.exports = function createTwelveDataClient(config) {
 
     process.stdout.write(`  Fetching ${interval} history for ${symbol}...`);
     let allBars = [];
+    let sawError = null;
     // Twelve Data's time_series accepts start_date/end_date directly and
     // pages internally up to outputsize per call — chunk defensively in
     // ~4500-bar windows (per interval) so a single request never risks
@@ -111,7 +120,9 @@ module.exports = function createTwelveDataClient(config) {
         start_date: fmt(cursorStart), end_date: fmt(cursorEnd),
         outputsize: 5000,
       });
-      if (!data || !Array.isArray(data.values) || !data.values.length) break;
+      if (data && data.__noKey) { sawError = 'NO_API_KEY'; break; }
+      if (!data || data.status === 'error') { sawError = data?.message || 'unknown Twelve Data error'; break; }
+      if (!Array.isArray(data.values) || !data.values.length) break; // genuine end of history — not an error
       const bars = toBars(data.values);
       allBars = [...bars, ...allBars];
       cursorEnd = new Date(cursorStart.getTime() - 1000);
@@ -120,7 +131,11 @@ module.exports = function createTwelveDataClient(config) {
     }
     const seen = new Set();
     allBars = allBars.filter(b => (seen.has(b.time) ? false : (seen.add(b.time), true))).sort((a, b) => a.time - b.time);
-    console.log(` ${allBars.length} bars`);
+    if (sawError) {
+      console.log(` ❌ STOPPED EARLY (${sawError}) — only ${allBars.length} bars fetched before the failure.`);
+    } else {
+      console.log(` ${allBars.length} bars`);
+    }
     return applyVolumeFallback(allBars);
   };
 
