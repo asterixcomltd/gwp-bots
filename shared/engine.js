@@ -65,7 +65,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
     persistence.touchLastRun();
 
     try {
-      // ── STEP 1: FETCH ALL THREE TIMEFRAMES ──────────────────────────
+      // ── STEP 1: FETCH ALL FOUR TIMEFRAMES ───────────────────────────
       // POC_MIGRATION and NAKED_POC both need more 30M structure history
       // than the bot normally fetches — but ONLY when those experimental
       // flags are actually on, so there's zero extra API load otherwise
@@ -74,7 +74,8 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       if (config.NAKED_POC_ENABLED) structLimit = Math.max(structLimit, config.STRUCT_VP_LOOKBACK * 2);
       if (config.POC_MIGRATION_ENABLED) structLimit = Math.max(structLimit, config.STRUCT_VP_LOOKBACK + config.POC_MIGRATION_OFFSET_BARS);
 
-      const [data2h, data30m, data15m] = await Promise.all([
+      const [dataD1, data2h, data30m, data15m] = await Promise.all([
+        getKlines(symbol, config.DAILY_TIMEFRAME,   config.DAILY_VP_LOOKBACK),
         getKlines(symbol, config.BIAS_TIMEFRAME,    config.BIAS_VP_LOOKBACK),
         getKlines(symbol, config.STRUCT_TIMEFRAME,  structLimit),
         getKlines(symbol, config.TRIGGER_TIMEFRAME, config.TRIGGER_VP_LOOKBACK),
@@ -91,10 +92,13 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         return;
       }
 
-      // ── STEP 2: THREE-TIMEFRAME BIAS VOTE (2-of-3) ──────────────────
-      // 2H is treated as optional (null if not enough history yet) —
-      // a short symbol listing shouldn't crash the scan, it just has one
-      // fewer possible agreeing vote that scan.
+      // ── STEP 2: FOUR-TIMEFRAME BIAS VOTE (3-of-4) ───────────────────
+      // D1 and 2H are both treated as optional (null if not enough
+      // history yet) — a freshly-listed symbol shouldn't crash the scan,
+      // it just has fewer possible agreeing votes that scan.
+      const biasD1 = dataD1.length >= 50
+        ? core.tfBiasVote(dataD1, config.DAILY_VP_LOOKBACK, config.DAILY_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT)
+        : null;
       const bias2h = data2h.length >= 50
         ? core.tfBiasVote(data2h, config.BIAS_VP_LOOKBACK, config.BIAS_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT)
         : null;
@@ -108,27 +112,28 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       }
 
       const resolved = core.resolveDirection([
+        { tf: 'D1',  result: biasD1 },
         { tf: '2H',  result: bias2h },
         { tf: '30M', result: biasStruct },
         { tf: '15M', result: bias15m },
       ], config.MIN_TF_AGREE);
 
       console.log(
-        `  📡 VOTE: 2H=${bias2h ? bias2h.bias : 'N/A'} | 30M=${biasStruct.bias} | 15M=${bias15m ? bias15m.bias : 'N/A'}` +
-        (resolved ? ` → ${resolved.direction} (${resolved.tally}: ${resolved.agreeing.join('+')})` : ` → NO ${config.MIN_TF_AGREE}-OF-3 AGREEMENT`)
+        `  📡 VOTE: D1=${biasD1 ? biasD1.bias : 'N/A'} | 2H=${bias2h ? bias2h.bias : 'N/A'} | 30M=${biasStruct.bias} | 15M=${bias15m ? bias15m.bias : 'N/A'}` +
+        (resolved ? ` → ${resolved.direction} (${resolved.tally}: ${resolved.agreeing.join('+')})` : ` → NO ${config.MIN_TF_AGREE}-OF-4 AGREEMENT`)
       );
 
       if (!resolved) {
         logDiag({
-          symbol, bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
-          fired: false, reason: `NO_${config.MIN_TF_AGREE}OF3_AGREEMENT`,
+          symbol, biasD1: biasD1?.bias, biasD1: biasD1?.bias, bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
+          fired: false, reason: `NO_${config.MIN_TF_AGREE}OF4_AGREEMENT`,
         });
         // Every scan updates state.json with the current bias breakdown
         // even when no signal direction is decided, so /status is never
         // more than one scan stale.
         saveState(symbol, {
           signal: 'NO_AGREEMENT', direction: null, price: data30m[data30m.length - 1]?.close,
-          bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
+          biasD1: biasD1?.bias, biasD1: biasD1?.bias, bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
         });
         return;
       }
@@ -187,7 +192,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       saveState(symbol, {
         signal: 'SCANNED', price, direction,
         voteTally: resolved.tally, agreeing: resolved.agreeing,
-        bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
+        biasD1: biasD1?.bias, bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
         poc: vpStruct.pocPrice, vah: vpStruct.vahPrice, val: vpStruct.valPrice,
         swingHigh: swingStruct.high, swingLow: swingStruct.low, atrStruct,
       });
@@ -248,6 +253,33 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       }
       console.log(`  ✅ 2H ZONE ALIGNED: near ${htfCheck.nearestLevel} ($${(htfCheck.nearestPrice || 0).toFixed(4)})`);
 
+      // ── STEP 5.5: DUAL MULTI-TF GATE (requested addition) ────────────
+      // Hard gate: BOTH 2H and D1 must independently confirm on BOTH the
+      // POC check and the Fib check, all in the trade's direction — not
+      // just "any" agreement. Computed once here and reused for the
+      // alert message/sizing later. See core.js
+      // computeMultiTFPOCAlignment()/computeMultiTFFibAlignment().
+      const multiTFPOC = core.computeMultiTFPOCAlignment(
+        vpStruct.pocPrice,
+        [{ label: '2H', poc: bias2h?.poc }, { label: 'D1', poc: biasD1?.poc }],
+        atrStruct, config.MULTI_TF_POC_TOLERANCE_ATR
+      );
+      const multiTFFib = core.computeMultiTFFibAlignment(
+        bestFibLevel, direction,
+        [{ label: '2H', swing: bias2h?.swing }, { label: 'D1', swing: biasD1?.swing }],
+        atrStruct, config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
+      );
+      if (config.DUAL_MULTI_TF_GATE_ENABLED) {
+        const pocFull = multiTFPOC.alignedLabels.length >= 2;
+        const fibFull = multiTFFib.alignedLabels.length >= 2;
+        if (!pocFull || !fibFull) {
+          console.log(`  ⏳ DUAL MULTI-TF GATE: POC aligned=[${multiTFPOC.alignedLabels.join(',')}] Fib aligned=[${multiTFFib.alignedLabels.join(',')}] — need BOTH 2H+D1 on both. Waiting.`);
+          logDiag({ symbol, barTime, price, fired: false, reason: 'DUAL_MULTI_TF_GATE_FAILED', pocAligned: multiTFPOC.alignedLabels, fibAligned: multiTFFib.alignedLabels });
+          return;
+        }
+        console.log(`  ✅ DUAL MULTI-TF GATE PASSED: POC + Fib both confirmed by 2H + D1.`);
+      }
+
       // ── STEP 6: ZONE INVALIDATION ─────────────────────────────────────
       if (core.isZoneInvalidated(price, bestFibLevel, atrStruct, direction, config.ZONE_INVALIDATION_ATR_MULT)) {
         console.log(`  ❌ ZONE INVALIDATED: 30M close beyond zone by > ATR×${config.ZONE_INVALIDATION_ATR_MULT}.`);
@@ -278,7 +310,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
 
       logDiag({
         symbol, barTime, price,
-        bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
+        biasD1: biasD1?.bias, bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
         voteTally: resolved.tally, agreeing: resolved.agreeing,
         htf2hAligned: htfCheck.aligned, confluenceScore: bestScore, confluenceLevel: fibPct, confluencePivot: bestPivot.name,
         patterns: rejection.patterns, absorptionVeto: rejection.absorptionVeto,
@@ -314,7 +346,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       const emoji = direction === 'BUY' ? '🟢' : '🔴';
       const patternStr = rejection.patterns.map(mdSafe).join(' + ');
       const voteLine = `🗳️ *TF Vote (${resolved.tally}):* ${resolved.agreeing.join(' + ')} agree ${direction === 'BUY' ? 'BULLISH' : 'BEARISH'}` +
-        (bias2h ? ` | 2H:${bias2h.bias}` : '') + ` 30M:${biasStruct.bias}` + (bias15m ? ` 15M:${bias15m.bias}` : '');
+        (biasD1 ? ` | D1:${biasD1.bias}` : '') + (bias2h ? ` 2H:${bias2h.bias}` : '') + ` 30M:${biasStruct.bias}` + (bias15m ? ` 15M:${bias15m.bias}` : '');
 
       const td9 = config.TD9_ENABLED ? core.computeTDSequential(data30m) : { buy9: false, sell9: false };
       const td9Confirms = (direction === 'BUY' && td9.buy9) || (direction === 'SELL' && td9.sell9);
@@ -326,9 +358,6 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       const nakedPOC = core.computeNakedPOC(
         data30m, config.STRUCT_VP_LOOKBACK, config.VP_ROWS,
         atrStruct, vpStruct.pocPrice, config.NAKED_POC_TOLERANCE_ATR
-      );
-      const multiTFPOC = core.computeMultiTFPOCAlignment(
-        vpStruct.pocPrice, bias2h?.poc, atrStruct, config.MULTI_TF_POC_TOLERANCE_ATR
       );
 
       let riskMult = core.computeRiskMultiplier(
@@ -360,7 +389,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         pocQualityNotes.push(`aligned with naked prior POC @ $${nakedPOC.priorPOC.toFixed(4)}`);
       }
       if (config.MULTI_TF_POC_ENABLED && multiTFPOC.anyAligned) {
-        pocQualityNotes.push(`POC aligned with 2H`);
+        pocQualityNotes.push(`POC aligned with ${multiTFPOC.alignedLabels.join('+')}`);
       }
       const pocQualitySuffix = pocQualityNotes.length ? ` | ${pocQualityNotes.join(', ')}` : '';
       const sizeLine = riskMult < 1
@@ -384,7 +413,8 @@ ${emoji} *${symbol} — GWP Signal*
 
 📊 *Direction:* ${direction}
 ${voteLine}
-🔗 *2H Zone:* near ${htfCheck.nearestLevel} ✅${td9Line}
+🔗 *2H Zone:* near ${htfCheck.nearestLevel} ✅
+${config.DUAL_MULTI_TF_GATE_ENABLED ? `🎯 *Dual Multi-TF:* POC✅ Fib✅ (2H+D1 both confirm)\n` : ''}${td9Line}
 
 ━━━━━━━━━━━━━━━━━━━━
 💵 *Entry:* \`$${bestFibLevel.toFixed(4)}\` (30M Fib ${fibPct} ↔ ${bestPivot.name})
@@ -419,7 +449,7 @@ risk capital you can't afford to lose on a single position.
         entryPrice: bestFibLevel, ...levels,
         patterns: rejection.patterns, riskMult,
         voteTally: resolved.tally, agreeing: resolved.agreeing,
-        bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
+        biasD1: biasD1?.bias, bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
         lastSignalBar: barTime, lastSignalDir: direction,
         alertDelivered,
       });
@@ -429,8 +459,8 @@ risk capital you can't afford to lose on a single position.
         entryPrice: bestFibLevel, ...levels,
         confluencePivot: bestPivot.name, fibPct, patterns: rejection.patterns,
         voteTally: resolved.tally, agreeing: resolved.agreeing, riskMult,
-        bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
-        td9Confirms, slAtrMult, prominence, migration, nakedPOC, multiTFPOC,
+        biasD1: biasD1?.bias, bias2h: bias2h?.bias, bias30m: biasStruct.bias, bias15m: bias15m?.bias,
+        td9Confirms, slAtrMult, prominence, migration, nakedPOC, multiTFPOC, multiTFFib,
         alertDelivered,
       });
 
