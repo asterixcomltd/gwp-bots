@@ -24,6 +24,7 @@ module.exports = {
   ],
 
   // ── Timeframes — KuCoin granularity strings ─────────────────────────────
+  DAILY_TIMEFRAME:   '1day',
   BIAS_TIMEFRAME:    '2hour',
   STRUCT_TIMEFRAME:  '30min',
   TRIGGER_TIMEFRAME: '15min',
