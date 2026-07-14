@@ -30,7 +30,8 @@ async function testBot(botDir, botName, tfSeconds) {
 
   const now = Math.floor(Date.now() / 1000);
   const fakeGetKlines = async (symbol, interval, limit) => {
-    const bs = interval === config.BIAS_TIMEFRAME ? tfSeconds.bias
+    const bs = interval === config.DAILY_TIMEFRAME ? tfSeconds.daily
+      : interval === config.BIAS_TIMEFRAME ? tfSeconds.bias
       : interval === config.STRUCT_TIMEFRAME ? tfSeconds.struct
       : tfSeconds.trigger;
     const startTime = now - (limit + 5) * bs;
@@ -62,9 +63,9 @@ async function testBot(botDir, botName, tfSeconds) {
 
 (async () => {
   let totalErrors = 0;
-  totalErrors += await testBot(path.join(__dirname, '../bots/crypto'), 'GWP-Crypto', { bias: 7200, struct: 1800, trigger: 900 });
-  totalErrors += await testBot(path.join(__dirname, '../bots/forex'), 'GWP-Forex', { bias: 7200, struct: 1800, trigger: 900 });
-  totalErrors += await testBot(path.join(__dirname, '../bots/stocks'), 'GWP-Stocks', { bias: 7200, struct: 1800, trigger: 900 });
+  totalErrors += await testBot(path.join(__dirname, '../bots/crypto'), 'GWP-Crypto', { daily: 86400, bias: 7200, struct: 1800, trigger: 900 });
+  totalErrors += await testBot(path.join(__dirname, '../bots/forex'), 'GWP-Forex', { daily: 86400, bias: 7200, struct: 1800, trigger: 900 });
+  totalErrors += await testBot(path.join(__dirname, '../bots/stocks'), 'GWP-Stocks', { daily: 86400, bias: 7200, struct: 1800, trigger: 900 });
   console.log(totalErrors === 0 ? '\n✅ ALL SMOKE TESTS PASSED' : `\n❌ ${totalErrors} error(s) total`);
   process.exit(totalErrors === 0 ? 0 : 1);
 })();

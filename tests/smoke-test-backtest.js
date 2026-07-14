@@ -27,12 +27,17 @@ async function testBacktest(botDir, botName) {
   const now = Math.floor(Date.now() / 1000);
   const struct = genCandles(Math.ceil(days * 86400 / 1800) + 100, now - (Math.ceil(days*86400/1800)+100)*1800, 1800, 100, 11);
   const bias   = genCandles(Math.ceil(days * 86400 / 7200) + 50, now - (Math.ceil(days*86400/7200)+50)*7200, 7200, 100, 22);
+  // D1 needs its own much longer history to satisfy DAILY_VP_LOOKBACK's
+  // warmup (~205 daily bars) — independent of the 60-day evaluation
+  // window, same as a real backtest always fetches extra warmup history.
+  const dailyDays = config.DAILY_VP_LOOKBACK + days + 10;
+  const daily  = genCandles(dailyDays, now - dailyDays * 86400, 86400, 100, 44);
   const trigger= genCandles(Math.ceil(days * 86400 / 900) + 100, now - (Math.ceil(days*86400/900)+100)*900, 900, 100, 33);
 
   const { backtestSymbol, generateReport } = createBacktestEngine({ config, core, version: '1.0.0', botLabel: botName });
   const evalWindowStartTime = now - days * 86400;
 
-  const { trades, funnel } = await backtestSymbol('TESTSYM', trigger, struct, bias, evalWindowStartTime);
+  const { trades, funnel } = await backtestSymbol('TESTSYM', trigger, struct, bias, daily, evalWindowStartTime);
   console.log(`[${botName}] backtest trades=${trades.length}, funnel=`, JSON.stringify(funnel));
 
   const { lines } = generateReport(trades, days, { TESTSYM: funnel });
