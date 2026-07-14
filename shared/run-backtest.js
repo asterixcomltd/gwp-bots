@@ -43,13 +43,15 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   const evalWindowStartTime = Math.floor(Date.now() / 1000) - days * 86400;
 
   for (const symbol of symbols) {
+    const dataD1  = await fetchHistory(symbol, config.DAILY_TIMEFRAME,  fetchDays);
     const data2h  = await fetchHistory(symbol, config.BIAS_TIMEFRAME,   fetchDays);
     const data30m = await fetchHistory(symbol, config.STRUCT_TIMEFRAME, fetchDays);
     const data15m = await fetchHistory(symbol, config.TRIGGER_TIMEFRAME, fetchDays);
 
-    // 2H is treated as optional/best-effort, same tolerance engine.js
-    // gives it live. 30M and 15M remain the two REQUIRED timeframes,
-    // since 30M supplies the structural zone and 15M the trigger.
+    // D1 and 2H are treated as optional/best-effort, same tolerance
+    // engine.js gives them live. 30M and 15M remain the two REQUIRED
+    // timeframes, since 30M supplies the structural zone and 15M the
+    // trigger.
     if (data30m.length < 50 || data15m.length < 50) {
       console.log(`  ⚠️ ${symbol}: insufficient 30M/15M data (30M=${data30m.length} bars, 15M=${data15m.length} bars), skipping.`);
       funnelsBySymbol[symbol] = null;
@@ -57,7 +59,7 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
       continue;
     }
 
-    const { trades, funnel } = await backtestSymbol(symbol, data15m, data30m, data2h, evalWindowStartTime);
+    const { trades, funnel } = await backtestSymbol(symbol, data15m, data30m, data2h, dataD1, evalWindowStartTime);
     allTrades.push(...trades);
     funnelsBySymbol[symbol] = funnel;
   }

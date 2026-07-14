@@ -202,7 +202,7 @@ Symbols tracked: ${config.SYMBOLS.join(', ')}`
 
 Signal bot built on one tendency: *price tends to revisit where the most volume was traded.* That's a real market pattern, not a guarantee about any single trade.
 
-*Strategy:* Volume Profile (POC + VAH + VAL) + Fibonacci (61.8-78.6% pocket) across three timeframes, each with one job — 2H macro bias, 30M structure (zone/Fib pocket/SL anchor), 15M trigger. Needs 2-of-3 timeframes to agree on direction before anything fires.
+*Strategy:* Volume Profile (POC + VAH + VAL) + Fibonacci (61.8-78.6% pocket) across four timeframes, each with one job — D1 + 2H macro bias, 30M structure (zone/Fib pocket/SL anchor), 15M trigger. Needs 3-of-4 timeframes to agree on direction, PLUS both 2H and D1 independently confirming the POC level and the Fib level, before anything fires.
 
 No hardcoded win-rate claim here. This bot does not target or achieve a 100% win rate — no trading system does. Run \`node backtest.js\` in the repo yourself for current, honest numbers over a window you haven't tuned against, and read the full funnel diagnostics, not just the headline win rate.
 
