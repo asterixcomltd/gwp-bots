@@ -9,7 +9,8 @@
  *  so a backtest report actually means something about live behavior.
  *
  *  Adapted from MVS's 5-timeframe/3-of-5 vote down to GWP's 3-timeframe/
- *  2-of-3 vote (2H bias / 30M structure / 15M trigger) — see shared/
+ *  3-of-4 vote (D1+2H bias / 30M structure / 15M trigger), plus a dual
+ *  multi-TF POC+Fib confirmation gate — see shared/
  *  engine.js header for the full architecture rationale. Every gate
  *  below fires in the same order engine.js uses, so backtest and live
  *  can never drift on WHAT is being tested, only on which historical
@@ -23,32 +24,35 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
   // ─────────────────────────────────────────────────────────────────────
   //  REPLAY ENGINE — walks the 15M clock, two-pointer sync on 30M/2H
   // ─────────────────────────────────────────────────────────────────────
-  const backtestSymbol = async (symbol, data15m, data30m, data2h, evalWindowStartTime = 0) => {
+  const backtestSymbol = async (symbol, data15m, data30m, data2h, dataD1, evalWindowStartTime = 0) => {
     const trades = [];
     const cooldownMap = {};
     let openTrade = null;
 
     const funnel = {
       scanned: 0, voteOk: 0, bullVote: 0, bearVote: 0, volatilityOk: 0, structureOk: 0, notOverExtended: 0,
-      nearZone: 0, prominenceOk: 0, confluenceOk: 0, htf2hAligned: 0, notInvalidated: 0,
+      nearZone: 0, prominenceOk: 0, confluenceOk: 0, htf2hAligned: 0, dualMultiTFOk: 0, notInvalidated: 0,
       cooldownOk: 0, triggerOk: 0, tp2RangeOk: 0, opened: 0,
     };
 
     const warmupStruct = config.STRUCT_VP_LOOKBACK + config.ATR_PERIOD + 5;
     const warmupBias    = config.BIAS_VP_LOOKBACK + 5;
+    const warmupDaily    = config.DAILY_VP_LOOKBACK + 5;
     const warmupTrigger = config.TRIGGER_VP_LOOKBACK + 5;
 
-    let ptrStruct = 0, ptrBias = 0;
+    let ptrStruct = 0, ptrBias = 0, ptrDaily = 0;
     while (ptrStruct < data30m.length - 1 && data30m[ptrStruct + 1].time <= data15m[0].time) ptrStruct++;
     while (ptrBias   < data2h.length  - 1 && data2h[ptrBias + 1].time  <= data15m[0].time) ptrBias++;
+    while (ptrDaily  < dataD1.length  - 1 && dataD1[ptrDaily + 1].time <= data15m[0].time) ptrDaily++;
 
     let startIdx = warmupTrigger;
     while (startIdx < data15m.length) {
       const t = data15m[startIdx].time;
-      let pS = 0, pB = 0;
+      let pS = 0, pB = 0, pD = 0;
       while (pS < data30m.length - 1 && data30m[pS + 1].time <= t) pS++;
       while (pB < data2h.length  - 1 && data2h[pB + 1].time  <= t) pB++;
-      if (pS >= warmupStruct && pB >= warmupBias && t >= evalWindowStartTime) break;
+      while (pD < dataD1.length  - 1 && dataD1[pD + 1].time  <= t) pD++;
+      if (pS >= warmupStruct && pB >= warmupBias && pD >= warmupDaily && t >= evalWindowStartTime) break;
       startIdx++;
     }
     if (startIdx >= data15m.length) {
@@ -58,15 +62,16 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
     console.log(`\n  Replaying ${data15m.length - startIdx} × 15M bars for ${symbol}...`);
 
-    ptrStruct = 0; ptrBias = 0;
-    let cachedStruct = null, cachedBias = null;
+    ptrStruct = 0; ptrBias = 0; ptrDaily = 0;
+    let cachedStruct = null, cachedBias = null, cachedDaily = null;
 
     for (let i = startIdx; i < data15m.length; i++) {
       const bar = data15m[i];
 
-      let advancedStruct = false, advancedBias = false;
+      let advancedStruct = false, advancedBias = false, advancedDaily = false;
       while (ptrStruct < data30m.length - 1 && data30m[ptrStruct + 1].time <= bar.time) { ptrStruct++; advancedStruct = true; }
       while (ptrBias   < data2h.length  - 1 && data2h[ptrBias + 1].time  <= bar.time) { ptrBias++;   advancedBias   = true; }
+      while (ptrDaily  < dataD1.length  - 1 && dataD1[ptrDaily + 1].time <= bar.time) { ptrDaily++;  advancedDaily  = true; }
 
       // ── OPEN TRADE MANAGEMENT (every 15M tick, tighter fills) ─────────
       if (openTrade) {
@@ -105,6 +110,12 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         const windowBias = data2h.slice(wBStart, ptrBias + 1);
         cachedBias = data2h.length ? core.tfBiasVote(windowBias, config.BIAS_VP_LOOKBACK, config.BIAS_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT) : null;
       }
+      // ── Recompute D1 bias only when a new daily bar closed ────────────
+      if (advancedDaily || !cachedDaily) {
+        const wDStart = Math.max(0, ptrDaily + 1 - (config.DAILY_VP_LOOKBACK + 5));
+        const windowDaily = dataD1.slice(wDStart, ptrDaily + 1);
+        cachedDaily = dataD1.length ? core.tfBiasVote(windowDaily, config.DAILY_VP_LOOKBACK, config.DAILY_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT) : null;
+      }
       if (!cachedStruct) continue;
 
       // ── 15M bias recomputed every tick (its window slides every bar) ──
@@ -113,6 +124,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       const bias15m = core.tfBiasVote(window15m, config.TRIGGER_VP_LOOKBACK, config.TRIGGER_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT);
 
       const resolved = core.resolveDirection([
+        { tf: 'D1',  result: cachedDaily },
         { tf: '2H',  result: cachedBias },
         { tf: '30M', result: cachedStruct.biasStruct },
         { tf: '15M', result: bias15m },
@@ -165,6 +177,28 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       if (!htfCheck.aligned) continue;
       funnel.htf2hAligned++;
 
+      // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────
+      // Hard gate: BOTH 2H and D1 must independently confirm on BOTH the
+      // POC check and the Fib check, all in the trade's direction — not
+      // just "any" agreement. See core.js computeMultiTFPOCAlignment()/
+      // computeMultiTFFibAlignment() headers for the full reasoning.
+      const multiTFPOC = core.computeMultiTFPOCAlignment(
+        vpStruct.pocPrice,
+        [{ label: '2H', poc: cachedBias?.poc }, { label: 'D1', poc: cachedDaily?.poc }],
+        atrStruct, config.MULTI_TF_POC_TOLERANCE_ATR
+      );
+      const multiTFFib = core.computeMultiTFFibAlignment(
+        bestFibLevel, direction,
+        [{ label: '2H', swing: cachedBias?.swing }, { label: 'D1', swing: cachedDaily?.swing }],
+        atrStruct, config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
+      );
+      if (config.DUAL_MULTI_TF_GATE_ENABLED) {
+        const pocFull = multiTFPOC.alignedLabels.length >= 2;
+        const fibFull = multiTFFib.alignedLabels.length >= 2;
+        if (!pocFull || !fibFull) continue;
+      }
+      funnel.dualMultiTFOk++;
+
       if (core.isZoneInvalidated(priceStruct, bestFibLevel, atrStruct, direction, config.ZONE_INVALIDATION_ATR_MULT)) continue;
       funnel.notInvalidated++;
 
@@ -206,9 +240,6 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         pocWideWindowStruct, config.STRUCT_VP_LOOKBACK, config.VP_ROWS,
         atrStruct, vpStruct.pocPrice, config.NAKED_POC_TOLERANCE_ATR
       );
-      const multiTFPOC = core.computeMultiTFPOCAlignment(
-        vpStruct.pocPrice, cachedBias?.poc, atrStruct, config.MULTI_TF_POC_TOLERANCE_ATR
-      );
       const fibPct = bestFibLevel === fib.level618 ? '61.8%' : bestFibLevel === fib.level786 ? '78.6%' : '70%-mid';
 
       cooldownMap[direction] = bar.time;
@@ -221,7 +252,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         patterns: rejection.patterns, pivot: bestPivot.name, fibPct,
         voteTally: resolved.tally, agreeing: resolved.agreeing,
         confluenceScore: bestScore, td9Confirms, slAtrMult,
-        prominence, migration, nakedPOC, multiTFPOC,
+        prominence, migration, nakedPOC, multiTFPOC, multiTFFib,
       };
     }
 
@@ -346,12 +377,24 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
     const byMultiTFPOC = {};
     for (const t of closed) {
       if (t.pivot !== 'POC') continue;
-      const key = t.multiTFPOC && t.multiTFPOC.anyAligned ? 'aligned (2H)' : 'not aligned';
+      const key = t.multiTFPOC && t.multiTFPOC.alignedLabels && t.multiTFPOC.alignedLabels.length
+        ? `aligned (${t.multiTFPOC.alignedLabels.join('+')})` : 'not aligned';
       if (!byMultiTFPOC[key]) byMultiTFPOC[key] = { trades: 0, wins: 0, sl: 0, totalRR: 0 };
       byMultiTFPOC[key].trades++;
       if (t.rr > 0) byMultiTFPOC[key].wins++;
       if (t.result === 'SL') byMultiTFPOC[key].sl++;
       byMultiTFPOC[key].totalRR += t.rr;
+    }
+
+    const byMultiTFFib = {};
+    for (const t of closed) {
+      const key = t.multiTFFib && t.multiTFFib.alignedLabels && t.multiTFFib.alignedLabels.length
+        ? `aligned (${t.multiTFFib.alignedLabels.join('+')})` : 'not aligned';
+      if (!byMultiTFFib[key]) byMultiTFFib[key] = { trades: 0, wins: 0, sl: 0, totalRR: 0 };
+      byMultiTFFib[key].trades++;
+      if (t.rr > 0) byMultiTFFib[key].wins++;
+      if (t.result === 'SL') byMultiTFFib[key].sl++;
+      byMultiTFFib[key].totalRR += t.rr;
     }
 
     const avgHoursHeld = closed.length ? (closed.reduce((s, t) => s + (t.hoursHeld || 0), 0) / closed.length).toFixed(0) : '0';
@@ -362,7 +405,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       '═══════════════════════════════════════════════════════════════════',
       ` ${botLabel} v${version} — BACKTEST REPORT`,
       ` Period: Last ${requestedDays} days  |  Symbols: ${requestedSymbols.join(', ')}`,
-      ' 2H+30M+15M — 2-of-3 timeframe vote (30M zone, 15M trigger)',
+      ' D1+2H+30M+15M — 3-of-4 timeframe vote (30M zone, 15M trigger)',
       '═══════════════════════════════════════════════════════════════════',
       '',
       '⚠️  This is a backtest, not a live-performance guarantee. No setting',
@@ -426,8 +469,13 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       '',
       '── BY MULTI-TF POC ALIGNMENT (POC pivot only) ───────────────────────',
       ...(Object.keys(byMultiTFPOC).length ? Object.entries(byMultiTFPOC).map(([k, v]) =>
-        `  ${k.padEnd(15)} ${v.trades} trades | ${(v.wins/v.trades*100).toFixed(1)}% WR | ${v.sl} SL | ${v.totalRR.toFixed(2)}R total`)
+        `  ${k.padEnd(20)} ${v.trades} trades | ${(v.wins/v.trades*100).toFixed(1)}% WR | ${v.sl} SL | ${v.totalRR.toFixed(2)}R total`)
         : ['  No closed POC-pivot trades yet on a run new enough to track this.']),
+      '',
+      '── BY MULTI-TF FIB ALIGNMENT (all pivots — DUAL_MULTI_TF_GATE) ──────',
+      ...(Object.keys(byMultiTFFib).length ? Object.entries(byMultiTFFib).map(([k, v]) =>
+        `  ${k.padEnd(20)} ${v.trades} trades | ${(v.wins/v.trades*100).toFixed(1)}% WR | ${v.sl} SL | ${v.totalRR.toFixed(2)}R total`)
+        : ['  No closed trades yet on a run new enough to track this.']),
       '',
       '── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───',
       ...requestedSymbols.flatMap(sym => {
@@ -436,7 +484,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         return [
           `  ${sym}:`,
           `    scanned=${f.scanned}  voteOk=${f.voteOk}(bull=${f.bullVote}/bear=${f.bearVote})  volatilityOk=${f.volatilityOk}  structureOk=${f.structureOk}`,
-          `    notOverExtended=${f.notOverExtended}  nearZone=${f.nearZone}  prominenceOk=${f.prominenceOk}  confluenceOk=${f.confluenceOk}  htf2hAligned=${f.htf2hAligned}`,
+          `    notOverExtended=${f.notOverExtended}  nearZone=${f.nearZone}  prominenceOk=${f.prominenceOk}  confluenceOk=${f.confluenceOk}  htf2hAligned=${f.htf2hAligned}  dualMultiTFOk=${f.dualMultiTFOk}`,
           `    notInvalidated=${f.notInvalidated}  cooldownOk=${f.cooldownOk}  triggerOk=${f.triggerOk}  tp2RangeOk=${f.tp2RangeOk}  opened=${f.opened}`,
         ];
       }),

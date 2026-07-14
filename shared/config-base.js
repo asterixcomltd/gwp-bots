@@ -34,22 +34,36 @@ module.exports = {
 
   // ── Timeframes — GENERIC NAMES so core.js/engine.js/backtest-engine.js
   // never hardcode a source-specific string. Each sub-bot's own config.js
-  // overrides these three with whatever strings ITS data source expects
-  // (KuCoin: '2hour'/'30min'/'15min'. Twelve Data: '2h'/'30min'/'15min').
+  // overrides these four with whatever strings ITS data source expects
+  // (KuCoin: '1day'/'2hour'/'30min'/'15min'. Twelve Data: '1day'/'2h'/
+  // '30min'/'15min' — '1day' happens to be identical on both sources).
+  //
+  // D1 (Daily) — added as a 4th timeframe, macro bias vote ONLY. This is
+  // a direct port of MVS's OWN precedent: MVS's 5-TF version used 1D as
+  // an additional bias-vote layer alongside 4H (both feeding the SAME
+  // tfBiasVote() POC/VAH/VAL/Fib50 4-pillar check, just on daily bars) —
+  // not a new structural role, just a second, slower-moving macro
+  // opinion. GWP restores that exact pattern: D1 and 2H are BOTH bias-
+  // only votes; 30M keeps sole ownership of structure (zone/Fib
+  // pocket/SL anchor) and 15M keeps sole ownership of the trigger.
+  DAILY_TIMEFRAME:   '1day',
   BIAS_TIMEFRAME:    '2hour',
   STRUCT_TIMEFRAME:  '30min',
   TRIGGER_TIMEFRAME: '15min',
 
-  // 2-of-3 direction vote — kept as a named constant, not a bare "2", so
+  // 3-of-4 direction vote — kept as a named constant, not a bare "3", so
   // the threshold and the TF count it's checked against can never
   // silently drift apart. See core.js resolveDirection(votes, minAgree).
-  MIN_TF_AGREE: 2,
+  // No single timeframe (not even D1) can force a trade alone; ANY 3 of
+  // the 4 must agree.
+  MIN_TF_AGREE: 3,
 
   // Bar durations in seconds — used for cooldown math and the
   // MAX_HOLD_STRUCT_BARS / EARLY_TIMEOUT_BARS ceilings in core.js
   // evaluateOpenTrade(). STRUCT_BAR_SECONDS is the one that actually
-  // drives logic (30M = 1800s); BIAS/TRIGGER seconds below are
+  // drives logic (30M = 1800s); DAILY/BIAS/TRIGGER seconds below are
   // informational only, kept for symmetry and any future use.
+  DAILY_BAR_SECONDS:   86400,
   BIAS_BAR_SECONDS:    7200,
   STRUCT_BAR_SECONDS:  1800,
   TRIGGER_BAR_SECONDS: 900,
@@ -59,6 +73,13 @@ module.exports = {
   SCAN_CRON: '*/15 * * * *',
 
   // ── Data lookbacks ────────────────────────────────────────────────────────
+  // DAILY (D1) — a slow-moving macro opinion. 200 daily bars ≈ 6.5
+  // months of history for the volume profile, 90 for the Fib swing —
+  // deliberately generous since a day bar is expensive in wall-clock
+  // terms to "waste" on a short lookback.
+  DAILY_VP_LOOKBACK:  200,
+  DAILY_FIB_LOOKBACK:  90,
+
   // STRUCT (30M) — ported directly from MVS's 1H structure lookback
   // (500 VP / 200 Fib bars). Same bar COUNT as MVS used for 1H; because
   // 30M bars are half as long as 1H bars, this now covers roughly half
@@ -168,6 +189,26 @@ module.exports = {
   MULTI_TF_POC_TOLERANCE_ATR: 0.75,
   MULTI_TF_POC_BOOST_MULT: 1.15,
 
+  // #5 MULTI-TIMEFRAME FIBONACCI ALIGNMENT — same idea as #4 above, for
+  // Fibonacci instead of POC: does the 30M confluence Fib level ALSO
+  // line up with the equivalent Fib pocket computed independently on
+  // 2H's and D1's OWN swings? See core.js computeMultiTFFibAlignment().
+  MULTI_TF_FIB_TOLERANCE_ATR: 0.75,
+
+  // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────────────
+  // A hard GATE, not just a size multiplier: requires BOTH systems above
+  // to show FULL agreement (2H **and** D1 both aligned, not just one) —
+  // in the SAME direction as the trade — before the bot even looks at
+  // the 15M trigger candle. This sits on top of, not instead of, the
+  // 15M rejection-candle requirement in REJECTION_MIN_PATTERNS below.
+  // This is a genuine extra confluence filter, not a claim of any
+  // specific win rate — no gate combination guarantees one. It WILL cut
+  // signal frequency substantially versus the 3-TF version; that
+  // trade-off (fewer, more corroborated signals) is exactly what was
+  // asked for. Verify the actual effect with backtest.js, same as any
+  // other setting here.
+  DUAL_MULTI_TF_GATE_ENABLED: process.env.DUAL_MULTI_TF_GATE_ENABLED === 'false' ? false : true,
+
   RISK_PER_TRADE_PCT: 1.5,
   SLIPPAGE_PCT: 0.001,
 
@@ -205,11 +246,12 @@ module.exports = {
   // ── Vote-strength sizing — OFF by default, ported from MVS's own
   // v10.15.1 revert (a fresh backtest showed this cut simulated return
   // roughly in half without a matching win-rate improvement — see
-  // MVS-bot's config.js v10.15.1 note for the full numbers). With only 3
-  // timeframes here, the only two possible tallies are 2-of-3 and 3-of-3
-  // — kept as a lookup table (not hardcoded) so it stays easy to re-test.
+  // MVS-bot's config.js v10.15.1 note for the full numbers). With 4
+  // timeframes now (D1/2H/30M/15M) at MIN_TF_AGREE=3, the only two
+  // possible tallies are 3-of-4 and 4-of-4 — kept as a lookup table (not
+  // hardcoded) so it stays easy to re-test.
   VOTE_STRENGTH_SIZE_ENABLED: process.env.VOTE_STRENGTH_SIZE_ENABLED === 'true' ? true : false,
-  VOTE_STRENGTH_MULT: { 2: 0.85, 3: 1.0 },
+  VOTE_STRENGTH_MULT: { 3: 0.85, 4: 1.0 },
 
   // ── Backtest-only settings ──────────────────────────────────────────────
   BACKTEST_DAYS: 360,

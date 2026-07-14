@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — GHOST WICK PROTOCOL — CORE STRATEGY LOGIC (core.js)  v1.0.0
+ *  GWP — GHOST WICK PROTOCOL — CORE STRATEGY LOGIC (core.js)  v1.1.0
  *
  *  Every pure function used to decide BUY/SELL/NO-TRADE lives here, and
  *  ONLY here. Each sub-bot's strategy.js (live/Telegram), backtest.js
@@ -13,11 +13,13 @@
  *
  *  THIS FILE IS A DIRECT, FAITHFUL PORT of MVS-bot's core.js (v10.15.5).
  *  Every gate, every formula, every quality-scoring factor below is
- *  identical in mechanics to MVS. The ONLY structural change is the
- *  timeframe architecture itself — see below.
+ *  identical in mechanics to MVS. The main structural changes are the
+ *  timeframe architecture and one new gate — see below.
  *
- *  THREE-TIMEFRAME ARCHITECTURE (GWP, current):
+ *  FOUR-TIMEFRAME ARCHITECTURE (GWP, current — v1.1):
  *  ┌─────────────────────────────────────────────────────────────────────┐
+ *  │  D1   → BIAS ONLY: a second, slower macro bias vote (POC/VAH/VAL/   │
+ *  │         Fib50), same 4-pillar check as 2H, just on daily bars       │
  *  │  2H   → BIAS ONLY: macro bias vote (POC/VAH/VAL/Fib50)              │
  *  │  30M  → STRUCTURE ONLY: swing, Fib golden pocket, POC/VAH/VAL zone, │
  *  │         SL anchor — this is the timeframe whose zone price must    │
@@ -25,33 +27,49 @@
  *  │  15M  → ENTRY ONLY (trigger): the actual rejection candle that      │
  *  │         fires the signal                                            │
  *  │                                                                     │
- *  │  Direction requires MIN_TF_AGREE (2) of these 3 timeframes to       │
+ *  │  Direction requires MIN_TF_AGREE (3) of these 4 timeframes to       │
  *  │  agree — same tfBiasVote() 4-pillar (POC/VAH/VAL/Fib50) vote MVS    │
- *  │  uses, just cast on 2H/30M/15M data instead of MVS's 4H/1H/15m.     │
- *  │  No single timeframe can force a trade on its own. See              │
- *  │  resolveDirection() below — fully generic, unchanged from MVS.      │
+ *  │  uses, just cast on D1/2H/30M/15M data. No single timeframe can     │
+ *  │  force a trade on its own. See resolveDirection() below — fully     │
+ *  │  generic, unchanged from MVS.                                        │
+ *  │                                                                     │
+ *  │  ON TOP of the vote, a DUAL MULTI-TF GATE (added in v1.1) requires  │
+ *  │  BOTH 2H and D1 to independently confirm the 30M structure's        │
+ *  │  confluence level on BOTH systems — the POC check                   │
+ *  │  (computeMultiTFPOCAlignment) AND the Fibonacci check               │
+ *  │  (computeMultiTFFibAlignment) — before the bot even looks at the    │
+ *  │  15M trigger candle. This is a genuine extra confluence filter, on  │
+ *  │  top of, not instead of, the 15M rejection-candle requirement.      │
  *  └─────────────────────────────────────────────────────────────────────┘
  *
- *  This is mechanically the SAME 2-of-3 vote MVS-bot's own v10.0
- *  architecture used (4H bias / 1H structure / 15m trigger) before MVS
- *  was later expanded to a 5-timeframe vote — GWP deliberately keeps the
- *  simpler, original 3-TF design MVS documented in its own header, just
- *  shifted one rung down the clock (2H replaces 4H, 30M replaces 1H).
- *  15M keeps its role as trigger TF in both systems, unchanged.
+ *  This started as the SAME 2-of-3 vote MVS-bot's own v10.0 architecture
+ *  used (4H bias / 1H structure / 15m trigger) before MVS was later
+ *  expanded to a 5-timeframe vote — GWP kept that simpler original
+ *  design at first (2H replacing 4H, 30M replacing 1H), then restored
+ *  MVS's OWN precedent of using Daily as a second bias-vote timeframe
+ *  (exactly what MVS's 5-TF version did with 1D) once a fourth
+ *  timeframe was wanted. 15M keeps its role as trigger TF throughout.
  *
  *  Wherever MVS's code referred to "1H" as the structure/confirming
- *  timeframe (e.g. the risk-tier confirm key, the multi-TF POC check,
- *  the "1H not in the confirming vote" sizing note), this file uses
- *  "30M" instead — same mechanism, same evidence-based reasoning,
- *  relabeled to match GWP's own timeframe roles. Wherever MVS referred
- *  to "4H" as the macro bias cross-check, this file uses "2H."
+ *  timeframe (e.g. the risk-tier confirm key, the "1H not in the
+ *  confirming vote" sizing note), this file uses "30M" instead — same
+ *  mechanism, same evidence-based reasoning, relabeled to match GWP's
+ *  own timeframe roles. Wherever MVS referred to "4H" as the macro bias
+ *  cross-check, this file uses "2H."
  *
  *  HONESTY NOTE: nothing in here targets or claims a specific win rate.
  *  Every symbol and every direction runs through the identical rule set
  *  — no per-symbol or per-direction overrides, same anti-overfitting
- *  stance MVS-bot uses.
+ *  stance MVS-bot uses. Adding more confirmation layers (D1, the dual
+ *  multi-TF gate) is a genuine attempt at higher-conviction signals
+ *  through legitimate extra confluence — it is NOT, and cannot be, a
+ *  guarantee of any specific win rate, including "near 100%." No
+ *  combination of gates achieves that; verify actual behavior with
+ *  backtest.js over a window you haven't tuned against, same standing
+ *  rule as everywhere else in this repo.
  * ═══════════════════════════════════════════════════════════════════════
  */
+
 
 // ─────────────────────────────────────────────────────────────────────────
 //  ATR — Average True Range (Wilder smoothing)
@@ -565,20 +583,50 @@ const computeNakedPOC = (bars, vpLookback, rows, atr, currentPOC, toleranceAtrMu
   return { naked: !tested, priorPOC, tested, aligned };
 };
 
-// Ported from MVS's identical multi-TF POC idea, adapted to GWP's 3-TF
-// design (no 1D layer here): "does the 30M structure POC also line up
-// with the 2H bias POC? Two independently computed volume profiles
-// agreeing on the same price is a stronger claim than one." Genuinely
-// untested (no prior trade data exists that tracked this), so this is
-// wired as a bounded SIZE multiplier only — not a gate, until real
-// trades accumulate evidence one way or the other. Returns neutral
-// (no-op) for any pivot other than POC, or when either POC value or ATR
-// isn't available.
-const computeMultiTFPOCAlignment = (structPOC, biasPOC, atr, toleranceAtrMult) => {
-  const none = { alignedBias: false, anyAligned: false, biasPOC: biasPOC ?? null };
-  if (structPOC == null || !(atr > 0)) return none;
-  const alignedBias = biasPOC != null && Math.abs(structPOC - biasPOC) <= atr * toleranceAtrMult;
-  return { alignedBias, anyAligned: alignedBias, biasPOC: biasPOC ?? null };
+// Ported from MVS's identical multi-TF POC idea. MVS's own 5-TF version
+// checked the structure POC against TWO macro timeframes (4H and 1D) —
+// "does the 1H structure POC also line up with EITHER of two
+// independently-computed higher-timeframe POCs?" GWP's 3-TF design
+// initially only had one macro timeframe (2H) to check against; now that
+// D1 has been added as a 4th vote layer, this restores MVS's original
+// two-timeframe check faithfully: structPOC vs macroTFs = [{label:'2H',
+// poc}, {label:'D1', poc}]. Genuinely untested (no prior trade data
+// exists that tracked this), so wired as a bounded SIZE multiplier only
+// — not a gate. Returns neutral (no-op) for any pivot other than POC, or
+// when ATR isn't available.
+const computeMultiTFPOCAlignment = (structPOC, macroTFs, atr, toleranceAtrMult) => {
+  const none = { anyAligned: false, alignedLabels: [] };
+  if (structPOC == null || !(atr > 0) || !Array.isArray(macroTFs)) return none;
+  const alignedLabels = macroTFs
+    .filter(m => m && m.poc != null && Math.abs(structPOC - m.poc) <= atr * toleranceAtrMult)
+    .map(m => m.label);
+  return { anyAligned: alignedLabels.length > 0, alignedLabels };
+};
+
+// NEW GATE (requested): the Fibonacci equivalent of the POC check above.
+// Does the 30M structure's confluence Fib level ALSO line up with the
+// equivalent Fib pocket computed independently on each higher timeframe's
+// OWN swing high/low (same direction)? Two independently-computed
+// Fibonacci retracements agreeing on the same price, on top of the POC
+// agreement above, is a materially stronger claim than either alone —
+// this is the basis for the dual multi-TF gate in engine.js/
+// backtest-engine.js (fires only when BOTH systems get 2-of-2 agreement
+// from 2H AND D1, not just "any"). macroSwings = [{ label, swing:
+// {high, low} }] — each swing comes straight from that TF's own
+// tfBiasVote() result, so no extra data fetch is needed for this.
+const computeMultiTFFibAlignment = (bestFibLevel, direction, macroSwings, atr, toleranceAtrMult, fibZoneLow, fibZoneHigh) => {
+  const none = { anyAligned: false, alignedLabels: [] };
+  if (bestFibLevel == null || !(atr > 0) || !Array.isArray(macroSwings)) return none;
+  const alignedLabels = [];
+  for (const m of macroSwings) {
+    if (!m || !m.swing || m.swing.high == null || m.swing.low == null) continue;
+    const fib = calcFib(m.swing.high, m.swing.low, direction, fibZoneLow, fibZoneHigh);
+    const candidates = [fib.level618, fib.level786, (fib.zoneHigh + fib.zoneLow) / 2];
+    if (candidates.some(c => Math.abs(bestFibLevel - c) <= atr * toleranceAtrMult)) {
+      alignedLabels.push(m.label);
+    }
+  }
+  return { anyAligned: alignedLabels.length > 0, alignedLabels };
 };
 
 // v10.15 NEW — requested: "a 5-of-5 unanimous vote and a bare 3-of-5
@@ -858,5 +906,5 @@ module.exports = {
   detectRejection, computeTradeLevels, computeRiskMultiplier, computeTDSequential,
   computePOCProminence, computePOCMigration, computeNakedPOC, computePOCQualityMultiplier,
   isPOCProminenceTrusted, evaluateOpenTrade,
-  calcATRSeries, calcATRPercentile, computeMultiTFPOCAlignment, computeVoteStrengthMultiplier,
+  calcATRSeries, calcATRPercentile, computeMultiTFPOCAlignment, computeMultiTFFibAlignment, computeVoteStrengthMultiplier,
 };
