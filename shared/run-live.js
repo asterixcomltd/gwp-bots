@@ -31,14 +31,14 @@ module.exports = async function runLive({ config, dataClient, botLabel, version,
   {
     const interiorWidth = [...boxBorder].length - 2;
     const line1 = `${botLabel} v${version}`;
-    const line2 = '2H+30M+15M — 2-of-3 vote (30M zone, 15M trigger)';
+    const line2 = 'D1+2H+30M+15M — 3-of-4 vote (30M zone, 15M trigger)';
     const pad = (s) => '   ' + s + ' '.repeat(Math.max(0, interiorWidth - 3 - [...s].length));
     console.log(`║${pad(line1)}║`);
     console.log(`║${pad(line2)}║`);
   }
   console.log('╚══════════════════════════════════════════════════════════════╝');
   console.log(`   Assets  : ${config.SYMBOLS.join(', ')}`);
-  console.log(`   TFs     : 2H(${config.BIAS_VP_LOOKBACK}) / 30M(${config.STRUCT_VP_LOOKBACK}) / 15M(${config.TRIGGER_VP_LOOKBACK})`);
+  console.log(`   TFs     : D1(${config.DAILY_VP_LOOKBACK}) / 2H(${config.BIAS_VP_LOOKBACK}) / 30M(${config.STRUCT_VP_LOOKBACK}) / 15M(${config.TRIGGER_VP_LOOKBACK})`);
   console.log(`   Trigger : ${config.REJECTION_MIN_PATTERNS}-of-5 patterns min | solo=${config.ALLOW_SOLO_TRIGGER}`);
   console.log(`   Cooldown: ${config.SIGNAL_COOLDOWN_BARS} × 30M bars`);
   console.log('');

@@ -43,7 +43,7 @@ module.exports = async function runSetupBot({ config, botLabel, botShortName, sh
     description:
 `${botLabel} — Ghost Wick Protocol
 
-Volume Profile (POC/VAH/VAL) + Fibonacci, 2H/30M/15M, 2-of-3 vote to fire.
+Volume Profile (POC/VAH/VAL) + Fibonacci, D1/2H/30M/15M, 3-of-4 vote + dual multi-TF confirmation to fire.
 
 No hardcoded win-rate here — run backtest.js yourself for current,
 honest numbers over a window you haven't tuned against.
