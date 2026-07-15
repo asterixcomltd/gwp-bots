@@ -32,6 +32,7 @@ jobs:
           STOCKS_TG_TOKEN: ${{ secrets.STOCKS_TG_TOKEN }}
           STOCKS_CHAT_ID: ${{ secrets.STOCKS_CHAT_ID }}
           BACKTEST_NOTIFY: 'true'
+          TWELVE_DATA_KEYS: ${{ secrets.TWELVE_DATA_KEYS }}
           TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
       - name: Commit backtest report (race-safe)
         run: |
