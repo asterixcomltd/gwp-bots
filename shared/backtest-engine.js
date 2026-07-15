@@ -63,7 +63,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
     console.log(`\n  Replaying ${data15m.length - startIdx} × 15M bars for ${symbol}...`);
 
     ptrStruct = 0; ptrBias = 0; ptrDaily = 0;
-    let cachedStruct = null, cachedBias = null, cachedDaily = null;
+    let cachedStruct = null, cachedBias = null, cachedDaily = null, cachedAtr2h = null, cachedAtrD1 = null;
 
     for (let i = startIdx; i < data15m.length; i++) {
       const bar = data15m[i];
@@ -109,12 +109,14 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         const wBStart = Math.max(0, ptrBias + 1 - (config.BIAS_VP_LOOKBACK + 5));
         const windowBias = data2h.slice(wBStart, ptrBias + 1);
         cachedBias = data2h.length ? core.tfBiasVote(windowBias, config.BIAS_VP_LOOKBACK, config.BIAS_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT) : null;
+        cachedAtr2h = windowBias.length >= config.ATR_PERIOD + 5 ? core.calcATR(windowBias, config.ATR_PERIOD) : null;
       }
       // ── Recompute D1 bias only when a new daily bar closed ────────────
       if (advancedDaily || !cachedDaily) {
         const wDStart = Math.max(0, ptrDaily + 1 - (config.DAILY_VP_LOOKBACK + 5));
         const windowDaily = dataD1.slice(wDStart, ptrDaily + 1);
         cachedDaily = dataD1.length ? core.tfBiasVote(windowDaily, config.DAILY_VP_LOOKBACK, config.DAILY_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT) : null;
+        cachedAtrD1 = windowDaily.length >= config.ATR_PERIOD + 5 ? core.calcATR(windowDaily, config.ATR_PERIOD) : null;
       }
       if (!cachedStruct) continue;
 
@@ -180,17 +182,20 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────
       // Hard gate: BOTH 2H and D1 must independently confirm on BOTH the
       // POC check and the Fib check, all in the trade's direction — not
-      // just "any" agreement. See core.js computeMultiTFPOCAlignment()/
-      // computeMultiTFFibAlignment() headers for the full reasoning.
+      // just "any" agreement. Each macro TF's tolerance is measured
+      // against ITS OWN ATR (cachedAtr2h/cachedAtrD1, computed once per
+      // 2H/D1 bar close alongside the bias vote itself — see above), not
+      // 30M's — see core.js computeMultiTFPOCAlignment()/
+      // computeMultiTFFibAlignment() v1.1.1 fix notes for why that matters.
       const multiTFPOC = core.computeMultiTFPOCAlignment(
         vpStruct.pocPrice,
-        [{ label: '2H', poc: cachedBias?.poc }, { label: 'D1', poc: cachedDaily?.poc }],
-        atrStruct, config.MULTI_TF_POC_TOLERANCE_ATR
+        [{ label: '2H', poc: cachedBias?.poc, atr: cachedAtr2h }, { label: 'D1', poc: cachedDaily?.poc, atr: cachedAtrD1 }],
+        config.MULTI_TF_POC_TOLERANCE_ATR
       );
       const multiTFFib = core.computeMultiTFFibAlignment(
         bestFibLevel, direction,
-        [{ label: '2H', swing: cachedBias?.swing }, { label: 'D1', swing: cachedDaily?.swing }],
-        atrStruct, config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
+        [{ label: '2H', swing: cachedBias?.swing, atr: cachedAtr2h }, { label: 'D1', swing: cachedDaily?.swing, atr: cachedAtrD1 }],
+        config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
       );
       if (config.DUAL_MULTI_TF_GATE_ENABLED) {
         const pocFull = multiTFPOC.alignedLabels.length >= 2;

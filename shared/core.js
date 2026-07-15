@@ -594,11 +594,21 @@ const computeNakedPOC = (bars, vpLookback, rows, atr, currentPOC, toleranceAtrMu
 // exists that tracked this), so wired as a bounded SIZE multiplier only
 // — not a gate. Returns neutral (no-op) for any pivot other than POC, or
 // when ATR isn't available.
-const computeMultiTFPOCAlignment = (structPOC, macroTFs, atr, toleranceAtrMult) => {
+// v1.1.1 FIX: was `(structPOC, macroTFs, atr, toleranceAtrMult)` using
+// the 30M STRUCTURE's own ATR as the tolerance basis for every macro
+// timeframe — wrong unit of measurement. A price gap between the 30M
+// zone and D1's POC is naturally many multiples of 30M's own (tiny,
+// local) ATR even when the two are genuinely well-aligned relative to
+// D1's OWN (much larger) volatility. Confirmed empirically: a
+// realistically-correlated synthetic dataset showed a "should-align"
+// 30M-vs-D1 gap of 5.3× the 30M ATR, but only 0.95× D1's OWN ATR. Each
+// macroTF now carries its OWN atr, measured on ITS OWN timeframe's data
+// — apples to apples. macroTFs = [{ label, poc, atr }].
+const computeMultiTFPOCAlignment = (structPOC, macroTFs, toleranceAtrMult) => {
   const none = { anyAligned: false, alignedLabels: [] };
-  if (structPOC == null || !(atr > 0) || !Array.isArray(macroTFs)) return none;
+  if (structPOC == null || !Array.isArray(macroTFs)) return none;
   const alignedLabels = macroTFs
-    .filter(m => m && m.poc != null && Math.abs(structPOC - m.poc) <= atr * toleranceAtrMult)
+    .filter(m => m && m.poc != null && m.atr > 0 && Math.abs(structPOC - m.poc) <= m.atr * toleranceAtrMult)
     .map(m => m.label);
   return { anyAligned: alignedLabels.length > 0, alignedLabels };
 };
@@ -612,17 +622,19 @@ const computeMultiTFPOCAlignment = (structPOC, macroTFs, atr, toleranceAtrMult) 
 // this is the basis for the dual multi-TF gate in engine.js/
 // backtest-engine.js (fires only when BOTH systems get 2-of-2 agreement
 // from 2H AND D1, not just "any"). macroSwings = [{ label, swing:
-// {high, low} }] — each swing comes straight from that TF's own
-// tfBiasVote() result, so no extra data fetch is needed for this.
-const computeMultiTFFibAlignment = (bestFibLevel, direction, macroSwings, atr, toleranceAtrMult, fibZoneLow, fibZoneHigh) => {
+// {high, low}, atr }] — swing comes from that TF's own tfBiasVote()
+// result; atr is measured on that SAME timeframe's own data (see the
+// v1.1.1 fix note on computeMultiTFPOCAlignment above — same tolerance-
+// basis reasoning applies here).
+const computeMultiTFFibAlignment = (bestFibLevel, direction, macroSwings, toleranceAtrMult, fibZoneLow, fibZoneHigh) => {
   const none = { anyAligned: false, alignedLabels: [] };
-  if (bestFibLevel == null || !(atr > 0) || !Array.isArray(macroSwings)) return none;
+  if (bestFibLevel == null || !Array.isArray(macroSwings)) return none;
   const alignedLabels = [];
   for (const m of macroSwings) {
-    if (!m || !m.swing || m.swing.high == null || m.swing.low == null) continue;
+    if (!m || !m.swing || m.swing.high == null || m.swing.low == null || !(m.atr > 0)) continue;
     const fib = calcFib(m.swing.high, m.swing.low, direction, fibZoneLow, fibZoneHigh);
     const candidates = [fib.level618, fib.level786, (fib.zoneHigh + fib.zoneLow) / 2];
-    if (candidates.some(c => Math.abs(bestFibLevel - c) <= atr * toleranceAtrMult)) {
+    if (candidates.some(c => Math.abs(bestFibLevel - c) <= m.atr * toleranceAtrMult)) {
       alignedLabels.push(m.label);
     }
   }

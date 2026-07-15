@@ -74,11 +74,15 @@ module.exports = {
 
   // ── Data lookbacks ────────────────────────────────────────────────────────
   // DAILY (D1) — a slow-moving macro opinion. 200 daily bars ≈ 6.5
-  // months of history for the volume profile, 90 for the Fib swing —
-  // deliberately generous since a day bar is expensive in wall-clock
-  // terms to "waste" on a short lookback.
+  // months of history for the volume profile (POC/VAH/VAL naturally
+  // volume-weighted, so a long window is fine there). The FIB lookback
+  // is deliberately shorter — 30 days, not 200 — because a Fib swing
+  // computed from a 90+ day range sits on a completely different price
+  // scale than the 30M structure zone it needs to be compared against
+  // (see MULTI_TF_FIB_TOLERANCE_ATR note above); 30 days keeps the
+  // daily Fib swing genuinely daily-timeframe while still comparable.
   DAILY_VP_LOOKBACK:  200,
-  DAILY_FIB_LOOKBACK:  90,
+  DAILY_FIB_LOOKBACK:  30,
 
   // STRUCT (30M) — ported directly from MVS's 1H structure lookback
   // (500 VP / 200 Fib bars). Same bar COUNT as MVS used for 1H; because
@@ -186,14 +190,21 @@ module.exports = {
   // #4 MULTI-TIMEFRAME POC ALIGNMENT — adapted to GWP's 3-TF design:
   // checks 30M structure POC against 2H bias POC only (no 1D layer here).
   MULTI_TF_POC_ENABLED: process.env.MULTI_TF_POC_ENABLED === 'false' ? false : true,
-  MULTI_TF_POC_TOLERANCE_ATR: 0.75,
+  // v1.1.1 FIX: was 0.75 measured against the WRONG (30M) ATR — see the
+  // v1.1.1 note on core.js computeMultiTFPOCAlignment for the full
+  // story. Now measured against each macro TF's OWN ATR, where a
+  // realistically-aligned case measures roughly 0.1-1.0× — 2.0 gives
+  // genuine room while still being a real filter, not a rubber stamp.
+  MULTI_TF_POC_TOLERANCE_ATR: 2.0,
   MULTI_TF_POC_BOOST_MULT: 1.15,
 
   // #5 MULTI-TIMEFRAME FIBONACCI ALIGNMENT — same idea as #4 above, for
   // Fibonacci instead of POC: does the 30M confluence Fib level ALSO
   // line up with the equivalent Fib pocket computed independently on
   // 2H's and D1's OWN swings? See core.js computeMultiTFFibAlignment().
-  MULTI_TF_FIB_TOLERANCE_ATR: 0.75,
+  // v1.1.1 FIX: same tolerance-basis fix as MULTI_TF_POC_TOLERANCE_ATR
+  // above — now measured against each macro TF's own ATR.
+  MULTI_TF_FIB_TOLERANCE_ATR: 2.0,
 
   // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────────────
   // A hard GATE, not just a size multiplier: requires BOTH systems above
