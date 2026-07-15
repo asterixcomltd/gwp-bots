@@ -1,21 +1,44 @@
 const path = require('path');
 
-function genCandles(n, startTime, barSeconds, startPrice, seedBase) {
+// Generates ONE base 15M random walk, then aggregates it UP into
+// 30M/2H/D1 bars (open=first, close=last, high=max, low=min, volume=
+// sum) — exactly how real exchange data works (a 2H candle IS eight 15M
+// candles combined). Earlier smoke-test data generated a fully
+// INDEPENDENT random walk per timeframe, which made the multi-TF
+// alignment gates untestable (and briefly hid a real tolerance-scale bug
+// — see core.js's v1.1.1 fix notes on computeMultiTFPOCAlignment).
+function genBase15m(n, startTime, startPrice, seedBase) {
   const bars = [];
   let price = startPrice;
   let seed = seedBase;
   const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
   for (let i = 0; i < n; i++) {
-    const drift = (rand() - 0.5) * price * 0.006;
+    const drift = (rand() - 0.5) * price * 0.004;
     const open = price;
     const close = Math.max(0.0001, open + drift);
-    const high = Math.max(open, close) + rand() * price * 0.003;
-    const low = Math.min(open, close) - rand() * price * 0.003;
+    const high = Math.max(open, close) + rand() * price * 0.0015;
+    const low = Math.min(open, close) - rand() * price * 0.0015;
     const volume = 100 + rand() * 900;
-    bars.push({ time: startTime + i * barSeconds, open, high, low, close, volume });
+    bars.push({ time: startTime + i * 900, open, high, low, close, volume });
     price = close;
   }
   return bars;
+}
+
+function aggregate(bars15m, groupBarSeconds) {
+  const groupSize = groupBarSeconds / 900;
+  const out = [];
+  for (let i = 0; i < bars15m.length; i += groupSize) {
+    const chunk = bars15m.slice(i, i + groupSize);
+    if (!chunk.length) continue;
+    out.push({
+      time: chunk[0].time,
+      open: chunk[0].open, close: chunk[chunk.length - 1].close,
+      high: Math.max(...chunk.map(b => b.high)), low: Math.min(...chunk.map(b => b.low)),
+      volume: chunk.reduce((s, b) => s + b.volume, 0),
+    });
+  }
+  return out;
 }
 
 async function testBacktest(botDir, botName) {
@@ -25,14 +48,17 @@ async function testBacktest(botDir, botName) {
 
   const days = 60;
   const now = Math.floor(Date.now() / 1000);
-  const struct = genCandles(Math.ceil(days * 86400 / 1800) + 100, now - (Math.ceil(days*86400/1800)+100)*1800, 1800, 100, 11);
-  const bias   = genCandles(Math.ceil(days * 86400 / 7200) + 50, now - (Math.ceil(days*86400/7200)+50)*7200, 7200, 100, 22);
   // D1 needs its own much longer history to satisfy DAILY_VP_LOOKBACK's
   // warmup (~205 daily bars) — independent of the 60-day evaluation
   // window, same as a real backtest always fetches extra warmup history.
   const dailyDays = config.DAILY_VP_LOOKBACK + days + 10;
-  const daily  = genCandles(dailyDays, now - dailyDays * 86400, 86400, 100, 44);
-  const trigger= genCandles(Math.ceil(days * 86400 / 900) + 100, now - (Math.ceil(days*86400/900)+100)*900, 900, 100, 33);
+  const n15m = dailyDays * 96; // 96 × 15min bars per day
+  const base15m = genBase15m(n15m, now - n15m * 900, 100, 11);
+
+  const trigger = base15m;
+  const struct  = aggregate(base15m, 1800);
+  const bias    = aggregate(base15m, 7200);
+  const daily   = aggregate(base15m, 86400);
 
   const { backtestSymbol, generateReport } = createBacktestEngine({ config, core, version: '1.0.0', botLabel: botName });
   const evalWindowStartTime = now - days * 86400;
