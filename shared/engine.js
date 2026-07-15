@@ -258,16 +258,20 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       // POC check and the Fib check, all in the trade's direction — not
       // just "any" agreement. Computed once here and reused for the
       // alert message/sizing later. See core.js
-      // computeMultiTFPOCAlignment()/computeMultiTFFibAlignment().
+      // computeMultiTFPOCAlignment()/computeMultiTFFibAlignment(). Each
+      // macro TF's tolerance is measured against ITS OWN ATR, not 30M's
+      // — see those functions' v1.1.1 fix notes for why that matters.
+      const atr2h = data2h.length >= config.ATR_PERIOD + 5 ? core.calcATR(data2h, config.ATR_PERIOD) : null;
+      const atrD1 = dataD1.length >= config.ATR_PERIOD + 5 ? core.calcATR(dataD1, config.ATR_PERIOD) : null;
       const multiTFPOC = core.computeMultiTFPOCAlignment(
         vpStruct.pocPrice,
-        [{ label: '2H', poc: bias2h?.poc }, { label: 'D1', poc: biasD1?.poc }],
-        atrStruct, config.MULTI_TF_POC_TOLERANCE_ATR
+        [{ label: '2H', poc: bias2h?.poc, atr: atr2h }, { label: 'D1', poc: biasD1?.poc, atr: atrD1 }],
+        config.MULTI_TF_POC_TOLERANCE_ATR
       );
       const multiTFFib = core.computeMultiTFFibAlignment(
         bestFibLevel, direction,
-        [{ label: '2H', swing: bias2h?.swing }, { label: 'D1', swing: biasD1?.swing }],
-        atrStruct, config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
+        [{ label: '2H', swing: bias2h?.swing, atr: atr2h }, { label: 'D1', swing: biasD1?.swing, atr: atrD1 }],
+        config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
       );
       if (config.DUAL_MULTI_TF_GATE_ENABLED) {
         const pocFull = multiTFPOC.alignedLabels.length >= 2;
