@@ -1,3 +1,8 @@
+🚨🚨🚨 DATA FETCH FAILED FOR EVERY SYMBOL — THIS IS NOT "0 SIGNALS FOUND" 🚨🚨🚨
+All 11 symbol(s) returned insufficient/zero candle data.
+Most likely cause: missing/invalid API key, or the data source is rate-limited/blocking this request.
+Check the full GitHub Actions log for this run (the "run backtest.js" step) for the exact error line.
+
 ═══════════════════════════════════════════════════════════════════
  GWP Stocks v1.0.0 — BACKTEST REPORT
  Period: Last 360 days  |  Symbols: AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, AMD, NFLX, AVGO, SPCX
@@ -64,46 +69,16 @@
   No closed trades yet on a run new enough to track this.
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
-  AAPL:
-    scanned=1794  voteOk=1322(bull=1002/bear=320)  volatilityOk=1322  structureOk=1322
-    notOverExtended=1322  nearZone=2  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  MSFT:
-    scanned=626  voteOk=400(bull=0/bear=400)  volatilityOk=400  structureOk=400
-    notOverExtended=400  nearZone=6  prominenceOk=6  confluenceOk=6  htf2hAligned=6  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  NVDA:
-    scanned=626  voteOk=345(bull=96/bear=249)  volatilityOk=345  structureOk=345
-    notOverExtended=345  nearZone=6  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  AMZN:
-    scanned=626  voteOk=476(bull=194/bear=282)  volatilityOk=476  structureOk=476
-    notOverExtended=476  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  GOOGL:
-    scanned=626  voteOk=265(bull=81/bear=184)  volatilityOk=265  structureOk=265
-    notOverExtended=265  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  META:
-    scanned=626  voteOk=522(bull=122/bear=400)  volatilityOk=522  structureOk=522
-    notOverExtended=522  nearZone=4  prominenceOk=4  confluenceOk=4  htf2hAligned=4  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  TSLA:
-    scanned=626  voteOk=281(bull=85/bear=196)  volatilityOk=281  structureOk=281
-    notOverExtended=281  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  AMD:
-    scanned=626  voteOk=470(bull=470/bear=0)  volatilityOk=470  structureOk=470
-    notOverExtended=470  nearZone=10  prominenceOk=4  confluenceOk=4  htf2hAligned=4  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  NFLX:
-    scanned=626  voteOk=568(bull=0/bear=568)  volatilityOk=568  structureOk=568
-    notOverExtended=568  nearZone=5  prominenceOk=2  confluenceOk=2  htf2hAligned=2  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  AVGO:
-    scanned=626  voteOk=514(bull=122/bear=392)  volatilityOk=514  structureOk=514
-    notOverExtended=514  nearZone=4  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  AAPL: no funnel data
+  MSFT: no funnel data
+  NVDA: no funnel data
+  AMZN: no funnel data
+  GOOGL: no funnel data
+  META: no funnel data
+  TSLA: no funnel data
+  AMD: no funnel data
+  NFLX: no funnel data
+  AVGO: no funnel data
   SPCX: no funnel data
 
 ── PATTERN FREQUENCY ───────────────────────────────────────────────
