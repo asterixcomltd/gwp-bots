@@ -1,3 +1,8 @@
+🚨🚨🚨 DATA FETCH FAILED FOR EVERY SYMBOL — THIS IS NOT "0 SIGNALS FOUND" 🚨🚨🚨
+All 10 symbol(s) returned insufficient/zero candle data.
+Most likely cause: missing/invalid API key, or the data source is rate-limited/blocking this request.
+Check the full GitHub Actions log for this run (the "run backtest.js" step) for the exact error line.
+
 ═══════════════════════════════════════════════════════════════════
  GWP Forex v1.0.0 — BACKTEST REPORT
  Period: Last 360 days  |  Symbols: XAU/USD, EUR/USD, GBP/USD, USD/JPY, GBP/JPY, AUD/USD, USD/CAD, NZD/USD, USD/CHF, EUR/JPY
@@ -63,46 +68,16 @@
   No closed trades yet on a run new enough to track this.
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
-  XAU/USD:
-    scanned=17089  voteOk=10657(bull=4887/bear=5770)  volatilityOk=10657  structureOk=10657
-    notOverExtended=10657  nearZone=182  prominenceOk=80  confluenceOk=80  htf2hAligned=78  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  EUR/USD:
-    scanned=7961  voteOk=5193(bull=2103/bear=3090)  volatilityOk=5193  structureOk=5193
-    notOverExtended=5193  nearZone=362  prominenceOk=238  confluenceOk=238  htf2hAligned=211  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  GBP/USD:
-    scanned=7962  voteOk=6079(bull=3696/bear=2383)  volatilityOk=6079  structureOk=6079
-    notOverExtended=6079  nearZone=284  prominenceOk=128  confluenceOk=128  htf2hAligned=128  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  USD/JPY:
-    scanned=7962  voteOk=6035(bull=5448/bear=587)  volatilityOk=6035  structureOk=6035
-    notOverExtended=6035  nearZone=422  prominenceOk=333  confluenceOk=333  htf2hAligned=215  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  GBP/JPY:
-    scanned=7962  voteOk=6031(bull=4730/bear=1301)  volatilityOk=6031  structureOk=6031
-    notOverExtended=6031  nearZone=250  prominenceOk=168  confluenceOk=168  htf2hAligned=168  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  AUD/USD:
-    scanned=7962  voteOk=5458(bull=2813/bear=2645)  volatilityOk=5458  structureOk=5458
-    notOverExtended=5458  nearZone=138  prominenceOk=62  confluenceOk=62  htf2hAligned=62  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  USD/CAD:
-    scanned=7962  voteOk=5411(bull=4311/bear=1100)  volatilityOk=5411  structureOk=5411
-    notOverExtended=5411  nearZone=289  prominenceOk=158  confluenceOk=158  htf2hAligned=110  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  NZD/USD:
-    scanned=7962  voteOk=5380(bull=1690/bear=3690)  volatilityOk=5380  structureOk=5380
-    notOverExtended=5300  nearZone=481  prominenceOk=43  confluenceOk=43  htf2hAligned=19  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  USD/CHF:
-    scanned=7962  voteOk=5444(bull=3286/bear=2158)  volatilityOk=5444  structureOk=5444
-    notOverExtended=5444  nearZone=196  prominenceOk=54  confluenceOk=54  htf2hAligned=54  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
-  EUR/JPY:
-    scanned=7960  voteOk=4827(bull=3477/bear=1350)  volatilityOk=4827  structureOk=4827
-    notOverExtended=4827  nearZone=383  prominenceOk=258  confluenceOk=258  htf2hAligned=250  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  XAU/USD: no funnel data
+  EUR/USD: no funnel data
+  GBP/USD: no funnel data
+  USD/JPY: no funnel data
+  GBP/JPY: no funnel data
+  AUD/USD: no funnel data
+  USD/CAD: no funnel data
+  NZD/USD: no funnel data
+  USD/CHF: no funnel data
+  EUR/JPY: no funnel data
 
 ── PATTERN FREQUENCY ───────────────────────────────────────────────
 
