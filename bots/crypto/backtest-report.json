@@ -1,1 +1,132 @@
-[]
+[
+  {
+    "symbol": "SOL-USDT",
+    "direction": "BUY",
+    "entryTime": 1777062600,
+    "entryPrice": 85.81700000000001,
+    "slPrice": 85.81700000000001,
+    "tp1Price": 87.72865269651413,
+    "tp2Price": 88.4329,
+    "origSlPrice": 84.22395608623823,
+    "rr1": 1.2,
+    "rr2": 1.64,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "70%-mid",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.9255309666401368,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 2.5990000000000038,
+      "currentPOC": 85.93430000000001,
+      "pastPOC": 83.3353
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 83.34075,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "result": "BE",
+    "exitPrice": 85.81700000000001,
+    "rr": 0,
+    "exitTime": 1777134600,
+    "hoursHeld": 20
+  },
+  {
+    "symbol": "AVAX-USDT",
+    "direction": "SELL",
+    "entryTime": 1775955600,
+    "entryPrice": 9.51238,
+    "slPrice": 9.51238,
+    "tp1Price": 9.274999999999999,
+    "tp2Price": 8.865825,
+    "origSlPrice": 9.703234375315873,
+    "rr1": 1.24,
+    "rr2": 3.39,
+    "patterns": [
+      "PIN_BAR",
+      "ENGULFING"
+    ],
+    "pivot": "VAH",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.4736458707372027,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.6333599999999997,
+      "currentPOC": 9.464115,
+      "pastPOC": 8.830755
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 9.10318,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.24,
+    "result": "TP1+BE",
+    "exitPrice": 9.51238,
+    "rr": 0.62,
+    "exitTime": 1776118500,
+    "hoursHeld": 45
+  }
+]
