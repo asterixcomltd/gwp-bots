@@ -274,8 +274,8 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
       );
       if (config.DUAL_MULTI_TF_GATE_ENABLED) {
-        const pocFull = multiTFPOC.alignedLabels.length >= 2;
-        const fibFull = multiTFFib.alignedLabels.length >= 2;
+        const pocFull = multiTFPOC.alignedLabels.length >= config.DUAL_MULTI_TF_POC_MIN_ALIGNED;
+        const fibFull = multiTFFib.alignedLabels.length >= config.DUAL_MULTI_TF_FIB_MIN_ALIGNED;
         if (!pocFull || !fibFull) {
           console.log(`  ⏳ DUAL MULTI-TF GATE: POC aligned=[${multiTFPOC.alignedLabels.join(',')}] Fib aligned=[${multiTFFib.alignedLabels.join(',')}] — need BOTH 2H+D1 on both. Waiting.`);
           logDiag({ symbol, barTime, price, fired: false, reason: 'DUAL_MULTI_TF_GATE_FAILED', pocAligned: multiTFPOC.alignedLabels, fibAligned: multiTFFib.alignedLabels });
@@ -418,7 +418,7 @@ ${emoji} *${symbol} — GWP Signal*
 📊 *Direction:* ${direction}
 ${voteLine}
 🔗 *2H Zone:* near ${htfCheck.nearestLevel} ✅
-${config.DUAL_MULTI_TF_GATE_ENABLED ? `🎯 *Dual Multi-TF:* POC✅ Fib✅ (2H+D1 both confirm)\n` : ''}${td9Line}
+${config.DUAL_MULTI_TF_GATE_ENABLED ? `🎯 *Dual Multi-TF:* POC✅[${multiTFPOC.alignedLabels.join('+')}] Fib✅[${multiTFFib.alignedLabels.join('+')}]\n` : ''}${td9Line}
 
 ━━━━━━━━━━━━━━━━━━━━
 💵 *Entry:* \`$${bestFibLevel.toFixed(4)}\` (30M Fib ${fibPct} ↔ ${bestPivot.name})

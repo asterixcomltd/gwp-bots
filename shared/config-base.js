@@ -219,6 +219,18 @@ module.exports = {
   // asked for. Verify the actual effect with backtest.js, same as any
   // other setting here.
   DUAL_MULTI_TF_GATE_ENABLED: process.env.DUAL_MULTI_TF_GATE_ENABLED === 'false' ? false : true,
+  // v1.1.2 FIX: was hardcoded to require BOTH 2H AND D1 (length>=2) on
+  // BOTH the POC and Fib systems — confirmed too strict against REAL
+  // data: crypto's signal count dropped from 62 (360 days, pre-D1) to 2
+  // with this gate at full strictness, far below the "at least 1
+  // trade/week" target. These are now tunable minimums instead of a
+  // hardcoded "both" requirement. Default of 1 means "at least one of
+  // {2H, D1} confirms" for each system (POC and Fib independently still
+  // both required) — a real filter, just not a near-impossible one. Set
+  // back to 2 for the original, much stricter "both timeframes must
+  // agree" behavior if backtest results support it for your symbols.
+  DUAL_MULTI_TF_POC_MIN_ALIGNED: parseInt(process.env.DUAL_MULTI_TF_POC_MIN_ALIGNED, 10) || 1,
+  DUAL_MULTI_TF_FIB_MIN_ALIGNED: parseInt(process.env.DUAL_MULTI_TF_FIB_MIN_ALIGNED, 10) || 1,
 
   RISK_PER_TRADE_PCT: 1.5,
   SLIPPAGE_PCT: 0.001,

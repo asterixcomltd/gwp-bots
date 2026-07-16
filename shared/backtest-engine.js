@@ -198,8 +198,8 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
       );
       if (config.DUAL_MULTI_TF_GATE_ENABLED) {
-        const pocFull = multiTFPOC.alignedLabels.length >= 2;
-        const fibFull = multiTFFib.alignedLabels.length >= 2;
+        const pocFull = multiTFPOC.alignedLabels.length >= config.DUAL_MULTI_TF_POC_MIN_ALIGNED;
+        const fibFull = multiTFFib.alignedLabels.length >= config.DUAL_MULTI_TF_FIB_MIN_ALIGNED;
         if (!pocFull || !fibFull) continue;
       }
       funnel.dualMultiTFOk++;
