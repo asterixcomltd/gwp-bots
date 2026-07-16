@@ -1,1 +1,1764 @@
-[]
+[
+  {
+    "symbol": "XAU/USD",
+    "direction": "SELL",
+    "entryTime": 1781719200,
+    "entryPrice": 4332.49,
+    "slPrice": 4332.49,
+    "tp1Price": 4265.93081738004,
+    "tp2Price": 4183.75097155,
+    "origSlPrice": 4387.955985516633,
+    "rr1": 1.2,
+    "rr2": 2.68,
+    "patterns": [
+      "POC_RECLAIM",
+      "VAH_VAL_RECLAIM",
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "70%-mid",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.546570073497472,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -137.38389579999966,
+      "currentPOC": 4327.79928755,
+      "pastPOC": 4465.18318335
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 4463.3132949,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 4183.75097155,
+    "rr": 1.94,
+    "exitTime": 1781829000,
+    "hoursHeld": 31
+  },
+  {
+    "symbol": "EUR/USD",
+    "direction": "SELL",
+    "entryTime": 1772397900,
+    "entryPrice": 1.18119796,
+    "slPrice": 1.18119796,
+    "tp1Price": 1.178689751838653,
+    "tp2Price": 1.17688425,
+    "origSlPrice": 1.1832881334677892,
+    "rr1": 1.2,
+    "rr2": 2.06,
+    "patterns": [
+      "POC_RECLAIM",
+      "PIN_BAR",
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAH",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.7278436845762686,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0.0000358000000002523,
+      "currentPOC": 1.1783994500000001,
+      "pastPOC": 1.1783636499999999
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 1.18700225,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 1.17688425,
+    "rr": 1.63,
+    "exitTime": 1772402400,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "EUR/USD",
+    "direction": "BUY",
+    "entryTime": 1782828000,
+    "entryPrice": 1.13905774,
+    "slPrice": 1.13905774,
+    "tp1Price": 1.1407321121926184,
+    "tp2Price": 1.14249285,
+    "origSlPrice": 1.1376624298394846,
+    "rr1": 1.2,
+    "rr2": 2.46,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.9208754208754022,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.008759799999999984,
+      "currentPOC": 1.13899265,
+      "pastPOC": 1.14775245
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 1.1572171,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 1.14249285,
+    "rr": 1.83,
+    "exitTime": 1782830700,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "EUR/USD",
+    "direction": "BUY",
+    "entryTime": 1784031300,
+    "entryPrice": 1.139831,
+    "slPrice": 1.139831,
+    "tp1Price": 1.1424890000775605,
+    "tp2Price": 1.1438142999999998,
+    "origSlPrice": 1.1376159999353663,
+    "rr1": 1.2,
+    "rr2": 1.8,
+    "patterns": [
+      "POC_RECLAIM",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "70%-mid",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.0312931431200707,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.002661449999999954,
+      "currentPOC": 1.1414437,
+      "pastPOC": 1.14410515
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 1.13902495,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 1.1438142999999998,
+    "rr": 1.5,
+    "exitTime": 1784032200,
+    "hoursHeld": 0
+  },
+  {
+    "symbol": "GBP/USD",
+    "direction": "BUY",
+    "entryTime": 1778481000,
+    "entryPrice": 1.3566080999999999,
+    "slPrice": 1.3566080999999999,
+    "tp1Price": 1.3592548576377548,
+    "tp2Price": 1.363086,
+    "origSlPrice": 1.354402468635204,
+    "rr1": 1.2,
+    "rr2": 2.94,
+    "patterns": [
+      "POC_RECLAIM",
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.9733333333333616,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.006148200000000159,
+      "currentPOC": 1.3587660000000001,
+      "pastPOC": 1.3526178
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 1.3501663000000002,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 1.363086,
+    "rr": 2.07,
+    "exitTime": 1778510700,
+    "hoursHeld": 8
+  },
+  {
+    "symbol": "GBP/JPY",
+    "direction": "BUY",
+    "entryTime": 1777226400,
+    "entryPrice": 214.77641316,
+    "slPrice": 214.77641316,
+    "tp1Price": 215.2069756725663,
+    "tp2Price": 215.71668205,
+    "origSlPrice": 214.41761106619475,
+    "rr1": 1.2,
+    "rr2": 2.62,
+    "patterns": [
+      "POC_RECLAIM",
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.3299451931900192,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.9248330000000351,
+      "currentPOC": 215.29994175000002,
+      "pastPOC": 214.37510874999998
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 214.18998125,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 215.71668205,
+    "rr": 1.91,
+    "exitTime": 1777227300,
+    "hoursHeld": 0
+  },
+  {
+    "symbol": "GBP/JPY",
+    "direction": "BUY",
+    "entryTime": 1781449200,
+    "entryPrice": 214.13625246,
+    "slPrice": 214.13625246,
+    "tp1Price": 214.57915659536778,
+    "tp2Price": 215.6025736,
+    "origSlPrice": 213.76716568052686,
+    "rr1": 1.2,
+    "rr2": 3.97,
+    "patterns": [
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.097213878518489,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.8349839999999915,
+      "currentPOC": 214.7954224,
+      "pastPOC": 213.96043840000002
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 214.271492,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 214.13625246,
+    "rr": 0.6,
+    "exitTime": 1781454600,
+    "hoursHeld": 2
+  },
+  {
+    "symbol": "GBP/JPY",
+    "direction": "BUY",
+    "entryTime": 1781460900,
+    "entryPrice": 214.1100182,
+    "slPrice": 214.1100182,
+    "tp1Price": 214.54163382466407,
+    "tp2Price": 215.6025736,
+    "origSlPrice": 213.75033851277996,
+    "rr1": 1.2,
+    "rr2": 4.15,
+    "patterns": [
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.1123686660701493,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.8349839999999915,
+      "currentPOC": 214.7954224,
+      "pastPOC": 213.96043840000002
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 214.271492,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 214.1100182,
+    "rr": 0.6,
+    "exitTime": 1781464500,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "GBP/JPY",
+    "direction": "BUY",
+    "entryTime": 1781467200,
+    "entryPrice": 214.15417496,
+    "slPrice": 214.15417496,
+    "tp1Price": 214.66894342258908,
+    "tp2Price": 215.6025736,
+    "origSlPrice": 213.72520124117577,
+    "rr1": 1.2,
+    "rr2": 3.38,
+    "patterns": [
+      "POC_RECLAIM",
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.0532537108474904,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.8349839999999915,
+      "currentPOC": 214.7954224,
+      "pastPOC": 213.96043840000002
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 214.271492,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 214.15417496,
+    "rr": 0.6,
+    "exitTime": 1781719200,
+    "hoursHeld": 70
+  },
+  {
+    "symbol": "GBP/JPY",
+    "direction": "BUY",
+    "entryTime": 1782673200,
+    "entryPrice": 213.0707853,
+    "slPrice": 213.0707853,
+    "tp1Price": 213.4203349305752,
+    "tp2Price": 213.70263874999998,
+    "origSlPrice": 212.77949394118735,
+    "rr1": 1.2,
+    "rr2": 2.17,
+    "patterns": [
+      "POC_RECLAIM",
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.882941167186064,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0.03115764999998305,
+      "currentPOC": 213.46971374999998,
+      "pastPOC": 213.4385561
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 214.7745725,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 213.70263874999998,
+    "rr": 1.69,
+    "exitTime": 1782674100,
+    "hoursHeld": 0
+  },
+  {
+    "symbol": "USD/CAD",
+    "direction": "BUY",
+    "entryTime": 1772586000,
+    "entryPrice": 1.36584804,
+    "slPrice": 1.36584804,
+    "tp1Price": 1.3692715222085556,
+    "tp2Price": 1.3709657499999999,
+    "origSlPrice": 1.3629951381595369,
+    "rr1": 1.2,
+    "rr2": 1.79,
+    "patterns": [
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.725507502206659,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.0018927000000001915,
+      "currentPOC": 1.3666987499999999,
+      "pastPOC": 1.36859145
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 1.3616694,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 1.36584804,
+    "rr": 0.6,
+    "exitTime": 1772609400,
+    "hoursHeld": 7
+  },
+  {
+    "symbol": "USD/CAD",
+    "direction": "SELL",
+    "entryTime": 1777537800,
+    "entryPrice": 1.3688139799999999,
+    "slPrice": 1.3688139799999999,
+    "tp1Price": 1.365545,
+    "tp2Price": 1.3646357,
+    "origSlPrice": 1.3714265488315778,
+    "rr1": 1.25,
+    "rr2": 1.6,
+    "patterns": [
+      "POC_RECLAIM",
+      "PIN_BAR"
+    ],
+    "pivot": "VAH",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.342526690391381,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.005986349999999918,
+      "currentPOC": 1.3671833,
+      "pastPOC": 1.37316965
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 1.3706109,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.25,
+    "result": "TP1+TP2",
+    "exitPrice": 1.3646357,
+    "rr": 1.43,
+    "exitTime": 1777557600,
+    "hoursHeld": 6
+  },
+  {
+    "symbol": "USD/CAD",
+    "direction": "BUY",
+    "entryTime": 1782405000,
+    "entryPrice": 1.4166560000000001,
+    "slPrice": 1.4166560000000001,
+    "tp1Price": 1.4212032840072701,
+    "tp2Price": 1.4233106500000001,
+    "origSlPrice": 1.4128665966606084,
+    "rr1": 1.2,
+    "rr2": 1.76,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "70%-mid",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": true,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.5170888620828524,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.01782970000000006,
+      "currentPOC": 1.41654985,
+      "pastPOC": 1.39872015
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 1.39884725,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "beMoved": true,
+    "result": "EARLY_TIMEOUT",
+    "exitPrice": 1.4195,
+    "rr": 0.75,
+    "exitTime": 1782531900,
+    "hoursHeld": 35
+  },
+  {
+    "symbol": "USD/CAD",
+    "direction": "BUY",
+    "entryTime": 1782991800,
+    "entryPrice": 1.4190965599999998,
+    "slPrice": 1.4190965599999998,
+    "tp1Price": 1.4211331381545875,
+    "tp2Price": 1.42298595,
+    "origSlPrice": 1.4173994115378434,
+    "rr1": 1.2,
+    "rr2": 2.29,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.7874285714285048,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.002860900000000166,
+      "currentPOC": 1.41933915,
+      "pastPOC": 1.41647825
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 1.3989346,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 1.4190965599999998,
+    "rr": 0.6,
+    "exitTime": 1782995400,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "NZD/USD",
+    "direction": "BUY",
+    "entryTime": 1772413200,
+    "entryPrice": 0.59590018,
+    "slPrice": 0.59590018,
+    "tp1Price": 0.5980117711830569,
+    "tp2Price": 0.5985771,
+    "origSlPrice": 0.5941405206807859,
+    "rr1": 1.2,
+    "rr2": 1.52,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.90666666666663,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.007366849999999925,
+      "currentPOC": 0.5963391,
+      "pastPOC": 0.6037059499999999
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.6037138,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 0.5985771,
+    "rr": 1.36,
+    "exitTime": 1772414100,
+    "hoursHeld": 0
+  },
+  {
+    "symbol": "USD/CHF",
+    "direction": "BUY",
+    "entryTime": 1774254600,
+    "entryPrice": 0.78785498,
+    "slPrice": 0.78785498,
+    "tp1Price": 0.790735,
+    "tp2Price": 0.7926373,
+    "origSlPrice": 0.7854936362572248,
+    "rr1": 1.22,
+    "rr2": 2.03,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.7880571909166534,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.005751100000000009,
+      "currentPOC": 0.7881783,
+      "pastPOC": 0.7939294
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.7801369,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.22,
+    "result": "TP1+TP2",
+    "exitPrice": 0.7926373,
+    "rr": 1.63,
+    "exitTime": 1774257300,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "USD/CHF",
+    "direction": "SELL",
+    "entryTime": 1782801900,
+    "entryPrice": 0.80955,
+    "slPrice": 0.80955,
+    "tp1Price": 0.8079837581024011,
+    "tp2Price": 0.80712915,
+    "origSlPrice": 0.8108552015813324,
+    "rr1": 1.2,
+    "rr2": 1.85,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "70%-mid",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.5549525101764001,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.002437950000000022,
+      "currentPOC": 0.80961835,
+      "pastPOC": 0.8071804
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.7985781,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "result": "BE",
+    "exitPrice": 0.80955,
+    "rr": 0,
+    "exitTime": 1782806400,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "USD/CHF",
+    "direction": "SELL",
+    "entryTime": 1782828900,
+    "entryPrice": 0.8098068,
+    "slPrice": 0.8098068,
+    "tp1Price": 0.8086290723328264,
+    "tp2Price": 0.80721805,
+    "origSlPrice": 0.8107882397226447,
+    "rr1": 1.2,
+    "rr2": 2.64,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.587515299877617,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.002437950000000022,
+      "currentPOC": 0.80961835,
+      "pastPOC": 0.8071804
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.7985781,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 0.80721805,
+    "rr": 1.92,
+    "exitTime": 1782830700,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1773970200,
+    "entryPrice": 182.29194184,
+    "slPrice": 182.29194184,
+    "tp1Price": 182.83778506002318,
+    "tp2Price": 183.3844034,
+    "origSlPrice": 181.83707248998067,
+    "rr1": 1.2,
+    "rr2": 2.4,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.4123252085320661,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.18309715000000892,
+      "currentPOC": 182.4603554,
+      "pastPOC": 182.64345255
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 183.9119708,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 183.3844034,
+    "rr": 1.8,
+    "exitTime": 1773995400,
+    "hoursHeld": 7
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1774710000,
+    "entryPrice": 184.10744628,
+    "slPrice": 184.10744628,
+    "tp1Price": 184.5075349148714,
+    "tp2Price": 184.75947430000002,
+    "origSlPrice": 183.77403908427385,
+    "rr1": 1.2,
+    "rr2": 1.96,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "78.6%",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.1056066763382013,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 1.73179374999998,
+      "currentPOC": 184.2077419,
+      "pastPOC": 182.47594815000002
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 182.4603554,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 184.75947430000002,
+    "rr": 1.58,
+    "exitTime": 1774712700,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1774807200,
+    "entryPrice": 183.8133408,
+    "slPrice": 183.8133408,
+    "tp1Price": 184.31205440415897,
+    "tp2Price": 184.69817070000002,
+    "origSlPrice": 183.3977461298675,
+    "rr1": 1.2,
+    "rr2": 2.13,
+    "patterns": [
+      "POC_RECLAIM",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.111798061954992,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 1.73179374999998,
+      "currentPOC": 184.2077419,
+      "pastPOC": 182.47594815000002
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 182.4603554,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 183.8133408,
+    "rr": 0.6,
+    "exitTime": 1774854000,
+    "hoursHeld": 13
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1776663900,
+    "entryPrice": 186.40515,
+    "slPrice": 186.40515,
+    "tp1Price": 186.97,
+    "tp2Price": 187.3551179,
+    "origSlPrice": 185.94633878464788,
+    "rr1": 1.23,
+    "rr2": 2.07,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.5283846704870927,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0.013998549999996612,
+      "currentPOC": 186.6731759,
+      "pastPOC": 186.65917735
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 183.9115323,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.23,
+    "result": "TP1+TP2",
+    "exitPrice": 187.3551179,
+    "rr": 1.65,
+    "exitTime": 1776782700,
+    "hoursHeld": 33
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1777222800,
+    "entryPrice": 186.46163672,
+    "slPrice": 186.46163672,
+    "tp1Price": 186.8915329664059,
+    "tp2Price": 187.058875,
+    "origSlPrice": 186.1033898479951,
+    "rr1": 1.2,
+    "rr2": 1.67,
+    "patterns": [
+      "VAH_VAL_RECLAIM",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "61.8%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.6549891129268286,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": -0.06855089999999109,
+      "currentPOC": 186.604625,
+      "pastPOC": 186.6731759
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 187.41824625,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "beMoved": true,
+    "result": "BE",
+    "exitPrice": 186.46163672,
+    "rr": 0,
+    "exitTime": 1777226400,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1777227300,
+    "entryPrice": 186.46163672,
+    "slPrice": 186.46163672,
+    "tp1Price": 186.8915329664059,
+    "tp2Price": 187.058875,
+    "origSlPrice": 186.1033898479951,
+    "rr1": 1.2,
+    "rr2": 1.67,
+    "patterns": [
+      "POC_RECLAIM",
+      "VAH_VAL_RECLAIM",
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "61.8%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.6549891129268286,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": -0.06855089999999109,
+      "currentPOC": 186.604625,
+      "pastPOC": 186.6731759
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 187.41824625,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "beMoved": true,
+    "result": "BE",
+    "exitPrice": 186.46163672,
+    "rr": 0,
+    "exitTime": 1777230900,
+    "hoursHeld": 1
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1777232700,
+    "entryPrice": 186.46163672,
+    "slPrice": 186.46163672,
+    "tp1Price": 186.91077832779877,
+    "tp2Price": 187.019375,
+    "origSlPrice": 186.08735204683435,
+    "rr1": 1.2,
+    "rr2": 1.49,
+    "patterns": [
+      "POC_RECLAIM",
+      "PIN_BAR",
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "61.8%",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.2936237208081853,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0.09056889999999385,
+      "currentPOC": 186.604625,
+      "pastPOC": 186.5140561
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 187.33825325,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 187.019375,
+    "rr": 1.34,
+    "exitTime": 1777276800,
+    "hoursHeld": 12
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1779397200,
+    "entryPrice": 184.43217156,
+    "slPrice": 184.43217156,
+    "tp1Price": 184.73273120687114,
+    "tp2Price": 184.9899409,
+    "origSlPrice": 184.18170518760738,
+    "rr1": 1.2,
+    "rr2": 2.23,
+    "patterns": [
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "2H",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.7978725837813376,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.1250801500000307,
+      "currentPOC": 184.5344261,
+      "pastPOC": 184.65950625000002
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 184.65372514999999,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 184.43217156,
+    "rr": 0.6,
+    "exitTime": 1779646500,
+    "hoursHeld": 69
+  },
+  {
+    "symbol": "EUR/JPY",
+    "direction": "BUY",
+    "entryTime": 1781464500,
+    "entryPrice": 184.77602444000001,
+    "slPrice": 184.77602444000001,
+    "tp1Price": 185.27025891282483,
+    "tp2Price": 185.55517005000002,
+    "origSlPrice": 184.36416237931266,
+    "rr1": 1.2,
+    "rr2": 1.89,
+    "patterns": [
+      "POC_RECLAIM",
+      "VAH_VAL_RECLAIM",
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.037069179538673,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.7271487499999978,
+      "currentPOC": 185.40464025,
+      "pastPOC": 184.6774915
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 185.72759095,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "2H",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 185.55517005000002,
+    "rr": 1.54,
+    "exitTime": 1781474400,
+    "hoursHeld": 3
+  }
+]
