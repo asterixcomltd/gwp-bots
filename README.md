@@ -8,22 +8,44 @@ indicators), same shared-core discipline, same trade-management mechanics
 sizing boost). The **only** structural change from MVS is the timeframe
 architecture itself.
 
-## Timeframe architecture
+## Timeframe architecture (v1.1.2)
 
 MVS's own codebase documents its *original* v10.0 design as a 3-timeframe,
 2-of-3 vote (4H bias / 1H structure / 15m trigger) before it was later
-expanded to 5 timeframes. GWP deliberately keeps that simpler original
-design, shifted one rung down the clock:
+expanded to 5 timeframes, using Daily as a second bias-vote layer. GWP
+restores that same 4-timeframe pattern, one rung down the clock:
 
 | Role       | Timeframe | Job                                                          |
 |------------|-----------|---------------------------------------------------------------|
-| **Bias**   | **2H**    | Macro POC/VAH/VAL/Fib50 vote only                              |
+| **Bias**   | **D1**    | A second, slower macro POC/VAH/VAL/Fib50 vote                 |
+| **Bias**   | **2H**    | Macro POC/VAH/VAL/Fib50 vote                                   |
 | **Structure** | **30M** | Swing, Fibonacci golden pocket, POC/VAH/VAL zone, ATR, SL anchor |
 | **Entry (trigger)** | **15M** | The actual rejection candle that fires the signal        |
 
-Direction requires **2 of these 3** timeframes to agree before anything can
+Direction requires **3 of these 4** timeframes to agree before anything can
 fire — no single timeframe can force a trade on its own. The bot scans
 every 15 minutes, matching the 15M trigger cadence.
+
+**On top of the vote**, a **dual multi-TF gate** requires the 30M zone's
+confluence level to also line up with the equivalent level computed
+independently on 2H and D1 — checked TWICE, once for POC
+(`computeMultiTFPOCAlignment`) and once for Fibonacci
+(`computeMultiTFFibAlignment`). `DUAL_MULTI_TF_POC_MIN_ALIGNED` and
+`DUAL_MULTI_TF_FIB_MIN_ALIGNED` (both default `1`) control how many of
+{2H, D1} must independently confirm each system — default is "at least
+one of the two," not "both." An earlier version hardcoded "both required"
+and it crushed signal frequency far below a usable rate on real data
+(crypto went from ~62 signals/360 days down to 2); these are tunable via
+env vars if you want to re-test stricter settings against your own
+backtest numbers. This sits on top of, not instead of, the 15M
+rejection-candle requirement.
+
+**Important tolerance note:** each multi-TF check measures against that
+specific timeframe's *own* ATR, not 30M's. A price gap that looks huge in
+30M-ATR terms can be perfectly normal relative to D1's own (much larger)
+volatility — comparing against the wrong timeframe's ATR was an earlier
+bug that made the dual gate never fire at all (see `core.js`'s v1.1.1 fix
+notes on `computeMultiTFPOCAlignment`).
 
 ## Repo layout
 
@@ -100,19 +122,63 @@ further across sub-bots.
    - `CRYPTO_TG_TOKEN`, `CRYPTO_CHAT_ID`
    - `FOREX_TG_TOKEN`, `FOREX_CHAT_ID`
    - `STOCKS_TG_TOKEN`, `STOCKS_CHAT_ID`
-   - `TWELVE_DATA_KEY` (used by both Forex and Stocks)
+   - `FOREX_TWELVE_DATA_KEYS` and `STOCKS_TWELVE_DATA_KEYS` — **separate
+     pools, not shared** (see "API key economics" below for why this
+     matters). Falls back to a shared `TWELVE_DATA_KEYS` secret, then a
+     single legacy `TWELVE_DATA_KEY`, if a dedicated one isn't set.
 3. Run each bot's `setup-bot.js` once (via the `*-setup.yml` workflow, or
    locally with the right env vars) to configure the Telegram bot profile
    and command menu.
 4. The `*-scan.yml` workflows scan every 15 minutes automatically once
    pushed to GitHub (public repos get unlimited free Actions minutes).
 
+### API key economics — read this before setting up Forex/Stocks
+
+Twelve Data's free/basic plan caps out at **800 credits/day per key**.
+Even with the incremental candle cache (`shared/twelvedata.js` — skips a
+fetch entirely when no new bar is due yet), live scanning alone needs
+roughly:
+
+| Bot    | Symbols | Live-scan credits/day (approx) | Backtest credits (one run, approx) |
+|--------|---------|-------------------------------|--------------------------------------|
+| Forex  | 10      | ~1,570                        | ~1,500                               |
+| Stocks | 11      | ~1,730                        | ~1,700                               |
+
+**Give each bot its own dedicated key pool — don't share one pool between
+Forex and Stocks.** An earlier setup shared one `TWELVE_DATA_KEYS` pool
+between both bots, and because both bots' weekly backtests were scheduled
+the same day, combined demand on backtest day (~6,500 credits: both bots'
+live scanning + both bots' backtests) blew past even a 5-key (4,000/day)
+shared pool — backtests failed completely with "DATA FETCH FAILED FOR
+EVERY SYMBOL" even though the keys worked fine for live scanning (proven
+by a populated `candle-cache.json`).
+
+**Example: aligning 5 Twelve Data keys for Forex.**
+1. Sign up for 5 free API keys at twelvedata.com (different emails if
+   needed — one key per signup).
+2. In your repo: **Settings → Secrets and variables → Actions → New
+   repository secret**.
+3. Name it `FOREX_TWELVE_DATA_KEYS`, and paste all 5 keys **comma-
+   separated, no spaces**:
+   ```
+   abc123def456,ghi789jkl012,mno345pqr678,stu901vwx234,yz5678abc901
+   ```
+   (placeholders — use your real keys). This gives Forex a dedicated
+   4,000 credits/day, comfortably covering its ~1,570/day live-scan need
+   plus room for its own weekly backtest.
+4. Repeat with a **different** set of 5 keys under `STOCKS_TWELVE_DATA_KEYS`
+   for Stocks. Do not reuse the same 5 keys for both secrets — that
+   recreates the shared-pool problem this section is about.
+
+If you'd rather run fewer keys, reduce `SYMBOLS` in that bot's `config.js`
+instead of hoping a small shared pool stretches across both bots.
+
 ### Local backtesting
 
 ```bash
 cd bots/crypto  && TELEGRAM_BOT_TOKEN=x TELEGRAM_CHAT_ID=x node backtest.js
-cd bots/forex   && TWELVE_DATA_KEY=x node backtest.js EUR/USD 180
-cd bots/stocks  && TWELVE_DATA_KEY=x node backtest.js AAPL 90
+cd bots/forex   && FOREX_TWELVE_DATA_KEYS=key1,key2,key3 node backtest.js EUR/USD 180
+cd bots/stocks  && STOCKS_TWELVE_DATA_KEYS=key1,key2,key3 node backtest.js AAPL 90
 ```
 
 Each run writes `backtest-report.txt` / `backtest-report.json` in that
@@ -122,9 +188,16 @@ performance figures are hardcoded anywhere in this repo.
 ### Local smoke tests (no network, no API keys needed)
 
 ```bash
-node tests/smoke-test-live.js       # synthetic candles through the live pipeline
-node tests/smoke-test-backtest.js   # synthetic candles through the backtest engine
+node tests/smoke-test-live.js       # correlated synthetic candles through the live pipeline
+node tests/smoke-test-backtest.js   # correlated synthetic candles through the backtest engine
 ```
+
+Both generate ONE base 15-minute price series and aggregate it UP into
+30M/2H/D1 bars (exactly how real exchange data works — a 2H candle IS
+eight 15M candles combined), so the multi-TF alignment gates are
+genuinely exercised. An earlier version of these tests generated
+independent random walks per timeframe, which made the dual multi-TF gate
+untestable locally and briefly hid a real bug.
 
 ## Assets tracked
 
@@ -133,9 +206,37 @@ node tests/smoke-test-backtest.js   # synthetic candles through the backtest eng
 - **Forex** (Twelve Data): XAU/USD, EUR/USD, GBP/USD, USD/JPY, GBP/JPY,
   AUD/USD, USD/CAD, NZD/USD, USD/CHF, EUR/JPY.
 - **Stocks** (Twelve Data): AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, AMD,
-  NFLX, AVGO.
+  NFLX, AVGO, SPCX (SpaceX — IPO'd on Nasdaq June 2026).
 
 Edit `SYMBOLS` in each bot's `bots/<name>/config.js` to change this list.
+
+## Changelog / mistakes learned
+
+Kept here deliberately, not swept away — same "verify, don't assume"
+standard as the rest of this repo.
+
+- **v1.1.2**: Fixed `/status` never displaying D1 bias (it was tallied in
+  the vote but missing from the display line). Made the dual multi-TF
+  gate's strictness tunable (`DUAL_MULTI_TF_POC_MIN_ALIGNED` /
+  `DUAL_MULTI_TF_FIB_MIN_ALIGNED`, default 1) after confirming the
+  hardcoded "both 2H+D1 required" version crushed real signal frequency
+  far below a usable rate. Split Forex/Stocks onto separate dedicated
+  Twelve Data key pools after confirming a shared pool starved both bots'
+  backtests on the day both bots' weekly backtests coincided.
+- **v1.1.1**: Fixed the dual multi-TF gate never firing at all — it
+  measured alignment against the wrong timeframe's ATR (30M's tiny ATR
+  instead of each macro timeframe's own), making genuine alignment cases
+  look like enormous mismatches. Also fixed the synthetic smoke tests,
+  which generated independent random walks per timeframe instead of one
+  correlated series — that made the bug invisible locally.
+- **v1.1.0**: Added D1 as a 4th timeframe (3-of-4 vote) and the dual
+  multi-TF POC+Fib confirmation gate. Added multi-key Twelve Data
+  rotation and an incremental candle cache. Fixed daily-vs-per-minute
+  credit exhaustion being treated identically (daily exhaustion isn't
+  transient — waiting doesn't help until the vendor's next reset).
+- **v1.0.x**: Initial 3-TF (2H/30M/15M) build, KuCoin geo-block
+  diagnostics, GitHub Actions race-condition fixes on shared commit
+  steps, Telegram long-polling to reduce command response delay.
 
 ## Honesty notes (carried over from MVS-bot's own standing rules)
 
