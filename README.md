@@ -215,6 +215,22 @@ Edit `SYMBOLS` in each bot's `bots/<name>/config.js` to change this list.
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.1.3**: Found the REAL post-D1 frequency bottleneck via real
+  backtest funnel data — not the dual multi-TF gate (which was passing
+  85-95% of candidates by this point, and crypto's win rate had actually
+  IMPROVED to 90%), but `TP2_MIN_EXTENSION_RR` (unrelated old MVS-ported
+  logic): 307 trigger-qualified candidates across all 14 crypto symbols,
+  only 10 survived this one gate. The dual gate selects setups closer to
+  their TP2 target already, so the old 0.25R minimum-extension threshold
+  — tuned against a different candidate distribution — rejected almost
+  all of them. Lowered to 0.05. Also confirmed via Twelve Data's own
+  documentation why Stocks kept returning far less usable data than
+  Forex even with working keys: equities' INTRADAY data (15min/30min/2H)
+  is only available for "a few months" on this plan, unlike forex/crypto
+  intraday history which goes back a year or more — D1 itself is NOT
+  restricted this way. Requesting the default 360 backtest days meant
+  most of that request returned nothing, and warmup ate nearly all of
+  what little was available. Stocks' `BACKTEST_DAYS` is now 90, not 360.
 - **v1.1.2**: Fixed `/status` never displaying D1 bias (it was tallied in
   the vote but missing from the display line). Made the dual multi-TF
   gate's strictness tunable (`DUAL_MULTI_TF_POC_MIN_ALIGNED` /
