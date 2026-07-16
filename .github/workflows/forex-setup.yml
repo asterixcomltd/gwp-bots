@@ -17,5 +17,6 @@ jobs:
         env:
           FOREX_TG_TOKEN: ${{ secrets.FOREX_TG_TOKEN }}
           FOREX_CHAT_ID: ${{ secrets.FOREX_CHAT_ID }}
+          FOREX_TWELVE_DATA_KEYS: ${{ secrets.FOREX_TWELVE_DATA_KEYS }}
           TWELVE_DATA_KEYS: ${{ secrets.TWELVE_DATA_KEYS }}
           TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
