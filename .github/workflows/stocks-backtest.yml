@@ -11,7 +11,7 @@ on:
       days:
         description: 'Days of history to backtest'
         required: false
-        default: '360'
+        default: '90'
 
 permissions:
   contents: write
@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
-      - run: node backtest.js "${{ github.event.inputs.symbols }}" "${{ github.event.inputs.days || '360' }}"
+      - run: node backtest.js "${{ github.event.inputs.symbols }}" "${{ github.event.inputs.days || '90' }}"
         working-directory: bots/stocks
         env:
           STOCKS_TG_TOKEN: ${{ secrets.STOCKS_TG_TOKEN }}
