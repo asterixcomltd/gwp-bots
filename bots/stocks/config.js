@@ -10,10 +10,15 @@
  *  under ticker SPCX in June 2026 — a real, current, tradeable symbol,
  *  not a placeholder.
  *
- *  API KEY ECONOMICS — READ THIS: same shared Twelve Data account/budget
- *  reasoning as bots/forex/config.js — see that file's header for the
- *  full math. TWELVE_DATA_KEYS below accepts a comma-separated list of
- *  multiple free keys to raise the combined daily budget.
+ *  v1.1.2 FIX — SEPARATE KEY POOLS PER BOT: this bot and Forex used to
+ *  share ONE TWELVE_DATA_KEYS pool, and both bots' weekly backtests were
+ *  scheduled the same day — combined demand blew past even a 5-key
+ *  shared pool on backtest day, causing complete backtest failures even
+ *  though the keys themselves worked fine for live scanning. See
+ *  bots/forex/config.js's header for the full story.
+ *  STOCKS_TWELVE_DATA_KEYS takes priority — give this bot its OWN
+ *  dedicated pool (not shared with Forex) and the two stop competing.
+ *  Falls back to the shared TWELVE_DATA_KEYS if a dedicated one isn't set.
  * ═══════════════════════════════════════════════════════════════════════
  */
 const base = require('../../shared/config-base');
@@ -26,7 +31,9 @@ module.exports = {
   TELEGRAM_BOT_TOKEN: process.env.STOCKS_TG_TOKEN || process.env.TELEGRAM_BOT_TOKEN || 'YOUR_BOT_TOKEN_HERE',
   TELEGRAM_CHAT_ID:   process.env.STOCKS_CHAT_ID   || process.env.TELEGRAM_CHAT_ID   || 'YOUR_CHAT_ID_HERE',
 
-  TWELVE_DATA_KEYS: parseKeys(process.env.TWELVE_DATA_KEYS),
+  TWELVE_DATA_KEYS: parseKeys(process.env.STOCKS_TWELVE_DATA_KEYS).length
+    ? parseKeys(process.env.STOCKS_TWELVE_DATA_KEYS)
+    : parseKeys(process.env.TWELVE_DATA_KEYS),
   TWELVE_DATA_KEY:  process.env.TWELVE_DATA_KEY || '',
 
   __cacheDir: __dirname,
