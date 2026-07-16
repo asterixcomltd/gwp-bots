@@ -264,7 +264,20 @@ module.exports = {
   // ── TP structure ──────────────────────────────────────────────────────────
   TP1_RR_FLOOR: 1.2,           // TP1 = max(50%Fib, entry + 1.2×risk)
   PARTIAL_EXIT_PCT: 0.5,       // fraction closed at TP1; remainder rides to TP2 at breakeven
-  TP2_MIN_EXTENSION_RR: 0.25,  // TP2 must clear TP1 by at least this many R, or the setup is rejected
+  // v1.1.3 FIX: was 0.25. Confirmed via real backtest funnel data that
+  // this gate — unrelated to the dual multi-TF gate — had become the
+  // dominant bottleneck: 307 trigger-qualified candidates across all 14
+  // crypto symbols, only 10 survived this one check (97% rejection).
+  // The dual multi-TF gate systematically selects setups where 2H/D1
+  // ALSO confirm the same level, which tends to happen closer to major
+  // swing extremes — meaning TP1 and TP2 (the 30M value-area edge) end
+  // up naturally closer together than in the pre-dual-gate candidate
+  // pool this 0.25 was tuned against. Lowered to 0.05 — still rejects
+  // genuinely negligible-extension setups (TP2 barely beyond TP1 at
+  // all), just not the majority of otherwise-good ones. Re-test via
+  // backtest.js if you want to tune this further; this value has NOT
+  // been chosen to hit a specific frequency or win-rate target.
+  TP2_MIN_EXTENSION_RR: 0.05,
 
   // ── Vote-strength sizing — OFF by default, ported from MVS's own
   // v10.15.1 revert (a fresh backtest showed this cut simulated return
