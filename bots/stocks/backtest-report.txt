@@ -1,8 +1,3 @@
-🚨🚨🚨 DATA FETCH FAILED FOR EVERY SYMBOL — THIS IS NOT "0 SIGNALS FOUND" 🚨🚨🚨
-All 11 symbol(s) returned insufficient/zero candle data.
-Most likely cause: missing/invalid API key, or the data source is rate-limited/blocking this request.
-Check the full GitHub Actions log for this run (the "run backtest.js" step) for the exact error line.
-
 ═══════════════════════════════════════════════════════════════════
  GWP Stocks v1.0.0 — BACKTEST REPORT
  Period: Last 360 days  |  Symbols: AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, AMD, NFLX, AVGO, SPCX
@@ -69,17 +64,50 @@ Check the full GitHub Actions log for this run (the "run backtest.js" step) for 
   No closed trades yet on a run new enough to track this.
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
-  AAPL: no funnel data
-  MSFT: no funnel data
-  NVDA: no funnel data
-  AMZN: no funnel data
-  GOOGL: no funnel data
-  META: no funnel data
-  TSLA: no funnel data
-  AMD: no funnel data
-  NFLX: no funnel data
-  AVGO: no funnel data
-  SPCX: no funnel data
+  AAPL:
+    scanned=1794  voteOk=1348(bull=1028/bear=320)  volatilityOk=1348  structureOk=1348
+    notOverExtended=1348  nearZone=2  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  MSFT:
+    scanned=1794  voteOk=1235(bull=657/bear=578)  volatilityOk=1235  structureOk=1235
+    notOverExtended=1233  nearZone=42  prominenceOk=6  confluenceOk=6  htf2hAligned=6  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  NVDA:
+    scanned=1794  voteOk=1265(bull=992/bear=273)  volatilityOk=1265  structureOk=1265
+    notOverExtended=1259  nearZone=121  prominenceOk=22  confluenceOk=22  htf2hAligned=22  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  AMZN:
+    scanned=1794  voteOk=1348(bull=932/bear=416)  volatilityOk=1348  structureOk=1348
+    notOverExtended=1348  nearZone=30  prominenceOk=14  confluenceOk=14  htf2hAligned=14  dualMultiTFOk=8
+    notInvalidated=8  cooldownOk=8  triggerOk=1  tp2RangeOk=0  opened=0
+  GOOGL:
+    scanned=1794  voteOk=1193(bull=889/bear=304)  volatilityOk=1193  structureOk=1193
+    notOverExtended=1193  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  META:
+    scanned=1794  voteOk=1365(bull=530/bear=835)  volatilityOk=1365  structureOk=1365
+    notOverExtended=1365  nearZone=39  prominenceOk=5  confluenceOk=5  htf2hAligned=5  dualMultiTFOk=5
+    notInvalidated=5  cooldownOk=5  triggerOk=0  tp2RangeOk=0  opened=0
+  TSLA:
+    scanned=1794  voteOk=979(bull=426/bear=553)  volatilityOk=979  structureOk=979
+    notOverExtended=979  nearZone=34  prominenceOk=24  confluenceOk=24  htf2hAligned=24  dualMultiTFOk=24
+    notInvalidated=24  cooldownOk=24  triggerOk=3  tp2RangeOk=0  opened=0
+  AMD:
+    scanned=1794  voteOk=1593(bull=1593/bear=0)  volatilityOk=1593  structureOk=1593
+    notOverExtended=1593  nearZone=11  prominenceOk=4  confluenceOk=4  htf2hAligned=4  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+  NFLX:
+    scanned=1794  voteOk=1647(bull=208/bear=1439)  volatilityOk=1647  structureOk=1647
+    notOverExtended=1647  nearZone=15  prominenceOk=10  confluenceOk=10  htf2hAligned=10  dualMultiTFOk=2
+    notInvalidated=2  cooldownOk=2  triggerOk=0  tp2RangeOk=0  opened=0
+  AVGO:
+    scanned=1794  voteOk=1515(bull=1066/bear=449)  volatilityOk=1515  structureOk=1515
+    notOverExtended=1515  nearZone=82  prominenceOk=34  confluenceOk=34  htf2hAligned=34  dualMultiTFOk=18
+    notInvalidated=18  cooldownOk=18  triggerOk=3  tp2RangeOk=0  opened=0
+  SPCX:
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
 
 ── PATTERN FREQUENCY ───────────────────────────────────────────────
 
