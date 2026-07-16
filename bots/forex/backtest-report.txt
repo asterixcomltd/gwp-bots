@@ -1,6 +1,6 @@
 ═══════════════════════════════════════════════════════════════════
  GWP Forex v1.0.0 — BACKTEST REPORT
- Period: Last 360 days  |  Symbols: XAU/USD, EUR/USD, GBP/USD, USD/JPY, GBP/JPY, AUD/USD, USD/CAD, NZD/USD, USD/CHF, EUR/JPY
+ Period: Last 90 days  |  Symbols: XAU/USD, EUR/USD, GBP/USD, USD/JPY, GBP/JPY, AUD/USD, USD/CAD, NZD/USD, USD/CHF, EUR/JPY
  D1+2H+30M+15M — 3-of-4 timeframe vote (30M zone, 15M trigger)
 ═══════════════════════════════════════════════════════════════════
 
@@ -8,142 +8,104 @@
     here was chosen to hit a target win rate — see config.js header.
 
 ── SUMMARY ─────────────────────────────────────────────────────────
-  Total signals fired    : 27  (~0.53/week across all symbols)
-  Closed trades          : 27
+  Total signals fired    : 0  (~0.00/week across all symbols)
+  Closed trades          : 0
   Open (unrealised)      : 0
-  Win rate (all closed)  : 88.9%  (24W / 3L)
-  No-real-loss rate      : 100.0%  (27 no-loss / 0 real loss — excludes 3 breakeven scratches; this is NOT the same as "win rate")
+  Win rate (all closed)  : 0.0%  (0W / 0L)
+  No-real-loss rate      : 0.0%  (0 no-loss / 0 real loss — excludes 0 breakeven scratches; this is NOT the same as "win rate")
   Profit factor          : ∞
-  Total R accumulated    : 31.77R
-  Avg win / avg loss     : +1.32R / 0.00R
-  Avg hours held         : 11h
+  Total R accumulated    : 0.00R
+  Avg win / avg loss     : +0.00R / 0.00R
+  Avg hours held         : 0h
 
 ── OUTCOME BREAKDOWN ───────────────────────────────────────────────
-  TP1 reached (partial banked) : 23
-  TP2 reached (full target)    : 16
-    ..of which runner gave back to BE : 7
+  TP1 reached (partial banked) : 0
+  TP2 reached (full target)    : 0
+    ..of which runner gave back to BE : 0
   SL hits                      : 0
-  BE hits (never reached TP1)  : 3
-  Timeouts                     : 1
+  BE hits (never reached TP1)  : 0
+  Timeouts                     : 0
 
 ── $ P&L SIMULATION (1.5% risk/trade + 0.1% slippage, $1000 start) ──
-  Final capital : $1427.52  (42.8% return)  |  Max drawdown: 0.2%
+  Final capital : $1000.00  (0.0% return)  |  Max drawdown: 0.0%
 
 ── TIMEFRAME VOTE BREAKDOWN ────────────────────────────────────────
-  3/4 agreement: 24 signals
-  4/4 agreement: 3 signals
 
 ── BY SYMBOL ───────────────────────────────────────────────────────
-  XAU/USD    1 trades | 100% WR | 1.94R total
-  EUR/USD    3 trades | 100% WR | 4.96R total
-  GBP/USD    1 trades | 100% WR | 2.07R total
+  XAU/USD    0 trades — see funnel diagnostics below
+  EUR/USD    0 trades — see funnel diagnostics below
+  GBP/USD    0 trades — see funnel diagnostics below
   USD/JPY    0 trades — see funnel diagnostics below
-  GBP/JPY    5 trades | 100% WR | 5.40R total
+  GBP/JPY    0 trades — see funnel diagnostics below
   AUD/USD    0 trades — see funnel diagnostics below
-  USD/CAD    4 trades | 100% WR | 3.38R total
-  NZD/USD    1 trades | 100% WR | 1.36R total
-  USD/CHF    3 trades | 67% WR | 3.55R total
-  EUR/JPY    9 trades | 78% WR | 9.11R total
+  USD/CAD    0 trades — see funnel diagnostics below
+  NZD/USD    0 trades — see funnel diagnostics below
+  USD/CHF    0 trades — see funnel diagnostics below
+  EUR/JPY    0 trades — see funnel diagnostics below
 
 ── BY DIRECTION ────────────────────────────────────────────────────
-  SELL   5 trades | 80% WR | 6.92R total
-  BUY    22 trades | 91% WR | 24.85R total
+  No closed trades to break down by direction.
 
 ── BY CONFIDENCE TIER (drives RISK_TIER_MATRIX) ─────────────────────
-  30M-confirmed   22 trades | 86.4% WR | 0 SL | 26.89R total
-  no-30M-confirm  5 trades | 100.0% WR | 0 SL | 4.88R total
 
 ── BY PIVOT (drives RISK_TIER_MATRIX) ───────────────────────────────
-  POC             9 trades | 88.9% WR | 0 SL | 11.61R total
-  VAH             2 trades | 100.0% WR | 0 SL | 3.06R total
-  VAL             16 trades | 87.5% WR | 0 SL | 17.10R total
 
 ── BY FIB LEVEL ──────────────────────────────────────────────────────
-  70%-mid         4 trades | 75.0% WR | 0 SL | 4.19R total
-  78.6%           20 trades | 100.0% WR | 0 SL | 26.24R total
-  61.8%           3 trades | 33.3% WR | 0 SL | 1.34R total
+  No closed trades yet on a run new enough to track this.
 
 ── BY VOTE TALLY (drives VOTE_STRENGTH_MULT) ────────────────────────
-  3-of-3          24 trades | 87.5% WR | 0 SL | 26.94R total
-  4-of-3          3 trades | 100.0% WR | 0 SL | 4.83R total
+  No closed trades to break down by vote tally.
 
 ── BY MULTI-TF POC ALIGNMENT (POC pivot only) ───────────────────────
-  aligned (2H)         6 trades | 83.3% WR | 0 SL | 7.04R total
-  aligned (2H+D1)      3 trades | 100.0% WR | 0 SL | 4.57R total
+  No closed POC-pivot trades yet on a run new enough to track this.
 
 ── BY MULTI-TF FIB ALIGNMENT (all pivots — DUAL_MULTI_TF_GATE) ──────
-  aligned (2H+D1)      20 trades | 95.0% WR | 0 SL | 25.74R total
-  aligned (2H)         7 trades | 71.4% WR | 0 SL | 6.03R total
+  No closed trades yet on a run new enough to track this.
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
   XAU/USD:
-    scanned=16969  voteOk=11339(bull=5365/bear=5974)  volatilityOk=11339  structureOk=11338
-    notOverExtended=11338  nearZone=321  prominenceOk=90  confluenceOk=90  htf2hAligned=88  dualMultiTFOk=40
-    notInvalidated=40  cooldownOk=40  triggerOk=8  tp2RangeOk=1  opened=1
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   EUR/USD:
-    scanned=15364  voteOk=10011(bull=4360/bear=5651)  volatilityOk=10011  structureOk=10011
-    notOverExtended=10011  nearZone=537  prominenceOk=231  confluenceOk=231  htf2hAligned=225  dualMultiTFOk=86
-    notInvalidated=86  cooldownOk=86  triggerOk=9  tp2RangeOk=3  opened=3
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   GBP/USD:
-    scanned=15623  voteOk=10160(bull=4855/bear=5305)  volatilityOk=10160  structureOk=10160
-    notOverExtended=10160  nearZone=501  prominenceOk=230  confluenceOk=230  htf2hAligned=230  dualMultiTFOk=222
-    notInvalidated=222  cooldownOk=222  triggerOk=18  tp2RangeOk=1  opened=1
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   USD/JPY:
-    scanned=14308  voteOk=10082(bull=8929/bear=1153)  volatilityOk=10082  structureOk=10082
-    notOverExtended=10082  nearZone=510  prominenceOk=347  confluenceOk=347  htf2hAligned=227  dualMultiTFOk=107
-    notInvalidated=106  cooldownOk=106  triggerOk=9  tp2RangeOk=0  opened=0
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   GBP/JPY:
-    scanned=15356  voteOk=10831(bull=8275/bear=2556)  volatilityOk=10831  structureOk=10831
-    notOverExtended=10831  nearZone=455  prominenceOk=305  confluenceOk=305  htf2hAligned=253  dualMultiTFOk=208
-    notInvalidated=208  cooldownOk=206  triggerOk=22  tp2RangeOk=5  opened=5
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   AUD/USD:
-    scanned=15648  voteOk=10549(bull=5934/bear=4615)  volatilityOk=10549  structureOk=10549
-    notOverExtended=10549  nearZone=403  prominenceOk=167  confluenceOk=167  htf2hAligned=167  dualMultiTFOk=131
-    notInvalidated=131  cooldownOk=131  triggerOk=16  tp2RangeOk=0  opened=0
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   USD/CAD:
-    scanned=15455  voteOk=10460(bull=6922/bear=3538)  volatilityOk=10460  structureOk=10460
-    notOverExtended=10460  nearZone=486  prominenceOk=300  confluenceOk=300  htf2hAligned=197  dualMultiTFOk=86
-    notInvalidated=86  cooldownOk=86  triggerOk=8  tp2RangeOk=4  opened=4
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   NZD/USD:
-    scanned=15655  voteOk=10445(bull=3555/bear=6890)  volatilityOk=10445  structureOk=10445
-    notOverExtended=10365  nearZone=919  prominenceOk=317  confluenceOk=317  htf2hAligned=289  dualMultiTFOk=234
-    notInvalidated=234  cooldownOk=231  triggerOk=30  tp2RangeOk=1  opened=1
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   USD/CHF:
-    scanned=14779  voteOk=10204(bull=5479/bear=4725)  volatilityOk=10204  structureOk=10204
-    notOverExtended=10204  nearZone=449  prominenceOk=204  confluenceOk=204  htf2hAligned=200  dualMultiTFOk=76
-    notInvalidated=76  cooldownOk=74  triggerOk=4  tp2RangeOk=3  opened=3
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
   EUR/JPY:
-    scanned=15089  voteOk=10118(bull=7418/bear=2700)  volatilityOk=10118  structureOk=10118
-    notOverExtended=10118  nearZone=485  prominenceOk=308  confluenceOk=308  htf2hAligned=308  dualMultiTFOk=308
-    notInvalidated=308  cooldownOk=308  triggerOk=38  tp2RangeOk=9  opened=9
+    scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
+    notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
 
 ── PATTERN FREQUENCY ───────────────────────────────────────────────
-  CLOSE_REJECTION      26x
-  POC_RECLAIM          12x
-  ENGULFING            11x
-  PIN_BAR              10x
-  VAH_VAL_RECLAIM      4x
 
 ── RECENT TRADES (last 20) ─────────────────────────────────────────
-  ✅ 2026-06-14 18:15 | GBP/JPY BUY | TP1+BE | +0.6R | 3/4 | PIN_BAR+CLOSE_REJECTION
-  ✅ 2026-06-14 20:00 | GBP/JPY BUY | TP1+BE | +0.6R | 3/4 | POC_RECLAIM+PIN_BAR+CLOSE_REJECTION
-  ✅ 2026-06-28 19:00 | GBP/JPY BUY | TP1+TP2 | +1.69R | 3/4 | POC_RECLAIM+ENGULFING+CLOSE_REJECTION
-  ✅ 2026-03-04 01:00 | USD/CAD BUY | TP1+BE | +0.6R | 3/4 | PIN_BAR+CLOSE_REJECTION
-  ✅ 2026-04-30 08:30 | USD/CAD SELL | TP1+TP2 | +1.43R | 3/4 | POC_RECLAIM+PIN_BAR
-  ✅ 2026-06-25 16:30 | USD/CAD BUY | EARLY_TIMEOUT | +0.75R | 3/4 | ENGULFING+CLOSE_REJECTION
-  ✅ 2026-07-02 11:30 | USD/CAD BUY | TP1+BE | +0.6R | 3/4 | ENGULFING+CLOSE_REJECTION
-  ✅ 2026-03-02 01:00 | NZD/USD BUY | TP1+TP2 | +1.36R | 3/4 | CLOSE_REJECTION
-  ✅ 2026-03-23 08:30 | USD/CHF BUY | TP1+TP2 | +1.63R | 3/4 | CLOSE_REJECTION
-  ❌ 2026-06-30 06:45 | USD/CHF SELL | BE | 0R | 3/4 | CLOSE_REJECTION
-  ✅ 2026-06-30 14:15 | USD/CHF SELL | TP1+TP2 | +1.92R | 3/4 | CLOSE_REJECTION
-  ✅ 2026-03-20 01:30 | EUR/JPY BUY | TP1+TP2 | +1.8R | 3/4 | ENGULFING+CLOSE_REJECTION
-  ✅ 2026-03-28 15:00 | EUR/JPY BUY | TP1+TP2 | +1.58R | 4/4 | CLOSE_REJECTION
-  ✅ 2026-03-29 18:00 | EUR/JPY BUY | TP1+BE | +0.6R | 3/4 | POC_RECLAIM+CLOSE_REJECTION
-  ✅ 2026-04-20 05:45 | EUR/JPY BUY | TP1+TP2 | +1.65R | 3/4 | ENGULFING+CLOSE_REJECTION
-  ❌ 2026-04-26 17:00 | EUR/JPY BUY | BE | 0R | 3/4 | VAH_VAL_RECLAIM+CLOSE_REJECTION
-  ❌ 2026-04-26 18:15 | EUR/JPY BUY | BE | 0R | 3/4 | POC_RECLAIM+VAH_VAL_RECLAIM+PIN_BAR+CLOSE_REJECTION
-  ✅ 2026-04-26 19:45 | EUR/JPY BUY | TP1+TP2 | +1.34R | 4/4 | POC_RECLAIM+PIN_BAR+ENGULFING+CLOSE_REJECTION
-  ✅ 2026-05-21 21:00 | EUR/JPY BUY | TP1+BE | +0.6R | 3/4 | PIN_BAR+CLOSE_REJECTION
-  ✅ 2026-06-14 19:15 | EUR/JPY BUY | TP1+TP2 | +1.54R | 3/4 | POC_RECLAIM+VAH_VAL_RECLAIM+PIN_BAR+CLOSE_REJECTION
 
 ═══════════════════════════════════════════════════════════════════
