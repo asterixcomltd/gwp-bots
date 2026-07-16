@@ -127,8 +127,8 @@ module.exports = async function runCommands({ config, telegram, healthCheck, bot
         msg += `\nPOC $${Number(s.poc).toFixed(4)} · VAH $${Number(s.vah).toFixed(4)} · VAL $${Number(s.val).toFixed(4)}`;
       }
 
-      if (s.bias2h || s.bias30m || s.bias15m) {
-        msg += `\nBias — 2H:${biasStr(s.bias2h)} 30M:${biasStr(s.bias30m)} 15M:${biasStr(s.bias15m)}`;
+      if (s.biasD1 || s.bias2h || s.bias30m || s.bias15m) {
+        msg += `\nBias — D1:${biasStr(s.biasD1)} 2H:${biasStr(s.bias2h)} 30M:${biasStr(s.bias30m)} 15M:${biasStr(s.bias15m)}`;
       }
       if (s.voteTally) {
         msg += `\nVote: ${s.voteTally}${s.agreeing ? ` (${s.agreeing.join('+')} agree)` : ''}`;
