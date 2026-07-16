@@ -38,6 +38,19 @@ module.exports = {
 
   __cacheDir: __dirname,
 
+  // v1.1.3 FIX — Twelve Data's own documentation confirms equities'
+  // INTRADAY data (15min/30min/2H — everything below daily) is only
+  // available for "a few months," unlike forex/crypto which get
+  // intraday history going back a year or more. Requesting the default
+  // 360 days meant most of that request returned nothing, and warmup
+  // (~245 days across D1+STRUCT+ATR requirements) ate nearly all of
+  // whatever intraday history WAS available — leaving a backtest
+  // window of barely 2-3 weeks after warmup, not the intended 360 days.
+  // D1 itself is NOT similarly restricted (equities' daily/higher
+  // intervals go back to first trading date) — only the finer
+  // intraday timeframes this bot also depends on for structure/trigger.
+  BACKTEST_DAYS: 90,
+
   // ── Assets — Twelve Data equity tickers ─────────────────────────────────
   SYMBOLS: [
     'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL',
