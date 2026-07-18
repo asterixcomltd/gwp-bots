@@ -1,44 +1,56 @@
 {
-  "_lastRunAt": "2026-07-18T22:08:06.521Z",
+  "_lastRunAt": "2026-07-18T23:11:43.808Z",
   "XAU/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 4010.51919,
+    "price": 4010.53499,
     "biasD1": "BEARISH",
     "bias2h": "BEARISH",
     "bias30m": "NEUTRAL",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-07-18T22:05:42.478Z"
+    "updatedAt": "2026-07-18T23:08:07.770Z"
   },
   "EUR/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 1.14379,
+    "price": 1.14396,
     "biasD1": "BEARISH",
     "bias2h": "BULLISH",
     "bias30m": "NEUTRAL",
-    "bias15m": "BEARISH",
-    "updatedAt": "2026-07-18T17:13:24.300Z"
+    "bias15m": "NEUTRAL",
+    "updatedAt": "2026-07-18T23:08:31.783Z"
   },
   "GBP/USD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 1.34492,
+    "signal": "SCANNED",
+    "price": 1.34506,
+    "direction": "BUY",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "30M"
+    ],
     "biasD1": "BULLISH",
     "bias2h": "BULLISH",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-18T21:06:15.619Z"
+    "poc": 1.33984375,
+    "vah": 1.3437587500000001,
+    "val": 1.33527625,
+    "swingHigh": 1.35583,
+    "swingLow": 1.33784,
+    "atrStruct": 0.0002222441837827409,
+    "updatedAt": "2026-07-18T23:08:55.765Z"
   },
   "USD/CHF": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.80747,
+    "price": 0.80741,
     "biasD1": "NEUTRAL",
     "bias2h": "NEUTRAL",
     "bias30m": "BEARISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-18T22:07:50.509Z"
+    "updatedAt": "2026-07-18T23:11:19.811Z"
   },
   "NZD/USD": {
     "signal": "NO_AGREEMENT",
@@ -53,12 +65,12 @@
   "AUD/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.69818,
+    "price": 0.69814,
     "biasD1": "BEARISH",
     "bias2h": "BULLISH",
     "bias30m": "NEUTRAL",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-18T22:07:02.547Z"
+    "updatedAt": "2026-07-18T23:10:07.797Z"
   },
   "USD/CAD": {
     "signal": "NO_AGREEMENT",
