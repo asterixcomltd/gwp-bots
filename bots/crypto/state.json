@@ -1,5 +1,5 @@
 {
-  "_lastRunAt": "2026-07-18T17:12:04.521Z",
+  "_lastRunAt": "2026-07-18T18:06:33.679Z",
   "SOL-USDT": {
     "signal": "NO_AGREEMENT",
     "direction": null,
@@ -23,32 +23,44 @@
   "ADA-USDT": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.1642,
+    "price": 0.1653,
     "biasD1": "NEUTRAL",
-    "bias2h": "NEUTRAL",
+    "bias2h": "BULLISH",
     "bias30m": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-18T17:11:44.940Z"
+    "updatedAt": "2026-07-18T18:06:13.750Z"
   },
   "DOGE-USDT": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 0.07278,
+    "signal": "SCANNED",
+    "price": 0.07238,
+    "direction": "SELL",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "2H",
+      "15M"
+    ],
     "biasD1": "BEARISH",
     "bias2h": "BEARISH",
     "bias30m": "NEUTRAL",
-    "bias15m": "BULLISH",
-    "updatedAt": "2026-07-17T21:40:28.325Z"
+    "bias15m": "BEARISH",
+    "poc": 0.0731835,
+    "vah": 0.0736965,
+    "val": 0.0719685,
+    "swingHigh": 0.07371,
+    "swingLow": 0.07101,
+    "atrStruct": 0.0001919943267403021,
+    "updatedAt": "2026-07-18T18:06:15.929Z"
   },
   "BNB-USDT": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 570.543,
+    "price": 570.747,
     "biasD1": "BEARISH",
     "bias2h": "BEARISH",
     "bias30m": "BULLISH",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-07-18T17:11:53.662Z"
+    "updatedAt": "2026-07-18T18:06:22.780Z"
   },
   "DOT-USDT": {
     "signal": "NO_AGREEMENT",
@@ -71,26 +83,14 @@
     "updatedAt": "2026-07-18T17:12:00.176Z"
   },
   "AVAX-USDT": {
-    "signal": "SCANNED",
-    "price": 6.536,
-    "direction": "SELL",
-    "voteTally": "3/4",
-    "agreeing": [
-      "D1",
-      "2H",
-      "15M"
-    ],
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 6.562,
     "biasD1": "BEARISH",
-    "bias2h": "BEARISH",
+    "bias2h": "BULLISH",
     "bias30m": "NEUTRAL",
-    "bias15m": "BEARISH",
-    "poc": 6.545955,
-    "vah": 6.615315,
-    "val": 6.531505,
-    "swingHigh": 6.663,
-    "swingLow": 6.374,
-    "atrStruct": 0.02460831678581671,
-    "updatedAt": "2026-07-18T17:11:49.301Z"
+    "bias15m": "NEUTRAL",
+    "updatedAt": "2026-07-18T18:06:18.113Z"
   },
   "LINK-USDT": {
     "signal": "NO_AGREEMENT",
