@@ -202,7 +202,7 @@ Symbols tracked: ${config.SYMBOLS.join(', ')}`
 
 Signal bot built on one tendency: *price tends to revisit where the most volume was traded.* That's a real market pattern, not a guarantee about any single trade.
 
-*Strategy:* Volume Profile (POC + VAH + VAL) + Fibonacci (61.8-78.6% pocket) across four timeframes, each with one job — D1 + 2H macro bias, 30M structure (zone/Fib pocket/SL anchor), 15M trigger. Needs 3-of-4 timeframes to agree on direction, PLUS both 2H and D1 independently confirming the POC level and the Fib level, before anything fires.
+*Strategy:* Volume Profile (POC + VAH + VAL) + Fibonacci (61.8-78.6% pocket) across four timeframes, each with one job — D1 macro bias, 2H structure (zone/Fib pocket/SL anchor), 30M + 15M as the tactical layer (30M a fast confirming vote, 15M the actual entry trigger). Needs 3-of-4 timeframes to agree on direction, PLUS both 30M and D1 independently confirming the POC level and the Fib level, before anything fires.
 
 No hardcoded win-rate claim here. This bot does not target or achieve a 100% win rate — no trading system does. Run \`node backtest.js\` in the repo yourself for current, honest numbers over a window you haven't tuned against, and read the full funnel diagnostics, not just the headline win rate.
 
@@ -232,9 +232,9 @@ Data source: *${exchangeName}*.`
 When ${botLabel} fires, you'll receive:
 
 🟢 *BUY* (or 🔴 *SELL*)
-• *TF Vote:* which of 2H/30M/15M agreed, and the tally (2/3 or 3/3)
-• *Entry:* the 30M Fib/POC/VAH/VAL confluence level
-• *SL:* stop loss — 30M swing wick ± 0.25×ATR
+• *TF Vote:* which of D1/30M/2H/15M agreed, and the tally (3/4 or 4/4)
+• *Entry zone:* the 2H Fib/POC/VAH/VAL confluence level (± a small live-price tolerance — see the "last live check" line)
+• *SL:* stop loss — 2H swing wick ± 0.25×ATR
 • *TP1 / TP2:* a 2-stage exit — TP1 closes ${Math.round((config.PARTIAL_EXIT_PCT||0.5)*100)}% and moves the rest to breakeven; TP2 (the value-area edge) is the runner's target for the remaining ${Math.round((1-(config.PARTIAL_EXIT_PCT||0.5))*100)}%
 • *15M trigger:* which rejection pattern(s) fired the signal
 
