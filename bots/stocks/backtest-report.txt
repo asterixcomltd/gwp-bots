@@ -1,7 +1,7 @@
 ═══════════════════════════════════════════════════════════════════
  GWP Stocks v1.0.0 — BACKTEST REPORT
  Period: Last 90 days  |  Symbols: AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, AMD, NFLX, AVGO, SPCX
- D1+2H+30M+15M — 3-of-4 timeframe vote (30M zone, 15M trigger)
+ D1+2H+30M+15M — 3-of-4 timeframe vote (D1 bias, 2H zone, 30M+15M trigger)
 ═══════════════════════════════════════════════════════════════════
 
 ⚠️  This is a backtest, not a live-performance guarantee. No setting
@@ -67,47 +67,47 @@
   AAPL:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   MSFT:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   NVDA:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   AMZN:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   GOOGL:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   META:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   TSLA:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   AMD:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   NFLX:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   AVGO:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   SPCX:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
     notOverExtended=0  nearZone=0  prominenceOk=0  confluenceOk=0  htf2hAligned=0  dualMultiTFOk=0
-    notInvalidated=0  cooldownOk=0  triggerOk=0  tp2RangeOk=0  opened=0
+    notInvalidated=0  cooldownOk=0  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
 
 ── PATTERN FREQUENCY ───────────────────────────────────────────────
 
