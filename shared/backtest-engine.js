@@ -26,7 +26,15 @@
 // because D1's own required history, at DAILY_VP_LOOKBACK=200 trading
 // days, is far larger still — especially for equities, which only trade
 // ~5/7 days).
-const WARMUP_BUFFER_DAYS = 60; // covers the 2H structure warmup with margin
+// v1.1.5: bumped 60→75 — extra safety margin for the stocks bot's tight
+// equities-hours warmup math (see bots/stocks/config.js's v1.1.5 note):
+// even with STRUCT_VP_LOOKBACK trimmed to 120 for that bot specifically,
+// equities' ~3-4 2H-bars/trading-day accumulation rate leaves the
+// calendar-day math for warmup+eval closer to the fetch budget than
+// crypto/forex ever get, so a slightly larger buffer here costs nothing
+// for the 24/7 and 24/5 assets and removes the risk of shaving this too
+// close again.
+const WARMUP_BUFFER_DAYS = 75; // covers the 2H structure warmup with margin
 
 module.exports = function createBacktestEngine({ config, core, version, botLabel }) {
 
@@ -65,8 +73,24 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       startIdx++;
     }
     if (startIdx >= data15m.length) {
-      console.log(`  [WARMUP] ${symbol}: insufficient history for warmup — skipping.`);
-      return { trades: [], funnel };
+      // v1.1.5 FIX: this used to fail completely silently — a symbol
+      // could sit at scanned=0 in the funnel with zero explanation, which
+      // is exactly what made the stocks-backtest-returning-0 bug so hard
+      // to track down (twice). Report which timeframe(s) actually fell
+      // short and by how much, so a data-depth shortfall like that one is
+      // obvious from the report itself, not another investigation.
+      const maxPS = data30m.length ? data30m.length - 1 : 0;
+      const maxPB = data2h.length  ? data2h.length  - 1 : 0;
+      const maxPD = dataD1.length  ? dataD1.length  - 1 : 0;
+      const shortfalls = [];
+      if (maxPS < warmupStruct) shortfalls.push(`STRUCT(2H) has ${maxPS}/${warmupStruct} bars needed`);
+      if (maxPB < warmupBias)   shortfalls.push(`BIAS(30M) has ${maxPB}/${warmupBias} bars needed`);
+      if (maxPD < warmupDaily)  shortfalls.push(`DAILY(D1) has ${maxPD}/${warmupDaily} bars needed`);
+      const reason = shortfalls.length
+        ? `insufficient history for warmup — ${shortfalls.join(', ')} (likely a vendor intraday-history depth limit, not a code bug — see bots/*/config.js for the affected timeframe's lookback)`
+        : `insufficient history for warmup (evalWindowStartTime never reached — check BACKTEST_DAYS/WARMUP_BUFFER_DAYS)`;
+      console.log(`  [WARMUP] ${symbol}: ${reason}`);
+      return { trades: [], funnel, warmupFailed: true, warmupFailReason: reason };
     }
 
     console.log(`\n  Replaying ${data15m.length - startIdx} × 15M bars for ${symbol}...`);

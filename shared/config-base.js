@@ -109,6 +109,19 @@ module.exports = {
   // days when this same bar count ran on 30M) — a wider, slower-moving
   // structure zone, which is exactly the point of the re-role: 2H holds
   // and respects its zone far better than 30M did.
+  //
+  // v1.1.5 NOTE — equities only: 500 STRUCT bars needs ~519 total incl.
+  // warmup margin. Crypto (24/7) and forex (24/5) accumulate 2H bars at
+  // ~12/day, so that's trivial (~43 days). Equities only trade ~6.5h/day,
+  // ~3-4 2H bars/day — 519 bars needs ~150+ TRADING days (~210+ calendar
+  // days), and Twelve Data's equity intraday history is documented to
+  // only go back "a few months" regardless of how much is requested. The
+  // global 500/200 here is correct/left alone for crypto+forex; see
+  // bots/stocks/config.js for the equities-specific override that makes
+  // this achievable for that asset class — this constraint doesn't
+  // affect LIVE scanning either way (live only ever needs
+  // data30m.length>=50 freshly-fetched bars per scan, never the full
+  // lookback history), only backtesting.
   STRUCT_VP_LOOKBACK:   500,
   STRUCT_FIB_LOOKBACK:  200,
 

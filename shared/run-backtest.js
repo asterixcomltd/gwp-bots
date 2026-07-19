@@ -35,6 +35,7 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   const allTrades = [];
   const funnelsBySymbol = {};
   const dataFetchFailures = [];
+  const warmupFailures = [];
   // Fetch days+WARMUP_BUFFER_DAYS so short windows still have enough
   // history to warm up the 2H structure volume profile before the
   // requested evaluation window starts. evalWindowStartTime tells
@@ -80,9 +81,10 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
       continue;
     }
 
-    const { trades, funnel } = await backtestSymbol(symbol, data15m, data30m, data2h, dataD1, evalWindowStartTime);
-    allTrades.push(...trades);
-    funnelsBySymbol[symbol] = funnel;
+    const result = await backtestSymbol(symbol, data15m, data30m, data2h, dataD1, evalWindowStartTime);
+    allTrades.push(...result.trades);
+    funnelsBySymbol[symbol] = result.funnel;
+    if (result.warmupFailed) warmupFailures.push({ symbol, reason: result.warmupFailReason });
   }
 
   const { lines } = generateReport(allTrades, days, funnelsBySymbol);
@@ -99,6 +101,23 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
       `All ${symbols.length} symbol(s) returned insufficient/zero candle data.`,
       'Most likely cause: missing/invalid API key, or the data source is rate-limited/blocking this request.',
       'Check the full GitHub Actions log for this run (the "run backtest.js" step) for the exact error line.',
+      ''
+    );
+  }
+  // v1.1.5 FIX: same loud-banner treatment for the OTHER way a backtest
+  // can silently show 0 signals — data fetched fine, but not enough of
+  // it to clear warmup (this is exactly what caused stocks to sit at
+  // scanned=0 for every symbol, twice, with no explanation anywhere in
+  // the report). Only symbols that fetched data but never started their
+  // replay loop land here — a genuine "0 signals, here's the math"
+  // banner instead of a silent, unexplained zero.
+  else if (warmupFailures.length === symbols.length - dataFetchFailures.length && warmupFailures.length > 0) {
+    lines.splice(0, 0,
+      '⚠️⚠️⚠️ EVERY SYMBOL FAILED WARMUP — THIS IS NOT "0 SIGNALS FOUND" ⚠️⚠️⚠️',
+      'Data fetched fine, but not enough of it to warm up before the replay loop could start:',
+      ...warmupFailures.slice(0, 5).map(w => `  • ${w.symbol}: ${w.reason}`),
+      warmupFailures.length > 5 ? `  ...and ${warmupFailures.length - 5} more.` : '',
+      'Fix: reduce the affected timeframe\'s lookback (STRUCT_VP_LOOKBACK/BIAS_VP_LOOKBACK/DAILY_VP_LOOKBACK) for this asset class, or reduce BACKTEST_DAYS.',
       ''
     );
   }
