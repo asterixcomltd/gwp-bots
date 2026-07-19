@@ -333,7 +333,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         data15m, entryZoneLow, entryZoneHigh, direction,
         { poc: vpStruct.pocPrice, vah: vpStruct.vahPrice, val: vpStruct.valPrice },
         config.ABSORPTION_BODY_RATIO, config.REJECTION_MIN_PATTERNS, config.ALLOW_SOLO_TRIGGER,
-        config.SOLO_ELIGIBLE_PATTERNS
+        config.SOLO_ELIGIBLE_PATTERNS, config.TRIGGER_LOOKBACK_BARS
       );
 
       logDiag({
@@ -472,7 +472,7 @@ ${config.DUAL_MULTI_TF_GATE_ENABLED ? `🎯 *Dual Multi-TF:* POC✅[${multiTFPOC
 🏁 *TP2 (runner, remaining ${Math.round((1 - config.PARTIAL_EXIT_PCT) * 100)}%, ${direction === 'BUY' ? 'VAH' : 'VAL'}):* \`$${levels.tp2Price.toFixed(4)}\`  R:R ${levels.rr2.toFixed(2)}:1
 ━━━━━━━━━━━━━━━━━━━━
 ${sizeLine}
-🕯 *15M trigger (${rejection.solo ? 'SOLO' : rejection.score + '/' + config.REJECTION_MIN_PATTERNS}):* ${patternStr}
+🕯 *15M trigger (${rejection.solo ? 'SOLO' : rejection.score + '/' + config.REJECTION_MIN_PATTERNS}${rejection.barsAgo ? `, ${rejection.barsAgo} candle${rejection.barsAgo > 1 ? 's' : ''} ago` : ''}):* ${patternStr}
 📐 *ATR(2H):* $${atrStruct.toFixed(4)}
 
 ⚠️ Probability-favored setup, not a guarantee. Size so 3-4 consecutive
