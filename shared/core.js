@@ -373,49 +373,81 @@ const isZoneInvalidated = (closePrice, zoneRef, atr, direction, atrMult) => {
 //  that decides which patterns count as "strong enough alone" — no more
 //  editing core.js to change strategy behavior.
 // ─────────────────────────────────────────────────────────────────────────
-const detectRejection = (candles, zoneLow, zoneHigh, direction, pivots, absorptionBodyRatio, minPatterns = 2, allowSolo = false, soloPatterns = ['VAH_VAL_RECLAIM', 'CLOSE_REJECTION']) => {
-  if (candles.length < 2) return { valid: false, patterns: [], absorptionVeto: false, score: 0, solo: false };
+// v1.1.6 FIX (frequency): this used to check ONLY candles[length-1] — the
+// single most-recently-closed 15M candle — for a qualifying rejection.
+// Since the bot scans every 15 minutes and re-evaluates from scratch each
+// time with no memory of prior scans, a genuinely valid rejection candle
+// that closed on the PREVIOUS 15M bar (i.e. one scan cycle ago) was simply
+// never seen — by the time the next scan ran, `candles[length-1]` had
+// already moved on to a different bar, and the setup was gone forever,
+// even though nothing about it was actually invalid. Backtest funnel data
+// confirms this was the single largest bottleneck in the whole pipeline
+// (a ~90-99% drop at this exact stage, worse than every other gate). This
+// is a scan-timing artifact, not a quality filter, so widening it doesn't
+// trade away signal quality — it just stops silently missing valid setups
+// that already met every other gate.
+// lookbackBars=1 (default) is the original, unchanged behavior — only
+// candles[length-1] is checked. lookbackBars>1 checks that many of the
+// most-recent candles (most-recent first) and fires on the first one that
+// qualifies, while still requiring the trade's zone/absorption/pattern
+// checks to hold on THAT specific candle (not a relaxed check).
+const detectRejection = (candles, zoneLow, zoneHigh, direction, pivots, absorptionBodyRatio, minPatterns = 2, allowSolo = false, soloPatterns = ['VAH_VAL_RECLAIM', 'CLOSE_REJECTION'], lookbackBars = 1) => {
+  if (candles.length < 2) return { valid: false, patterns: [], absorptionVeto: false, score: 0, solo: false, barsAgo: 0 };
 
-  const c = candles[candles.length - 1];
-  const p = candles[candles.length - 2];
+  const checkOne = (idx) => {
+    const c = candles[idx];
+    const p = candles[idx - 1];
+    if (!c || !p) return null;
 
-  const touchedZone = c.low <= zoneHigh && c.high >= zoneLow;
-  if (!touchedZone) return { valid: false, patterns: [], absorptionVeto: false, score: 0, solo: false };
+    const touchedZone = c.low <= zoneHigh && c.high >= zoneLow;
+    if (!touchedZone) return null;
 
-  const body = Math.abs(c.close - c.open);
-  const fullRange = c.high - c.low;
-  const bodyRatio = fullRange > 0 ? body / fullRange : 0;
+    const body = Math.abs(c.close - c.open);
+    const fullRange = c.high - c.low;
+    const bodyRatio = fullRange > 0 ? body / fullRange : 0;
 
-  let absorptionVeto = false;
-  if (bodyRatio > absorptionBodyRatio) {
-    if (direction === 'SELL' && c.close > c.open) absorptionVeto = true;
-    if (direction === 'BUY'  && c.close < c.open) absorptionVeto = true;
+    let absorptionVeto = false;
+    if (bodyRatio > absorptionBodyRatio) {
+      if (direction === 'SELL' && c.close > c.open) absorptionVeto = true;
+      if (direction === 'BUY'  && c.close < c.open) absorptionVeto = true;
+    }
+
+    const patterns = [];
+    const { poc, vah, val } = pivots;
+
+    if (direction === 'BUY') {
+      if (poc && c.low < poc && c.close > poc) patterns.push('POC_RECLAIM');
+      if (val && c.low < val && c.close > val) patterns.push('VAH_VAL_RECLAIM');
+      const lowerWick = Math.min(c.open, c.close) - c.low;
+      if (lowerWick > body * 1.5 && body > 0) patterns.push('PIN_BAR');
+      if (c.close > c.open && c.close > p.close && c.open < p.open) patterns.push('ENGULFING');
+      if (c.low <= zoneHigh && c.close > zoneHigh) patterns.push('CLOSE_REJECTION');
+    } else {
+      if (poc && c.high > poc && c.close < poc) patterns.push('POC_RECLAIM');
+      if (vah && c.high > vah && c.close < vah) patterns.push('VAH_VAL_RECLAIM');
+      const upperWick = c.high - Math.max(c.open, c.close);
+      if (upperWick > body * 1.5 && body > 0) patterns.push('PIN_BAR');
+      if (c.close < c.open && c.close < p.close && c.open > p.open) patterns.push('ENGULFING');
+      if (c.high >= zoneLow && c.close < zoneLow) patterns.push('CLOSE_REJECTION');
+    }
+
+    const score = patterns.length;
+    const solo = allowSolo && score === 1 && soloPatterns.includes(patterns[0]);
+    const valid = !absorptionVeto && (score >= minPatterns || solo);
+    return { valid, patterns, absorptionVeto, score, solo };
+  };
+
+  const n = Math.max(1, lookbackBars);
+  let lastResult = { valid: false, patterns: [], absorptionVeto: false, score: 0, solo: false };
+  for (let back = 0; back < n; back++) {
+    const idx = candles.length - 1 - back;
+    if (idx < 1) break;
+    const r = checkOne(idx);
+    if (!r) continue; // didn't even touch the zone — not a candidate, keep looking further back
+    if (back === 0) lastResult = r; // preserve the most-recent candle's result for absorptionVeto reporting when nothing qualifies
+    if (r.valid) return { ...r, barsAgo: back };
   }
-
-  const patterns = [];
-  const { poc, vah, val } = pivots;
-
-  if (direction === 'BUY') {
-    if (poc && c.low < poc && c.close > poc) patterns.push('POC_RECLAIM');
-    if (val && c.low < val && c.close > val) patterns.push('VAH_VAL_RECLAIM');
-    const lowerWick = Math.min(c.open, c.close) - c.low;
-    if (lowerWick > body * 1.5 && body > 0) patterns.push('PIN_BAR');
-    if (c.close > c.open && c.close > p.close && c.open < p.open) patterns.push('ENGULFING');
-    if (c.low <= zoneHigh && c.close > zoneHigh) patterns.push('CLOSE_REJECTION');
-  } else {
-    if (poc && c.high > poc && c.close < poc) patterns.push('POC_RECLAIM');
-    if (vah && c.high > vah && c.close < vah) patterns.push('VAH_VAL_RECLAIM');
-    const upperWick = c.high - Math.max(c.open, c.close);
-    if (upperWick > body * 1.5 && body > 0) patterns.push('PIN_BAR');
-    if (c.close < c.open && c.close < p.close && c.open > p.open) patterns.push('ENGULFING');
-    if (c.high >= zoneLow && c.close < zoneLow) patterns.push('CLOSE_REJECTION');
-  }
-
-  const score = patterns.length;
-  const solo = allowSolo && score === 1 && soloPatterns.includes(patterns[0]);
-  const valid = !absorptionVeto && (score >= minPatterns || solo);
-
-  return { valid, patterns, absorptionVeto, score, solo };
+  return { ...lastResult, barsAgo: 0 };
 };
 
 // ─────────────────────────────────────────────────────────────────────────

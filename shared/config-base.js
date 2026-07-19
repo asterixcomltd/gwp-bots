@@ -168,6 +168,21 @@ module.exports = {
   // Patterns: POC_RECLAIM, VAH_VAL_RECLAIM, PIN_BAR, ENGULFING, CLOSE_REJECTION
   REJECTION_MIN_PATTERNS: parseInt(process.env.REJECTION_MIN_PATTERNS, 10) || 2,
 
+  // v1.1.6 FIX (frequency): the trigger check used to look ONLY at the
+  // single most-recently-closed 15M candle. Since the bot scans every 15
+  // minutes and has no memory of prior scans, a genuinely valid rejection
+  // that closed one scan cycle ago was simply invisible by the next scan
+  // — not because it stopped being valid, but because the code only ever
+  // looked at "right now." Backtest funnel data confirms the trigger
+  // check was BY FAR the single largest bottleneck in the entire pipeline
+  // (routinely a 90-99% drop, worse than every other gate combined) —
+  // this is a scan-timing artifact, not a quality filter, so widening it
+  // recovers missed valid setups rather than trading away quality. `2`
+  // means: check the current candle, and if it didn't qualify, the one
+  // before it. Set to `1` to restore the original single-candle-only
+  // behavior.
+  TRIGGER_LOOKBACK_BARS: parseInt(process.env.TRIGGER_LOOKBACK_BARS, 10) || 2,
+
   // Solo trigger: a single pattern in SOLO_ELIGIBLE_PATTERNS is enough IF
   // every other gate (2H/30M/15M vote, confluence, HTF zone, RR) still
   // passes. Applies equally to BUY and SELL. POC_RECLAIM deliberately

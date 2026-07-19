@@ -253,7 +253,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       const rejection = core.detectRejection(window15m, entryZoneLow, entryZoneHigh, direction,
         { poc: vpStruct.pocPrice, vah: vpStruct.vahPrice, val: vpStruct.valPrice },
         config.ABSORPTION_BODY_RATIO, config.REJECTION_MIN_PATTERNS, config.ALLOW_SOLO_TRIGGER,
-        config.SOLO_ELIGIBLE_PATTERNS);
+        config.SOLO_ELIGIBLE_PATTERNS, config.TRIGGER_LOOKBACK_BARS);
       if (!rejection.valid) continue;
       funnel.triggerOk++;
 
