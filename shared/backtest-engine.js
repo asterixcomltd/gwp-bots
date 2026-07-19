@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.0.0
+ *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.1.4
  *
  *  Ported directly from MVS-bot's backtest.js (v10.15.5): walks the 15M
  *  clock tick-by-tick (no lookahead — every check only sees bars up to
@@ -8,16 +8,25 @@
  *  the EXACT same decision logic every sub-bot's engine.js (live) uses,
  *  so a backtest report actually means something about live behavior.
  *
- *  Adapted from MVS's 5-timeframe/3-of-5 vote down to GWP's 3-timeframe/
- *  3-of-4 vote (D1+2H bias / 30M structure / 15M trigger), plus a dual
- *  multi-TF POC+Fib confirmation gate — see shared/
+ *  Adapted from MVS's 5-timeframe/3-of-5 vote down to GWP's 4-timeframe/
+ *  3-of-4 vote (D1 bias / 2H structure / 30M+15M trigger layer, see
+ *  shared/config-base.js's RE-ROLE note for the v1.1.4 physical-TF
+ *  swap), plus a dual multi-TF POC+Fib confirmation gate — see shared/
  *  engine.js header for the full architecture rationale. Every gate
  *  below fires in the same order engine.js uses, so backtest and live
  *  can never drift on WHAT is being tested, only on which historical
  *  window it's tested against.
  * ═══════════════════════════════════════════════════════════════════════
  */
-const WARMUP_BUFFER_DAYS = 40; // covers the 2H macro warmup with margin
+// v1.1.4: bumped 40→60 to safely cover the new 2H STRUCT warmup, which
+// (at STRUCT_VP_LOOKBACK=500 bars × 2h = ~41.7 calendar days, +ATR_PERIOD
+// +5 bars margin, ≈43.3 days) now needs materially more runway than the
+// old 30M-structure design did (~10.4 days). See run-backtest.js for the
+// separate, even-longer D1 warmup fix (that one can't share this buffer
+// because D1's own required history, at DAILY_VP_LOOKBACK=200 trading
+// days, is far larger still — especially for equities, which only trade
+// ~5/7 days).
+const WARMUP_BUFFER_DAYS = 60; // covers the 2H structure warmup with margin
 
 module.exports = function createBacktestEngine({ config, core, version, botLabel }) {
 
@@ -32,7 +41,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
     const funnel = {
       scanned: 0, voteOk: 0, bullVote: 0, bearVote: 0, volatilityOk: 0, structureOk: 0, notOverExtended: 0,
       nearZone: 0, prominenceOk: 0, confluenceOk: 0, htf2hAligned: 0, dualMultiTFOk: 0, notInvalidated: 0,
-      cooldownOk: 0, triggerOk: 0, tp2RangeOk: 0, opened: 0,
+      cooldownOk: 0, triggerOk: 0, driftOk: 0, tp2RangeOk: 0, opened: 0,
     };
 
     const warmupStruct = config.STRUCT_VP_LOOKBACK + config.ATR_PERIOD + 5;
@@ -86,7 +95,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
       funnel.scanned++;
 
-      // ── Recompute 30M structure only when a new 30M bar closed ────────
+      // ── Recompute 2H structure only when a new 2H bar closed ──────────
       if (advancedStruct || !cachedStruct) {
         const wStart = Math.max(0, ptrStruct + 1 - (config.STRUCT_VP_LOOKBACK + config.ATR_PERIOD + 5));
         const windowStruct = data30m.slice(wStart, ptrStruct + 1);
@@ -104,7 +113,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         }
         cachedStruct = biasStruct && atrStruct ? { biasStruct, atrStruct, atrSeriesStruct, windowStruct, pocWideWindowStruct } : null;
       }
-      // ── Recompute 2H bias only when a new 2H bar closed ───────────────
+      // ── Recompute 30M bias only when a new 30M bar closed ─────────────
       if (advancedBias || !cachedBias) {
         const wBStart = Math.max(0, ptrBias + 1 - (config.BIAS_VP_LOOKBACK + 5));
         const windowBias = data2h.slice(wBStart, ptrBias + 1);
@@ -127,8 +136,8 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
       const resolved = core.resolveDirection([
         { tf: 'D1',  result: cachedDaily },
-        { tf: '2H',  result: cachedBias },
-        { tf: '30M', result: cachedStruct.biasStruct },
+        { tf: '30M', result: cachedBias },
+        { tf: '2H',  result: cachedStruct.biasStruct },
         { tf: '15M', result: bias15m },
       ], config.MIN_TF_AGREE);
       if (!resolved) continue;
@@ -168,7 +177,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       }
       if (bestScore < 1) continue;
       if (bestPivot.name === 'POC' && bestScore < config.MIN_CONFLUENCE_POC) continue;
-      if (bestPivot.name === 'POC' && config.POC_REQUIRE_STRUCT_CONFIRM && !resolved.agreeing.includes('30M')) continue;
+      if (bestPivot.name === 'POC' && config.POC_REQUIRE_STRUCT_CONFIRM && !resolved.agreeing.includes('2H')) continue;
 
       const prominenceForGate = core.computePOCProminence(vpStruct);
       if (!core.isPOCProminenceTrusted(bestPivot.name, prominenceForGate, config)) continue;
@@ -180,21 +189,24 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       funnel.htf2hAligned++;
 
       // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────
-      // Hard gate: BOTH 2H and D1 must independently confirm on BOTH the
+      // Hard gate: BOTH 30M and D1 must independently confirm on BOTH the
       // POC check and the Fib check, all in the trade's direction — not
       // just "any" agreement. Each macro TF's tolerance is measured
       // against ITS OWN ATR (cachedAtr2h/cachedAtrD1, computed once per
-      // 2H/D1 bar close alongside the bias vote itself — see above), not
-      // 30M's — see core.js computeMultiTFPOCAlignment()/
+      // 30M/D1 bar close alongside the bias vote itself — see above), not
+      // 2H's — see core.js computeMultiTFPOCAlignment()/
       // computeMultiTFFibAlignment() v1.1.1 fix notes for why that matters.
+      // (variable names still say "2h" for historical continuity — see
+      // shared/config-base.js RE-ROLE note: cachedBias/cachedAtr2h now
+      // actually hold 30M-sourced data post v1.1.4.)
       const multiTFPOC = core.computeMultiTFPOCAlignment(
         vpStruct.pocPrice,
-        [{ label: '2H', poc: cachedBias?.poc, atr: cachedAtr2h }, { label: 'D1', poc: cachedDaily?.poc, atr: cachedAtrD1 }],
+        [{ label: '30M', poc: cachedBias?.poc, atr: cachedAtr2h }, { label: 'D1', poc: cachedDaily?.poc, atr: cachedAtrD1 }],
         config.MULTI_TF_POC_TOLERANCE_ATR
       );
       const multiTFFib = core.computeMultiTFFibAlignment(
         bestFibLevel, direction,
-        [{ label: '2H', swing: cachedBias?.swing, atr: cachedAtr2h }, { label: 'D1', swing: cachedDaily?.swing, atr: cachedAtrD1 }],
+        [{ label: '30M', swing: cachedBias?.swing, atr: cachedAtr2h }, { label: 'D1', swing: cachedDaily?.swing, atr: cachedAtrD1 }],
         config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
       );
       if (config.DUAL_MULTI_TF_GATE_ENABLED) {
@@ -220,6 +232,16 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         config.SOLO_ELIGIBLE_PATTERNS);
       if (!rejection.valid) continue;
       funnel.triggerOk++;
+
+      // ── ENTRY DRIFT / STALENESS GUARD (v1.1.4 FIX, mirrors engine.js) ──
+      // In a real backtest tick there's no cron delay — bar.close IS
+      // "now" — so this is mostly a no-op here and exists to keep
+      // backtest and live using the exact same gate list. It only bites
+      // in the (rare, already-anomalous) case where the struct-TF close
+      // used above has already drifted from the live 15M tick beyond
+      // tolerance within the same bar.
+      if (core.isZoneInvalidated(bar.close, bestFibLevel, atrStruct, direction, config.ENTRY_DRIFT_MAX_ATR)) continue;
+      funnel.driftOk++;
 
       const slAtrMult = config.SL_ATR_MULT_MATRIX_ENABLED && config.SL_ATR_MULT_MATRIX[bestPivot.name] != null
         ? config.SL_ATR_MULT_MATRIX[bestPivot.name]
@@ -301,7 +323,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
     let capital = config.STARTING_CAPITAL, peak = capital, maxDD = 0;
     for (const t of closed) {
-      let riskMult = core.computeRiskMultiplier(t.pivot, t.agreeing, t.patterns, config.RISK_TIER_MATRIX, config.PATTERN_RISK_MATRIX, config.RISK_TIER_DEFAULT, t.td9Confirms, config.TD9_BOOST_MULT, t.slAtrMult, config.SL_ATR_MULT, '30M');
+      let riskMult = core.computeRiskMultiplier(t.pivot, t.agreeing, t.patterns, config.RISK_TIER_MATRIX, config.PATTERN_RISK_MATRIX, config.RISK_TIER_DEFAULT, t.td9Confirms, config.TD9_BOOST_MULT, t.slAtrMult, config.SL_ATR_MULT, '2H');
       riskMult *= core.computePOCQualityMultiplier(t.pivot, t.direction, t.prominence, t.migration, t.nakedPOC, t.multiTFPOC, config);
       riskMult *= core.computeVoteStrengthMultiplier(t.agreeing.length, config);
       riskMult = Math.max(0.1, Math.min(1.0, riskMult));
@@ -337,12 +359,12 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       byDirection[t.direction].totalRR += t.rr;
     }
 
-    // Confidence-tier breakdown — does 30M (structure) confirm the trade
-    // direction? (agreeing includes '30M') vs not. See core.js
+    // Confidence-tier breakdown — does 2H (structure) confirm the trade
+    // direction? (agreeing includes '2H') vs not. See core.js
     // computeRiskMultiplier() for why this split exists.
     const byTier = {};
     for (const t of closed) {
-      const tier = (t.agreeing || []).includes('30M') ? '30M-confirmed' : 'no-30M-confirm';
+      const tier = (t.agreeing || []).includes('2H') ? '2H-confirmed' : 'no-2H-confirm';
       if (!byTier[tier]) byTier[tier] = { trades: 0, wins: 0, sl: 0, totalRR: 0 };
       byTier[tier].trades++;
       if (t.rr > 0) byTier[tier].wins++;
@@ -410,7 +432,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       '═══════════════════════════════════════════════════════════════════',
       ` ${botLabel} v${version} — BACKTEST REPORT`,
       ` Period: Last ${requestedDays} days  |  Symbols: ${requestedSymbols.join(', ')}`,
-      ' D1+2H+30M+15M — 3-of-4 timeframe vote (30M zone, 15M trigger)',
+      ' D1+2H+30M+15M — 3-of-4 timeframe vote (D1 bias, 2H zone, 30M+15M trigger)',
       '═══════════════════════════════════════════════════════════════════',
       '',
       '⚠️  This is a backtest, not a live-performance guarantee. No setting',
@@ -490,7 +512,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
           `  ${sym}:`,
           `    scanned=${f.scanned}  voteOk=${f.voteOk}(bull=${f.bullVote}/bear=${f.bearVote})  volatilityOk=${f.volatilityOk}  structureOk=${f.structureOk}`,
           `    notOverExtended=${f.notOverExtended}  nearZone=${f.nearZone}  prominenceOk=${f.prominenceOk}  confluenceOk=${f.confluenceOk}  htf2hAligned=${f.htf2hAligned}  dualMultiTFOk=${f.dualMultiTFOk}`,
-          `    notInvalidated=${f.notInvalidated}  cooldownOk=${f.cooldownOk}  triggerOk=${f.triggerOk}  tp2RangeOk=${f.tp2RangeOk}  opened=${f.opened}`,
+          `    notInvalidated=${f.notInvalidated}  cooldownOk=${f.cooldownOk}  triggerOk=${f.triggerOk}  driftOk=${f.driftOk}  tp2RangeOk=${f.tp2RangeOk}  opened=${f.opened}`,
         ];
       }),
       '',

@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED CONFIG BASE (shared/config-base.js)  v1.0.0
+ *  GWP — SHARED CONFIG BASE (shared/config-base.js)  v1.1.4
  *
  *  Every setting in here is IDENTICAL in mechanics to MVS-bot's config.js
  *  (v10.15.5) — same gates, same formulas, same evidence-based defaults.
@@ -27,6 +27,25 @@
  *   HALF_TIMEFRAME / HALF_VP_LOOKBACK / HALF_FIB_LOOKBACK / HALF_BAR_SECONDS
  *  (MVS's "HALF" 30m vote-only slot is GONE — GWP's 30M timeframe now
  *  plays MVS's OLD "1H structure" role instead, not a 6th/vote-only role.)
+ *
+ *  v1.1.4 RE-ROLE (live evidence-driven — 30M structure was remapping/
+ *  invalidating too often, producing shallow, whipsawed zones; 2H holds
+ *  and respects far better):
+ *   STRUCT_TIMEFRAME  30M → 2H    (owns the zone: swing/Fib pocket/
+ *                                   POC-VAH-VAL/ATR/SL anchor)
+ *   BIAS_TIMEFRAME     2H → 30M   (now the fast confirming vote that
+ *                                   sits alongside the 15M trigger)
+ *   DAILY_TIMEFRAME    unchanged  (1D — sole macro bias vote)
+ *   TRIGGER_TIMEFRAME  unchanged  (15M — owns the actual entry candle)
+ *  Still a 4-way vote, still MIN_TF_AGREE 3-of-4 — only WHICH physical
+ *  candle interval plays which role changed. Every generic config field
+ *  below (STRUCT_*, BIAS_*, TRIGGER_*, DAILY_*) automatically follows
+ *  its ROLE to the new interval — core.js/engine.js/backtest-engine.js
+ *  never hardcode "2H" or "30M" as a physical string, only as the
+ *  human-readable label attached to whichever data source is playing
+ *  that role, so this re-role needed no logic changes, only the four
+ *  *_TIMEFRAME strings + their paired *_BAR_SECONDS below, plus the
+ *  display labels in engine.js/backtest-engine.js/run-commands.js.
  * ═══════════════════════════════════════════════════════════════════════
  */
 
@@ -43,12 +62,12 @@ module.exports = {
   // an additional bias-vote layer alongside 4H (both feeding the SAME
   // tfBiasVote() POC/VAH/VAL/Fib50 4-pillar check, just on daily bars) —
   // not a new structural role, just a second, slower-moving macro
-  // opinion. GWP restores that exact pattern: D1 and 2H are BOTH bias-
-  // only votes; 30M keeps sole ownership of structure (zone/Fib
-  // pocket/SL anchor) and 15M keeps sole ownership of the trigger.
+  // opinion. As of v1.1.4, D1 and 30M are BOTH bias-only votes; 2H keeps
+  // sole ownership of structure (zone/Fib pocket/SL anchor) and 15M
+  // keeps sole ownership of the trigger — see RE-ROLE note up top.
   DAILY_TIMEFRAME:   '1day',
-  BIAS_TIMEFRAME:    '2hour',
-  STRUCT_TIMEFRAME:  '30min',
+  BIAS_TIMEFRAME:    '30min',
+  STRUCT_TIMEFRAME:  '2hour',
   TRIGGER_TIMEFRAME: '15min',
 
   // 3-of-4 direction vote — kept as a named constant, not a bare "3", so
@@ -61,11 +80,11 @@ module.exports = {
   // Bar durations in seconds — used for cooldown math and the
   // MAX_HOLD_STRUCT_BARS / EARLY_TIMEOUT_BARS ceilings in core.js
   // evaluateOpenTrade(). STRUCT_BAR_SECONDS is the one that actually
-  // drives logic (30M = 1800s); DAILY/BIAS/TRIGGER seconds below are
+  // drives logic (2H = 7200s); DAILY/BIAS/TRIGGER seconds below are
   // informational only, kept for symmetry and any future use.
   DAILY_BAR_SECONDS:   86400,
-  BIAS_BAR_SECONDS:    7200,
-  STRUCT_BAR_SECONDS:  1800,
+  BIAS_BAR_SECONDS:    1800,
+  STRUCT_BAR_SECONDS:  7200,
   TRIGGER_BAR_SECONDS: 900,
 
   // ── Scan frequency ──────────────────────────────────────────────────────
@@ -84,18 +103,21 @@ module.exports = {
   DAILY_VP_LOOKBACK:  200,
   DAILY_FIB_LOOKBACK:  30,
 
-  // STRUCT (30M) — ported directly from MVS's 1H structure lookback
-  // (500 VP / 200 Fib bars). Same bar COUNT as MVS used for 1H; because
-  // 30M bars are half as long as 1H bars, this now covers roughly half
-  // the calendar span MVS's 1H window did (~10.4 / 4.2 days vs MVS's
-  // ~20.8 / 8.3 days) — appropriate for a faster structure timeframe.
+  // STRUCT — now played by 2H (was 30M, see v1.1.4 RE-ROLE note up top).
+  // Same bar COUNT (500 VP / 200 Fib) kept from the original 30M design;
+  // on 2H candles that's now a ~41.7 / 16.7 day window (vs ~10.4 / 4.2
+  // days when this same bar count ran on 30M) — a wider, slower-moving
+  // structure zone, which is exactly the point of the re-role: 2H holds
+  // and respects its zone far better than 30M did.
   STRUCT_VP_LOOKBACK:   500,
   STRUCT_FIB_LOOKBACK:  200,
 
-  // BIAS (2H) — ported directly from MVS's 4H macro bias lookback
-  // (200 VP / 90 Fib bars). Same bar COUNT as MVS used for 4H; because 2H
-  // bars are half as long as 4H bars, this covers roughly half the
-  // calendar span (~16.7 / 7.5 days vs MVS's ~33 / 15 days).
+  // BIAS — now played by 30M (was 2H, see v1.1.4 RE-ROLE note up top).
+  // Same bar COUNT (200 VP / 90 Fib) kept from the original 2H design;
+  // on 30M candles that's now a ~4.2 / 1.9 day window (vs ~16.7 / 7.5
+  // days when this same bar count ran on 2H) — a fast, tactical
+  // confirming vote that sits alongside the 15M trigger rather than a
+  // slow macro opinion.
   BIAS_VP_LOOKBACK:   200,
   BIAS_FIB_LOOKBACK:   90,
 
@@ -145,18 +167,38 @@ module.exports = {
   ABSORPTION_BODY_RATIO: 0.70,
 
   // ── Zone invalidation ───────────────────────────────────────────────────
-  // 30M close beyond zone ref by > ATR × this multiplier voids the zone.
+  // 2H close beyond zone ref by > ATR × this multiplier voids the zone
+  // (struct TF is 2H as of v1.1.4 — see RE-ROLE note up top).
   ZONE_INVALIDATION_ATR_MULT: 1.0,
 
+  // ── Entry drift / staleness guard (v1.1.4 FIX — delayed-signal problem) ──
+  // GitHub Actions scheduled cron is NOT guaranteed to fire exactly on
+  // time — it can run several minutes late, especially at the top of
+  // the hour when many repos' crons queue at once. Everything upstream
+  // of this gate (bestFibLevel, the SL/TP structure) is computed off
+  // already-closed candles, so by the time the alert is actually
+  // assembled and sent, live price can have already run through the
+  // computed entry level. This gate re-checks the FRESHEST price we
+  // have (the just-closed 15M candle's close — up to 15M stale, not up
+  // to a full STRUCT-TF stale) against the entry level right before
+  // firing, and suppresses the signal if price has already drifted past
+  // it by more than ATR × this multiplier, rather than sending an alert
+  // for an entry that's already been blown through. See engine.js Step
+  // 8.5 / backtest-engine.js's matching gate (kept deliberately loose
+  // relative to ZONE_INVALIDATION_ATR_MULT, since a live signal that's
+  // merely close to the level is still tradeable — this only kills
+  // signals that are genuinely stale by delivery time).
+  ENTRY_DRIFT_MAX_ATR: 0.5,
+
   // ── Signal cooldown ─────────────────────────────────────────────────────
-  // Suppress re-alert on same symbol+direction for N structure(30M) bars.
+  // Suppress re-alert on same symbol+direction for N structure(2H) bars.
   SIGNAL_COOLDOWN_BARS: 3,
 
   // ── ATR ─────────────────────────────────────────────────────────────────
   ATR_PERIOD: 14,
 
   // ── Risk management ─────────────────────────────────────────────────────
-  SL_ATR_MULT: 0.25,          // SL = swing wick ± 0.25×ATR(30M)
+  SL_ATR_MULT: 0.25,          // SL = swing wick ± 0.25×ATR(2H)
 
   // ── EXPERIMENTAL — per-pivot SL width test, OFF by default (ported
   // from MVS's SL_ATR_MULT_MATRIX, still unvalidated there too) ──────────
@@ -188,9 +230,9 @@ module.exports = {
   NAKED_POC_BOOST_MULT: 1.15,
 
   // #4 MULTI-TIMEFRAME POC ALIGNMENT — adapted to GWP's 3-TF design:
-  // checks 30M structure POC against 2H bias POC only (no 1D layer here).
+  // checks 2H structure POC against 30M bias POC only (no 1D layer here).
   MULTI_TF_POC_ENABLED: process.env.MULTI_TF_POC_ENABLED === 'false' ? false : true,
-  // v1.1.1 FIX: was 0.75 measured against the WRONG (30M) ATR — see the
+  // v1.1.1 FIX: was 0.75 measured against the WRONG (struct) ATR — see the
   // v1.1.1 note on core.js computeMultiTFPOCAlignment for the full
   // story. Now measured against each macro TF's OWN ATR, where a
   // realistically-aligned case measures roughly 0.1-1.0× — 2.0 gives
@@ -199,16 +241,16 @@ module.exports = {
   MULTI_TF_POC_BOOST_MULT: 1.15,
 
   // #5 MULTI-TIMEFRAME FIBONACCI ALIGNMENT — same idea as #4 above, for
-  // Fibonacci instead of POC: does the 30M confluence Fib level ALSO
+  // Fibonacci instead of POC: does the 2H confluence Fib level ALSO
   // line up with the equivalent Fib pocket computed independently on
-  // 2H's and D1's OWN swings? See core.js computeMultiTFFibAlignment().
+  // 30M's and D1's OWN swings? See core.js computeMultiTFFibAlignment().
   // v1.1.1 FIX: same tolerance-basis fix as MULTI_TF_POC_TOLERANCE_ATR
   // above — now measured against each macro TF's own ATR.
   MULTI_TF_FIB_TOLERANCE_ATR: 2.0,
 
   // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────────────
   // A hard GATE, not just a size multiplier: requires BOTH systems above
-  // to show FULL agreement (2H **and** D1 both aligned, not just one) —
+  // to show FULL agreement (30M **and** D1 both aligned, not just one) —
   // in the SAME direction as the trade — before the bot even looks at
   // the 15M trigger candle. This sits on top of, not instead of, the
   // 15M rejection-candle requirement in REJECTION_MIN_PATTERNS below.
@@ -219,13 +261,13 @@ module.exports = {
   // asked for. Verify the actual effect with backtest.js, same as any
   // other setting here.
   DUAL_MULTI_TF_GATE_ENABLED: process.env.DUAL_MULTI_TF_GATE_ENABLED === 'false' ? false : true,
-  // v1.1.2 FIX: was hardcoded to require BOTH 2H AND D1 (length>=2) on
+  // v1.1.2 FIX: was hardcoded to require BOTH 2H AND D1 (length>=2) on — now 30M+D1 post v1.1.4 RE-ROLE, same idea
   // BOTH the POC and Fib systems — confirmed too strict against REAL
   // data: crypto's signal count dropped from 62 (360 days, pre-D1) to 2
   // with this gate at full strictness, far below the "at least 1
   // trade/week" target. These are now tunable minimums instead of a
   // hardcoded "both" requirement. Default of 1 means "at least one of
-  // {2H, D1} confirms" for each system (POC and Fib independently still
+  // {30M, D1} confirms" for each system (POC and Fib independently still
   // both required) — a real filter, just not a near-impossible one. Set
   // back to 2 for the original, much stricter "both timeframes must
   // agree" behavior if backtest results support it for your symbols.
@@ -241,11 +283,11 @@ module.exports = {
   // confirming vote → the weak segment) — key renamed 1H→30M to match
   // GWP's own structure TF, mechanics unchanged.
   RISK_TIER_MATRIX: {
-    POC_NO30M: 0.75,
+    POC_NO2H: 0.75,
   },
   RISK_TIER_DEFAULT: 1.0,
 
-  // ── POC + no-30M-confirm: GATE, not just a size cut ─────────────────────
+  // ── POC + no-2H-confirm: GATE, not just a size cut ─────────────────────
   // Ported directly from MVS's POC_REQUIRE_1H_CONFIRM (v10.12) — same
   // rationale: the POC/no-structure-confirm segment is confirmed-weak
   // evidence, removed from the entry funnel entirely rather than just
@@ -268,9 +310,9 @@ module.exports = {
   // this gate — unrelated to the dual multi-TF gate — had become the
   // dominant bottleneck: 307 trigger-qualified candidates across all 14
   // crypto symbols, only 10 survived this one check (97% rejection).
-  // The dual multi-TF gate systematically selects setups where 2H/D1
+  // The dual multi-TF gate systematically selects setups where 30M/D1
   // ALSO confirm the same level, which tends to happen closer to major
-  // swing extremes — meaning TP1 and TP2 (the 30M value-area edge) end
+  // swing extremes — meaning TP1 and TP2 (the 2H value-area edge) end
   // up naturally closer together than in the pre-dual-gate candidate
   // pool this 0.25 was tuned against. Lowered to 0.05 — still rejects
   // genuinely negligible-extension setups (TP2 barely beyond TP1 at
@@ -283,7 +325,7 @@ module.exports = {
   // v10.15.1 revert (a fresh backtest showed this cut simulated return
   // roughly in half without a matching win-rate improvement — see
   // MVS-bot's config.js v10.15.1 note for the full numbers). With 4
-  // timeframes now (D1/2H/30M/15M) at MIN_TF_AGREE=3, the only two
+  // timeframes now (D1/2H/30M/15M — D1 bias, 2H structure, 30M+15M as the tactical/trigger layer) at MIN_TF_AGREE=3, the only two
   // possible tallies are 3-of-4 and 4-of-4 — kept as a lookup table (not
   // hardcoded) so it stays easy to re-test.
   VOTE_STRENGTH_SIZE_ENABLED: process.env.VOTE_STRENGTH_SIZE_ENABLED === 'true' ? true : false,

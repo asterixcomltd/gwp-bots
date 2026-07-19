@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — GHOST WICK PROTOCOL — CORE STRATEGY LOGIC (core.js)  v1.1.0
+ *  GWP — GHOST WICK PROTOCOL — CORE STRATEGY LOGIC (core.js)  v1.1.4
  *
  *  Every pure function used to decide BUY/SELL/NO-TRADE lives here, and
  *  ONLY here. Each sub-bot's strategy.js (live/Telegram), backtest.js
@@ -732,7 +732,7 @@ const isPOCProminenceTrusted = (pivotName, prominence, cfg) => {
   return prominence.prominenceRatio >= cfg.POC_PROMINENCE_MIN_RATIO;
 };
 
-const computeRiskMultiplier = (pivotName, agreeing, patterns, riskTierMatrix, patternRiskMatrix, defaultMult = 1.0, td9Confirms = false, td9BoostMult = 1.0, slAtrMultUsed = null, baselineSlAtrMult = null, confirmTF = '30M') => {
+const computeRiskMultiplier = (pivotName, agreeing, patterns, riskTierMatrix, patternRiskMatrix, defaultMult = 1.0, td9Confirms = false, td9BoostMult = 1.0, slAtrMultUsed = null, baselineSlAtrMult = null, confirmTF = '2H') => {
   // GWP: the "structure" timeframe (30M) plays the same confirm role MVS's
   // 1H played — a POC-pivot trade where the structure TF is NOT one of
   // the agreeing votes is the confirmed-weak segment (see config.js
