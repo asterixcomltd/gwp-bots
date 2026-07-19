@@ -59,7 +59,7 @@ module.exports = {
 
   // ── Timeframes — Twelve Data interval strings ───────────────────────────
   DAILY_TIMEFRAME:   '1day',
-  BIAS_TIMEFRAME:    '2h',
-  STRUCT_TIMEFRAME:  '30min',
+  BIAS_TIMEFRAME:    '30min',
+  STRUCT_TIMEFRAME:  '2h',
   TRIGGER_TIMEFRAME: '15min',
 };
