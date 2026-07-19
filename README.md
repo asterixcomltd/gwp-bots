@@ -8,7 +8,7 @@ indicators), same shared-core discipline, same trade-management mechanics
 sizing boost). The **only** structural change from MVS is the timeframe
 architecture itself.
 
-## Timeframe architecture (v1.1.2)
+## Timeframe architecture (v1.1.2 mechanics, v1.1.4 RE-ROLE)
 
 MVS's own codebase documents its *original* v10.0 design as a 3-timeframe,
 2-of-3 vote (4H bias / 1H structure / 15m trigger) before it was later
@@ -17,35 +17,61 @@ restores that same 4-timeframe pattern, one rung down the clock:
 
 | Role       | Timeframe | Job                                                          |
 |------------|-----------|---------------------------------------------------------------|
-| **Bias**   | **D1**    | A second, slower macro POC/VAH/VAL/Fib50 vote                 |
-| **Bias**   | **2H**    | Macro POC/VAH/VAL/Fib50 vote                                   |
-| **Structure** | **30M** | Swing, Fibonacci golden pocket, POC/VAH/VAL zone, ATR, SL anchor |
+| **Bias**   | **D1**    | Slow macro POC/VAH/VAL/Fib50 vote                              |
+| **Bias**   | **30M**   | Fast, tactical confirming vote — sits alongside the 15M trigger |
+| **Structure** | **2H** | Swing, Fibonacci golden pocket, POC/VAH/VAL zone, ATR, SL anchor |
 | **Entry (trigger)** | **15M** | The actual rejection candle that fires the signal        |
+
+> **v1.1.4 RE-ROLE:** live evidence showed 30M structure remapping/
+> invalidating too often — shallow, whipsawed zones that didn't hold. 2H
+> holds and respects its structure far better, so as of v1.1.4 the STRUCT
+> role moved from 30M → 2H, and the fast-vote BIAS role moved from 2H →
+> 30M (D1 and 15M are unchanged). Still a 4-way vote, still 3-of-4 —
+> only which physical candle interval plays which role changed. Every
+> config field in `config-base.js` is named by ROLE (`STRUCT_*`,
+> `BIAS_*`, etc.), so this was a config-only change with no logic
+> rewrite — see that file's RE-ROLE comment block for the full detail.
 
 Direction requires **3 of these 4** timeframes to agree before anything can
 fire — no single timeframe can force a trade on its own. The bot scans
 every 15 minutes, matching the 15M trigger cadence.
 
-**On top of the vote**, a **dual multi-TF gate** requires the 30M zone's
+**On top of the vote**, a **dual multi-TF gate** requires the 2H zone's
 confluence level to also line up with the equivalent level computed
-independently on 2H and D1 — checked TWICE, once for POC
+independently on 30M and D1 — checked TWICE, once for POC
 (`computeMultiTFPOCAlignment`) and once for Fibonacci
 (`computeMultiTFFibAlignment`). `DUAL_MULTI_TF_POC_MIN_ALIGNED` and
 `DUAL_MULTI_TF_FIB_MIN_ALIGNED` (both default `1`) control how many of
-{2H, D1} must independently confirm each system — default is "at least
+{30M, D1} must independently confirm each system — default is "at least
 one of the two," not "both." An earlier version hardcoded "both required"
 and it crushed signal frequency far below a usable rate on real data
 (crypto went from ~62 signals/360 days down to 2); these are tunable via
 env vars if you want to re-test stricter settings against your own
 backtest numbers. This sits on top of, not instead of, the 15M
 rejection-candle requirement.
+>
+> Note: post RE-ROLE, this gate's second confirmer (formerly 2H, a
+> genuinely higher timeframe than the old 30M structure) is now the
+> faster 30M vote — a *lower* timeframe than the new 2H structure it's
+> confirming. Worth watching; if it proves too permissive, consider
+> re-pointing one slot at a higher-order D1 check instead.
 
 **Important tolerance note:** each multi-TF check measures against that
-specific timeframe's *own* ATR, not 30M's. A price gap that looks huge in
-30M-ATR terms can be perfectly normal relative to D1's own (much larger)
+specific timeframe's *own* ATR, not 2H's. A price gap that looks huge in
+2H-ATR terms can be perfectly normal relative to D1's own (much larger)
 volatility — comparing against the wrong timeframe's ATR was an earlier
 bug that made the dual gate never fire at all (see `core.js`'s v1.1.1 fix
 notes on `computeMultiTFPOCAlignment`).
+
+**Entry drift / staleness guard (v1.1.4):** scheduled GitHub Actions
+cron isn't guaranteed to fire exactly on time, so by the time an alert is
+actually sent, live price can have already run past the computed entry
+level. Right before firing, the engine now re-checks the freshest 15M
+close against the entry and suppresses the signal if price has already
+drifted past it by more than `ENTRY_DRIFT_MAX_ATR` (default `0.5`×ATR),
+rather than sending an alert for an entry that's already been blown
+through. Telegram alerts also now show an **entry zone** (a small range)
+plus a "last live check" line instead of a single pinpoint price.
 
 ## Repo layout
 
@@ -215,6 +241,32 @@ Edit `SYMBOLS` in each bot's `bots/<name>/config.js` to change this list.
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.1.4**: Three fixes from live/backtest evidence, in one pass:
+  (1) **RE-ROLE** — 30M structure was remapping/invalidating too often
+  (shallow, whipsawed zones); 2H holds and respects its structure far
+  better, so STRUCT moved 30M→2H and the fast confirming vote moved
+  2H→30M (D1/15M unchanged, still 3-of-4). Pure config change (every
+  strategy field is named by role, not by physical TF), but every
+  user-facing label (Telegram, `/status`, `/about`, `/signal`, diag
+  logs, backtest report) was re-labeled to match. (2) **Entry drift
+  guard** — signals could arrive already-invalidated because scheduled
+  GitHub Actions cron isn't guaranteed to fire on time and nothing
+  re-checked live price before sending; added `ENTRY_DRIFT_MAX_ATR`
+  (default 0.5×ATR) as a final freshness gate right before firing, plus
+  alerts now show an entry *zone* and a live drift-check line instead of
+  one pinpoint price. Also staggered forex-scan's cron 5 minutes off
+  crypto-scan's (they were both firing on the exact same round minute,
+  the most congested slot for GitHub's shared scheduler). (3) **Stocks
+  backtest returning 0 trades for every symbol** — `run-backtest.js` was
+  fetching D1 candles with the same short day-budget as the intraday
+  timeframes; for stocks' 90-day window that's only ~107 trading-day D1
+  bars, nowhere near the 205 the backtest engine requires before its
+  replay loop even starts, so it silently returned an empty funnel every
+  time. Crypto/forex only avoided this by coincidence (longer
+  `BACKTEST_DAYS` happened to fetch enough D1 bars anyway). Gave D1 its
+  own dedicated, longer fetch window, independent of `BACKTEST_DAYS`.
+  Also bumped the backtest warmup buffer 40→60 days for the new,
+  longer-runway 2H structure warmup.
 - **v1.1.3**: Found the REAL post-D1 frequency bottleneck via real
   backtest funnel data — not the dual multi-TF gate (which was passing
   85-95% of candidates by this point, and crypto's win rate had actually
