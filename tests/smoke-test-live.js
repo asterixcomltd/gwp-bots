@@ -63,9 +63,28 @@ async function testBot(botDir, botName, tfSeconds) {
 
 (async () => {
   let totalErrors = 0;
-  totalErrors += await testBot(path.join(__dirname, '../bots/crypto'), 'GWP-Crypto', { daily: 86400, bias: 7200, struct: 1800, trigger: 900 });
-  totalErrors += await testBot(path.join(__dirname, '../bots/forex'), 'GWP-Forex', { daily: 86400, bias: 7200, struct: 1800, trigger: 900 });
-  totalErrors += await testBot(path.join(__dirname, '../bots/stocks'), 'GWP-Stocks', { daily: 86400, bias: 7200, struct: 1800, trigger: 900 });
+  // v1.1.6 FIX: this used to pass ONE shared, hardcoded
+  // { daily: 86400, bias: 7200, struct: 1800, trigger: 900 } to all three
+  // bots — the PRE-v1.1.4-RE-ROLE mapping (bias=2H/struct=30M). Since the
+  // RE-ROLE, production is bias=30M(1800s)/struct=2H(7200s) — exactly
+  // backwards from what this test fed fakeGetKlines(). It never crashed
+  // (fakeGetKlines just generates bars at whatever interval it's told,
+  // valid either way), so this "smoke test" was silently exercising the
+  // OLD physical-TF wiring — a false green checkmark, same bug as the
+  // backtest smoke test. Deriving tfSeconds from each bot's own config
+  // (which is what a real GH Actions run does — config.BIAS_BAR_SECONDS/
+  // STRUCT_BAR_SECONDS are already generic and role-based) means this
+  // can never drift out of sync with config-base.js again.
+  for (const [dir, name] of [['../bots/crypto', 'GWP-Crypto'], ['../bots/forex', 'GWP-Forex'], ['../bots/stocks', 'GWP-Stocks']]) {
+    const botConfig = require(path.join(__dirname, dir, 'config.js'));
+    const tfSeconds = {
+      daily: botConfig.DAILY_BAR_SECONDS,
+      bias: botConfig.BIAS_BAR_SECONDS,
+      struct: botConfig.STRUCT_BAR_SECONDS,
+      trigger: botConfig.TRIGGER_BAR_SECONDS,
+    };
+    totalErrors += await testBot(path.join(__dirname, dir), name, tfSeconds);
+  }
   console.log(totalErrors === 0 ? '\n✅ ALL SMOKE TESTS PASSED' : `\n❌ ${totalErrors} error(s) total`);
   process.exit(totalErrors === 0 ? 0 : 1);
 })();

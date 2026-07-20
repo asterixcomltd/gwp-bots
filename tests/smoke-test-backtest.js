@@ -55,10 +55,20 @@ async function testBacktest(botDir, botName) {
   const n15m = dailyDays * 96; // 96 × 15min bars per day
   const base15m = genBase15m(n15m, now - n15m * 900, 100, 11);
 
+  // v1.1.6 FIX: this used to hardcode struct=1800s(30M)/bias=7200s(2H) —
+  // the PRE-v1.1.4-RE-ROLE mapping. Since the RE-ROLE, production has
+  // STRUCT_TIMEFRAME=2H(7200s)/BIAS_TIMEFRAME=30M(1800s) — exactly
+  // backwards from what this test was feeding backtestSymbol(). It never
+  // crashed (both are valid bar-second values), so this "smoke test"
+  // was silently validating the OLD physical-TF wiring the whole time —
+  // a false green checkmark. Deriving from config.STRUCT_BAR_SECONDS/
+  // BIAS_BAR_SECONDS directly means this can never drift out of sync
+  // with config-base.js again, no matter how the roles get reassigned
+  // in the future.
   const trigger = base15m;
-  const struct  = aggregate(base15m, 1800);
-  const bias    = aggregate(base15m, 7200);
-  const daily   = aggregate(base15m, 86400);
+  const struct  = aggregate(base15m, config.STRUCT_BAR_SECONDS);
+  const bias    = aggregate(base15m, config.BIAS_BAR_SECONDS);
+  const daily   = aggregate(base15m, config.DAILY_BAR_SECONDS);
 
   const { backtestSymbol, generateReport } = createBacktestEngine({ config, core, version: '1.0.0', botLabel: botName });
   const evalWindowStartTime = now - days * 86400;
