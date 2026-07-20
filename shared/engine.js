@@ -193,8 +193,13 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         return;
       }
 
-      // Early zone-proximity skip — shared gate (core.isNearZone)
-      if (!core.isNearZone(price, fib, atrStruct, config.NEAR_ZONE_ATR_MULT)) {
+      // Early zone-proximity skip — shared gate (core.isNearZone /
+      // core.isNearZoneWick — see config.NEAR_ZONE_USE_WICK)
+      const structCandle = data30m[data30m.length - 1];
+      const nearZonePass = config.NEAR_ZONE_USE_WICK
+        ? core.isNearZoneWick(structCandle.high, structCandle.low, fib, atrStruct, config.NEAR_ZONE_ATR_MULT)
+        : core.isNearZone(price, fib, atrStruct, config.NEAR_ZONE_ATR_MULT);
+      if (!nearZonePass) {
         console.log(`  ⏳ Price not near 2H zone ($${fib.zoneLow.toFixed(4)}–$${fib.zoneHigh.toFixed(4)}). Waiting.`);
         return;
       }
