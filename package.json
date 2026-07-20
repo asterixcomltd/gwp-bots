@@ -1,7 +1,7 @@
 {
   "name": "gwp-bots",
   "version": "1.0.0",
-  "description": "GWP — Ghost Wick Protocol. Three sub-bots (Crypto / Forex / Stocks) built from MVS-bot's shared-core architecture. 2H bias / 30M structure / 15M trigger, 2-of-3 timeframe vote, POC+VAH+VAL+Fibonacci, zero lagging indicators. Scans every 15 minutes.",
+  "description": "GWP — Ghost Wick Protocol. Three sub-bots (Crypto / Forex / Stocks) built from MVS-bot's shared-core architecture. D1 bias / 2H structure / 30M+15M trigger layer, 3-of-4 timeframe vote, POC+VAH+VAL+Fibonacci, zero lagging indicators. Scans every 15 minutes.",
   "private": true,
   "workspaces": [],
   "scripts": {
@@ -19,7 +19,10 @@
     "stocks:backtest": "node bots/stocks/backtest.js",
     "stocks:commands": "node bots/stocks/commands.js",
     "stocks:weekly": "node bots/stocks/weekly-summary.js",
-    "stocks:setup": "node bots/stocks/setup-bot.js"
+    "stocks:setup": "node bots/stocks/setup-bot.js",
+    "test": "npm run test:live && npm run test:backtest",
+    "test:live": "node tests/smoke-test-live.js",
+    "test:backtest": "node tests/smoke-test-backtest.js"
   },
   "dependencies": {
     "axios": "^1.18.1"
