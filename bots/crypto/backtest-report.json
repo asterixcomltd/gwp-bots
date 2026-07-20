@@ -2,14 +2,14 @@
   {
     "symbol": "XRP-USDT",
     "direction": "BUY",
-    "entryTime": 1762539300,
+    "entryTime": 1762569000,
     "entryPrice": 2.2019797999999997,
     "slPrice": 2.2019797999999997,
     "tp1Price": 2.38236,
     "tp2Price": 2.64626275,
-    "origSlPrice": 2.0541232395824975,
-    "rr1": 1.22,
-    "rr2": 3,
+    "origSlPrice": 2.055267175804761,
+    "rr1": 1.23,
+    "rr2": 3.03,
     "patterns": [
       "CLOSE_REJECTION"
     ],
@@ -21,11 +21,11 @@
       "30M",
       "15M"
     ],
-    "confluenceScore": 2,
+    "confluenceScore": 1,
     "td9Confirms": false,
     "slAtrMult": 0.25,
     "prominence": {
-      "prominenceRatio": 1.5249871638702568,
+      "prominenceRatio": 1.477771450163136,
       "computed": true
     },
     "migration": {
@@ -55,17 +55,17 @@
     },
     "beMoved": true,
     "tp1Hit": true,
-    "halfR": 1.22,
+    "halfR": 1.23,
     "result": "TP1+BE",
     "exitPrice": 2.2019797999999997,
     "rr": 0.61,
     "exitTime": 1763256600,
-    "hoursHeld": 199
+    "hoursHeld": 191
   },
   {
     "symbol": "XRP-USDT",
     "direction": "BUY",
-    "entryTime": 1775601900,
+    "entryTime": 1775599200,
     "entryPrice": 1.3350140000000001,
     "slPrice": 1.3350140000000001,
     "tp1Price": 1.4074910693212022,
@@ -74,8 +74,7 @@
     "rr1": 1.2,
     "rr2": 1.86,
     "patterns": [
-      "POC_RECLAIM",
-      "CLOSE_REJECTION"
+      "VAH_VAL_RECLAIM"
     ],
     "pivot": "VAL",
     "fibPct": "70%-mid",
@@ -114,7 +113,6 @@
     "multiTFFib": {
       "anyAligned": true,
       "alignedLabels": [
-        "30M",
         "D1"
       ]
     },
@@ -123,12 +121,12 @@
     "exitPrice": 1.3350140000000001,
     "rr": 0,
     "exitTime": 1775694600,
-    "hoursHeld": 26
+    "hoursHeld": 27
   },
   {
     "symbol": "XRP-USDT",
     "direction": "SELL",
-    "entryTime": 1776559500,
+    "entryTime": 1776556800,
     "entryPrice": 1.4405290000000002,
     "slPrice": 1.4405290000000002,
     "tp1Price": 1.3526369246719614,
@@ -137,7 +135,8 @@
     "rr1": 1.2,
     "rr2": 1.74,
     "patterns": [
-      "VAH_VAL_RECLAIM"
+      "VAH_VAL_RECLAIM",
+      "ENGULFING"
     ],
     "pivot": "VAH",
     "fibPct": "70%-mid",
@@ -184,7 +183,135 @@
     "exitPrice": 1.4405290000000002,
     "rr": 0,
     "exitTime": 1776753000,
-    "hoursHeld": 54
+    "hoursHeld": 55
+  },
+  {
+    "symbol": "XRP-USDT",
+    "direction": "SELL",
+    "entryTime": 1778594400,
+    "entryPrice": 1.47305994,
+    "slPrice": 1.47305994,
+    "tp1Price": 1.4261705316709805,
+    "tp2Price": 1.37703975,
+    "origSlPrice": 1.5121344469408495,
+    "rr1": 1.2,
+    "rr2": 2.46,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAH",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.5304366842286203,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0.00849634999999993,
+      "currentPOC": 1.43013985,
+      "pastPOC": 1.4216435
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 1.3628907499999998,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+BE",
+    "exitPrice": 1.47305994,
+    "rr": 0.6,
+    "exitTime": 1778769900,
+    "hoursHeld": 49
+  },
+  {
+    "symbol": "AVAX-USDT",
+    "direction": "SELL",
+    "entryTime": 1772382600,
+    "entryPrice": 9.20379,
+    "slPrice": 9.880728915744534,
+    "tp1Price": 8.391463301106558,
+    "tp2Price": 8.26231,
+    "origSlPrice": 9.880728915744534,
+    "rr1": 1.2,
+    "rr2": 1.39,
+    "patterns": [
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "61.8%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.9670747176141392,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0.00774000000000008,
+      "currentPOC": 9.21739,
+      "pastPOC": 9.20965
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 12.352649999999999,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "result": "EARLY_TIMEOUT",
+    "exitPrice": 8.994,
+    "rr": 0.31,
+    "exitTime": 1772887500,
+    "hoursHeld": 140
   },
   {
     "symbol": "AVAX-USDT",
@@ -377,70 +504,6 @@
     "rr": 0.61,
     "exitTime": 1783651500,
     "hoursHeld": 26
-  },
-  {
-    "symbol": "LTC-USDT",
-    "direction": "BUY",
-    "entryTime": 1762501500,
-    "entryPrice": 85.53224,
-    "slPrice": 85.53224,
-    "tp1Price": 93.3,
-    "tp2Price": 102.39215000000002,
-    "origSlPrice": 79.29395643519855,
-    "rr1": 1.25,
-    "rr2": 2.7,
-    "patterns": [
-      "CLOSE_REJECTION"
-    ],
-    "pivot": "VAL",
-    "fibPct": "78.6%",
-    "voteTally": "3/4",
-    "agreeing": [
-      "D1",
-      "30M",
-      "15M"
-    ],
-    "confluenceScore": 2,
-    "td9Confirms": false,
-    "slAtrMult": 0.25,
-    "prominence": {
-      "prominenceRatio": 1.840611666763809,
-      "computed": true
-    },
-    "migration": {
-      "migrating": true,
-      "direction": "DOWN",
-      "distance": -22.05579999999999,
-      "currentPOC": 96.45405000000001,
-      "pastPOC": 118.50985
-    },
-    "nakedPOC": {
-      "naked": false,
-      "priorPOC": 113.55975000000001,
-      "tested": true,
-      "aligned": false
-    },
-    "multiTFPOC": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "D1"
-      ]
-    },
-    "multiTFFib": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M",
-        "D1"
-      ]
-    },
-    "beMoved": true,
-    "tp1Hit": true,
-    "halfR": 1.25,
-    "result": "TP1+TP2",
-    "exitPrice": 102.39215000000002,
-    "rr": 1.98,
-    "exitTime": 1762533000,
-    "hoursHeld": 9
   },
   {
     "symbol": "LTC-USDT",
@@ -690,10 +753,10 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.25,
-    "exitTime": 1784479500,
-    "exitPrice": 0.3274,
+    "exitTime": 1784515500,
+    "exitPrice": 0.3267,
     "result": "OPEN",
-    "rr": 1.5,
-    "hoursHeld": 24
+    "rr": 1.42,
+    "hoursHeld": 34
   }
 ]
