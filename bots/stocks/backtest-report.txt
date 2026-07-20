@@ -8,30 +8,29 @@
     here was chosen to hit a target win rate — see config.js header.
 
 ── SUMMARY ─────────────────────────────────────────────────────────
-  Total signals fired    : 9  (~1.05/week across all symbols)
-  Closed trades          : 9
+  Total signals fired    : 8  (~0.93/week across all symbols)
+  Closed trades          : 8
   Open (unrealised)      : 0
-  Win rate (all closed)  : 88.9%  (8W / 1L)
-  No-real-loss rate      : 88.9%  (8 no-loss / 1 real loss — excludes 0 breakeven scratches; this is NOT the same as "win rate")
-  Profit factor          : 14.89
-  Total R accumulated    : 7.36R
-  Avg win / avg loss     : +0.99R / -0.53R
-  Avg hours held         : 104h
+  Win rate (all closed)  : 87.5%  (7W / 1L)
+  No-real-loss rate      : 87.5%  (7 no-loss / 1 real loss — excludes 0 breakeven scratches; this is NOT the same as "win rate")
+  Profit factor          : 15.38
+  Total R accumulated    : 7.62R
+  Avg win / avg loss     : +1.16R / -0.53R
+  Avg hours held         : 93h
 
 ── OUTCOME BREAKDOWN ───────────────────────────────────────────────
-  TP1 reached (partial banked) : 7
-  TP2 reached (full target)    : 3
-    ..of which runner gave back to BE : 4
+  TP1 reached (partial banked) : 6
+  TP2 reached (full target)    : 4
+    ..of which runner gave back to BE : 2
   SL hits                      : 0
   BE hits (never reached TP1)  : 0
   Timeouts                     : 2
 
 ── $ P&L SIMULATION (1.5% risk/trade + 0.1% slippage, $1000 start) ──
-  Final capital : $1089.85  (9.0% return)  |  Max drawdown: 0.9%
+  Final capital : $1097.51  (9.8% return)  |  Max drawdown: 0.9%
 
 ── TIMEFRAME VOTE BREAKDOWN ────────────────────────────────────────
   3/4 agreement: 8 signals
-  4/4 agreement: 1 signals
 
 ── BY SYMBOL ───────────────────────────────────────────────────────
   AAPL       1 trades | 100% WR | 1.67R total
@@ -41,35 +40,34 @@
   GOOGL      1 trades | 0% WR | -0.53R total
   META       1 trades | 100% WR | 0.60R total
   TSLA       1 trades | 100% WR | 1.60R total
-  AMD        2 trades | 100% WR | 1.20R total
+  AMD        1 trades | 100% WR | 1.46R total
   NFLX       1 trades | 100% WR | 0.60R total
   AVGO       0 trades — see funnel diagnostics below
   SPCX       0 trades — see funnel diagnostics below
 
 ── BY DIRECTION ────────────────────────────────────────────────────
   SELL   1 trades | 100% WR | 1.67R total
-  BUY    8 trades | 88% WR | 5.69R total
+  BUY    7 trades | 86% WR | 5.95R total
 
 ── BY CONFIDENCE TIER (drives RISK_TIER_MATRIX) ─────────────────────
-  2H-confirmed    9 trades | 88.9% WR | 0 SL | 7.36R total
+  2H-confirmed    8 trades | 87.5% WR | 0 SL | 7.62R total
 
 ── BY PIVOT (drives RISK_TIER_MATRIX) ───────────────────────────────
-  POC             7 trades | 85.7% WR | 0 SL | 5.14R total
+  POC             6 trades | 83.3% WR | 0 SL | 5.40R total
   VAL             2 trades | 100.0% WR | 0 SL | 2.22R total
 
 ── BY FIB LEVEL ──────────────────────────────────────────────────────
   61.8%           6 trades | 83.3% WR | 0 SL | 5.56R total
-  78.6%           3 trades | 100.0% WR | 0 SL | 1.80R total
+  78.6%           2 trades | 100.0% WR | 0 SL | 2.06R total
 
 ── BY VOTE TALLY (drives VOTE_STRENGTH_MULT) ────────────────────────
-  3-of-3          8 trades | 87.5% WR | 0 SL | 6.76R total
-  4-of-3          1 trades | 100.0% WR | 0 SL | 0.60R total
+  3-of-3          8 trades | 87.5% WR | 0 SL | 7.62R total
 
 ── BY MULTI-TF POC ALIGNMENT (POC pivot only) ───────────────────────
-  aligned (30M)        7 trades | 85.7% WR | 0 SL | 5.14R total
+  aligned (30M)        6 trades | 83.3% WR | 0 SL | 5.40R total
 
 ── BY MULTI-TF FIB ALIGNMENT (all pivots — DUAL_MULTI_TF_GATE) ──────
-  aligned (30M+D1)     8 trades | 100.0% WR | 0 SL | 7.89R total
+  aligned (30M+D1)     7 trades | 100.0% WR | 0 SL | 8.15R total
   aligned (D1)         1 trades | 0.0% WR | 0 SL | -0.53R total
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
@@ -102,9 +100,9 @@
     notOverExtended=604  nearZone=121  prominenceOk=67  confluenceOk=67  htf2hAligned=67  dualMultiTFOk=59
     notInvalidated=59  cooldownOk=59  triggerOk=5  driftOk=5  tp2RangeOk=1  opened=1
   AMD:
-    scanned=826  voteOk=589(bull=524/bear=65)  volatilityOk=589  structureOk=589
-    notOverExtended=589  nearZone=54  prominenceOk=10  confluenceOk=10  htf2hAligned=10  dualMultiTFOk=10
-    notInvalidated=10  cooldownOk=10  triggerOk=2  driftOk=2  tp2RangeOk=2  opened=2
+    scanned=990  voteOk=711(bull=628/bear=83)  volatilityOk=711  structureOk=711
+    notOverExtended=711  nearZone=176  prominenceOk=86  confluenceOk=86  htf2hAligned=86  dualMultiTFOk=86
+    notInvalidated=86  cooldownOk=86  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   NFLX:
     scanned=883  voteOk=644(bull=1/bear=643)  volatilityOk=644  structureOk=644
     notOverExtended=644  nearZone=56  prominenceOk=44  confluenceOk=44  htf2hAligned=44  dualMultiTFOk=44
@@ -122,8 +120,8 @@
   CLOSE_REJECTION      6x
   ENGULFING            5x
   VAH_VAL_RECLAIM      4x
-  POC_RECLAIM          3x
-  PIN_BAR              2x
+  POC_RECLAIM          2x
+  PIN_BAR              1x
 
 ── RECENT TRADES (last 20) ─────────────────────────────────────────
   ✅ 2026-06-08 17:30 | AAPL SELL | TP1+TP2 | +1.67R | 3/4 | POC_RECLAIM+VAH_VAL_RECLAIM+ENGULFING
@@ -132,8 +130,7 @@
   ❌ 2026-06-15 13:30 | GOOGL BUY | EARLY_TIMEOUT | -0.53R | 3/4 | PIN_BAR+ENGULFING
   ✅ 2026-05-27 18:00 | META BUY | TP1+BE | +0.6R | 3/4 | CLOSE_REJECTION
   ✅ 2026-06-29 14:30 | TSLA BUY | TP1+TP2 | +1.6R | 3/4 | POC_RECLAIM+VAH_VAL_RECLAIM+ENGULFING+CLOSE_REJECTION
-  ✅ 2026-07-06 13:30 | AMD BUY | TP1+BE | +0.6R | 4/4 | CLOSE_REJECTION
-  ✅ 2026-07-07 13:45 | AMD BUY | TP1+BE | +0.6R | 3/4 | POC_RECLAIM+PIN_BAR
+  ✅ 2026-07-13 14:00 | AMD BUY | TP1+TP2 | +1.46R | 3/4 | CLOSE_REJECTION
   ✅ 2026-07-02 13:30 | NFLX BUY | TP1+BE | +0.6R | 3/4 | CLOSE_REJECTION
 
 ═══════════════════════════════════════════════════════════════════
