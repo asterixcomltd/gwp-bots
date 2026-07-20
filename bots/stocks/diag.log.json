@@ -7,6 +7,87 @@
     "bias15m": "BEARISH",
     "fired": false,
     "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-20T15:24:25.384Z"
+  },
+  {
+    "symbol": "AMD",
+    "barTime": 1784554200,
+    "price": 508.9,
+    "fired": false,
+    "reason": "DUAL_MULTI_TF_GATE_FAILED",
+    "pocAligned": [],
+    "fibAligned": [
+      "30M",
+      "D1"
+    ],
+    "ts": "2026-07-20T15:23:21.420Z"
+  },
+  {
+    "symbol": "META",
+    "biasD1": "NEUTRAL",
+    "bias30m": "NEUTRAL",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-20T15:22:17.336Z"
+  },
+  {
+    "symbol": "GOOGL",
+    "biasD1": "BULLISH",
+    "bias30m": "NEUTRAL",
+    "bias2h": "NEUTRAL",
+    "bias15m": "NEUTRAL",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-20T15:21:45.333Z"
+  },
+  {
+    "symbol": "AMZN",
+    "barTime": 1784554200,
+    "price": 251.17,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 2,
+    "confluenceLevel": "78.6%",
+    "confluencePivot": "POC",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-07-20T15:21:13.388Z"
+  },
+  {
+    "symbol": "NVDA",
+    "barTime": 1784554200,
+    "price": 206.09,
+    "fired": false,
+    "reason": "DUAL_MULTI_TF_GATE_FAILED",
+    "pocAligned": [],
+    "fibAligned": [
+      "30M",
+      "D1"
+    ],
+    "ts": "2026-07-20T15:20:41.335Z"
+  },
+  {
+    "symbol": "AVGO",
+    "biasD1": "NEUTRAL",
+    "bias30m": "NEUTRAL",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
     "ts": "2026-07-20T13:00:10.852Z"
   },
   {
