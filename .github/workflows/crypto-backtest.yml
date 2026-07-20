@@ -12,6 +12,10 @@ on:
         description: 'Days of history to backtest'
         required: false
         default: '360'
+      test_flags:
+        description: 'Optional experimental config overrides, comma-separated KEY=VALUE (e.g. NEAR_ZONE_USE_WICK=true,POC_PROMINENCE_MIN_RATIO=1.2). Leave blank for normal/default backtest.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -26,6 +30,20 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - name: Apply test_flags (if any) to the job environment
+        if: ${{ github.event.inputs.test_flags != '' }}
+        run: |
+          IFS=',' read -ra PAIRS <<< "${{ github.event.inputs.test_flags }}"
+          for pair in "${PAIRS[@]}"; do
+            key="${pair%%=*}"
+            val="${pair#*=}"
+            key="$(echo "$key" | xargs)"
+            val="$(echo "$val" | xargs)"
+            if [ -n "$key" ]; then
+              echo "$key=$val" >> "$GITHUB_ENV"
+              echo "Set $key=$val for this run"
+            fi
+          done
       - run: node backtest.js "${{ github.event.inputs.symbols }}" "${{ github.event.inputs.days || '360' }}"
         working-directory: bots/crypto
         env:
