@@ -281,6 +281,24 @@ const isNearZone = (price, fib, atr, padMult) => {
   return price >= lo && price <= hi;
 };
 
+// v1.1.7 (frequency, opt-in) — wick-based zone touch. isNearZone() above
+// only ever checked the STRUCT-TF candle's CLOSE against the padded zone
+// — meaning if the candle's high/low actually reached into the zone
+// intrabar but the candle closed back outside it, the setup was invisible
+// to the whole rest of the pipeline (confluence, dual multi-TF, trigger —
+// none of it ever runs if this gate says no). That's a legitimate design
+// choice, not a bug (close-based = "the market settled near the zone,"
+// not just wicked through it) — so this is additive, not a replacement:
+// isNearZone() is untouched and remains the default. This is purely
+// opt-in via config.NEAR_ZONE_USE_WICK, for A/B testing against the
+// close-based default on real backtest data before ever becoming the
+// default itself.
+const isNearZoneWick = (candleHigh, candleLow, fib, atr, padMult) => {
+  const lo = fib.zoneLow  - atr * padMult;
+  const hi = fib.zoneHigh + atr * padMult;
+  return candleLow <= hi && candleHigh >= lo;
+};
+
 // ─────────────────────────────────────────────────────────────────────────
 //  N-OF-M TIMEFRAME DIRECTION RESOLUTION
 //  votes: [{ tf: '2H', result: <tfBiasVote output or null> }, ...]
@@ -945,7 +963,7 @@ const evaluateOpenTrade = (openTrade, bar, config) => {
 };
 
 module.exports = {
-  calcATR, calcFib, calcVolumeProfile, tfBiasVote, isNearZone, resolveDirection,
+  calcATR, calcFib, calcVolumeProfile, tfBiasVote, isNearZone, isNearZoneWick, resolveDirection,
   confluenceScore, checkHTFZoneAlignment, isZoneInvalidated,
   detectRejection, computeTradeLevels, computeRiskMultiplier, computeTDSequential,
   computePOCProminence, computePOCMigration, computeNakedPOC, computePOCQualityMultiplier,

@@ -148,12 +148,25 @@ module.exports = {
   FIB_ZONE_HIGH: 0.80,
 
   // ── Near-zone gate ───────────────────────────────────────────────────────
-  // How close (in ATR of the 30M structure TF) price must be to the 30M
+  // How close (in ATR of the 2H structure TF) price must be to the 2H
   // Fib 60-80% pocket before the bot bothers checking confluence at all.
   NEAR_ZONE_ATR_MULT: 1.5,
 
+  // v1.1.7 (frequency, opt-in) — this gate checks the STRUCT-TF candle's
+  // CLOSE against the zone by default (core.isNearZone). If the candle's
+  // high/low actually reached the zone intrabar but closed back outside
+  // it, that setup is currently invisible to the whole rest of the
+  // pipeline — nothing downstream even runs. Flipping this to `true`
+  // switches to core.isNearZoneWick() (checks the candle's full high/low
+  // range against the zone instead of just its close) — should raise
+  // frequency at this gate, but changes what "near the zone" means (wick
+  // touches, not settled price), which is a real quality tradeoff, not
+  // free. Default false = original close-only behavior, unchanged. Test
+  // this against a real backtest before deciding whether to keep it on.
+  NEAR_ZONE_USE_WICK: process.env.NEAR_ZONE_USE_WICK === 'true' ? true : false,
+
   // ── Confluence engine ───────────────────────────────────────────────────
-  // Tolerance = 30M ATR × this multiplier. A Fib level within this band
+  // Tolerance = 2H ATR × this multiplier. A Fib level within this band
   // of POC/VAH/VAL counts as confluence.
   CONFLUENCE_ATR_MULT: 0.85,
 
@@ -238,7 +251,12 @@ module.exports = {
   // ── POC QUALITY FACTORS — ported live-by-default from MVS (v10.9+) ─────
   // #1 POC PROMINENCE
   POC_PROMINENCE_ENABLED: process.env.POC_PROMINENCE_ENABLED === 'false' ? false : true,
-  POC_PROMINENCE_MIN_RATIO: 1.5,
+  // v1.1.7 NOTE: 1.5 was ported from MVS as-is, not derived from GWP's own
+  // trade log the way most other thresholds in this file are (compare the
+  // dataset-cited constants elsewhere) — a reasonable candidate to A/B
+  // test against real backtest data. Now env-tunable so that can be done
+  // without a code change; was previously hardcoded.
+  POC_PROMINENCE_MIN_RATIO: parseFloat(process.env.POC_PROMINENCE_MIN_RATIO) || 1.5,
   POC_PROMINENCE_PENALTY_MULT: 0.8,
   POC_PROMINENCE_REQUIRE_DECISIVE: process.env.POC_PROMINENCE_REQUIRE_DECISIVE === 'false' ? false : true,
 

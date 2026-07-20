@@ -187,7 +187,10 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       if ((direction === 'BUY' && priceStruct < fib.level886) || (direction === 'SELL' && priceStruct > fib.level886)) continue;
       funnel.notOverExtended++;
 
-      if (!core.isNearZone(priceStruct, fib, atrStruct, config.NEAR_ZONE_ATR_MULT)) continue;
+      const nearZonePass = config.NEAR_ZONE_USE_WICK
+        ? core.isNearZoneWick(data30m[ptrStruct].high, data30m[ptrStruct].low, fib, atrStruct, config.NEAR_ZONE_ATR_MULT)
+        : core.isNearZone(priceStruct, fib, atrStruct, config.NEAR_ZONE_ATR_MULT);
+      if (!nearZonePass) continue;
       funnel.nearZone++;
 
       const vpStruct = biasStruct.vp;
