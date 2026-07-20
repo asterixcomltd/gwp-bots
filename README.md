@@ -241,6 +241,48 @@ Edit `SYMBOLS` in each bot's `bots/<name>/config.js` to change this list.
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.1.7**: Near-zone gate switched from close-only to wick-based touch
+  (`NEAR_ZONE_USE_WICK`, now defaults `true`). The gate used to check only
+  the STRUCT-TF candle's CLOSE against the padded zone — if price actually
+  reached the zone intrabar but the candle closed back outside it, that
+  setup was invisible to the entire rest of the pipeline (confluence,
+  dual multi-TF, trigger — nothing downstream even runs if this gate says
+  no). Shipped opt-in first, A/B tested against real backtest data (not
+  synthetic) across all three bots before becoming the default:
+  crypto 12→25 signals (54.5%→66.7% WR, 4.55R→16.03R), forex 13→30 signals
+  (76.9%→83.3% WR, 20.87→69.74 profit factor), stocks 4→9 signals
+  (75.0%→88.9% WR, 6.91→14.89 profit factor). Every metric moved the same
+  direction at once — more signals AND higher win rate AND higher profit
+  factor, SL hits unchanged at 0 throughout — which is the signature of a
+  real fix rather than overfitting (overfitting usually trades one for
+  the other). Same pass also fixed the 15M trigger check only ever
+  looking at the single most-recently-closed candle (see below) and two
+  stale test-suite bugs (`tests/smoke-test-*.js` were silently testing
+  the PRE-RE-ROLE physical-TF mapping — backwards from production — since
+  v1.1.4, without ever failing).
+- **v1.1.6**: 15M trigger check widened from a single-candle lookback to
+  `TRIGGER_LOOKBACK_BARS` (default 2). It used to check ONLY the single
+  most-recently-closed 15M candle — since the bot scans every 15 minutes
+  with no memory between scans, a genuinely valid rejection candle that
+  closed one scan cycle earlier was simply invisible by the next scan,
+  not because it stopped being valid. Backtest funnel data showed this
+  was by far the single largest bottleneck in the whole pipeline (routine
+  90-99% drop at that exact stage) — a scan-timing artifact, not a
+  quality filter.
+- **v1.1.5**: Stocks backtest returning 0 trades / scanned=0 for every
+  symbol, STILL, even after v1.1.4's dedicated-D1-fetch fix — that fix
+  solved D1's warmup shortfall, but the v1.1.4 RE-ROLE (STRUCT moved
+  30M→2H) introduced a NEW, equities-specific shortfall on STRUCT itself.
+  Crypto/forex accumulate 2H bars ~12/day (trivial). Equities only trade
+  ~6.5h/day (~3-4 2H bars/day), so the global STRUCT_VP_LOOKBACK=500
+  needed ~150+ trading days of 2H history — and Twelve Data caps equity
+  intraday history at "a few months" regardless of how far back it's
+  requested, so that warmup could never complete no matter what. Fixed
+  with an equities-specific `STRUCT_VP_LOOKBACK`/`BACKTEST_DAYS` override
+  in `bots/stocks/config.js`, verified both synthetically (multiple
+  vendor-cap scenarios) and against real data. Also made this whole class
+  of failure loud going forward — a warmup shortfall now names the exact
+  timeframe and exact bar count short, instead of a silent `scanned=0`.
 - **v1.1.4**: Three fixes from live/backtest evidence, in one pass:
   (1) **RE-ROLE** — 30M structure was remapping/invalidating too often
   (shallow, whipsawed zones); 2H holds and respects its structure far
