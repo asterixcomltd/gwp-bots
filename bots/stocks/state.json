@@ -1,5 +1,5 @@
 {
-  "_lastRunAt": "2026-07-21T14:23:16.994Z",
+  "_lastRunAt": "2026-07-21T16:02:01.215Z",
   "MSFT": {
     "signal": "NO_AGREEMENT",
     "direction": null,
@@ -13,22 +13,22 @@
   "GOOGL": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 349.38,
+    "price": 349.785,
     "biasD1": "NEUTRAL",
     "bias30m": "BEARISH",
     "bias2h": "NEUTRAL",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-21T14:20:05.456Z"
+    "bias15m": "BEARISH",
+    "updatedAt": "2026-07-21T15:59:36.916Z"
   },
   "META": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 647.09,
+    "price": 647.74,
     "biasD1": "NEUTRAL",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-21T14:20:36.941Z"
+    "updatedAt": "2026-07-21T16:00:04.218Z"
   },
   "TSLA": {
     "signal": "NO_AGREEMENT",
@@ -41,26 +41,14 @@
     "updatedAt": "2026-07-15T01:02:26.827Z"
   },
   "AMD": {
-    "signal": "SCANNED",
-    "price": 529.25,
-    "direction": "BUY",
-    "voteTally": "3/4",
-    "agreeing": [
-      "D1",
-      "2H",
-      "15M"
-    ],
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 532.41,
     "biasD1": "BULLISH",
     "bias30m": "NEUTRAL",
     "bias2h": "BULLISH",
-    "bias15m": "BULLISH",
-    "poc": 513.19249455,
-    "vah": 555.96748585,
-    "val": 510.24249514999997,
-    "swingHigh": 584.72998,
-    "swingLow": 460.23,
-    "atrStruct": 15.475557364249912,
-    "updatedAt": "2026-07-21T14:21:40.917Z"
+    "bias15m": "NEUTRAL",
+    "updatedAt": "2026-07-21T16:00:49.335Z"
   },
   "NFLX": {
     "signal": "NO_AGREEMENT",
@@ -95,23 +83,35 @@
     "updatedAt": "2026-07-21T14:19:00.867Z"
   },
   "AMZN": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 247.19,
+    "signal": "SCANNED",
+    "price": 247.95,
+    "direction": "BUY",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H"
+    ],
     "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BULLISH",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-21T14:19:32.892Z"
+    "poc": 239.37386924999998,
+    "vah": 257.90742495,
+    "val": 237.74811875,
+    "swingHigh": 258.07,
+    "swingLow": 234.89999,
+    "atrStruct": 2.707404869027912,
+    "updatedAt": "2026-07-21T15:59:12.945Z"
   },
   "AVGO": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 383.04,
+    "price": 385.605,
     "biasD1": "NEUTRAL",
     "bias30m": "BULLISH",
     "bias2h": "NEUTRAL",
-    "bias15m": "BEARISH",
-    "updatedAt": "2026-07-21T14:22:44.906Z"
+    "bias15m": "BULLISH",
+    "updatedAt": "2026-07-21T16:01:37.029Z"
   }
 }
