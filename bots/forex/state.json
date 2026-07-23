@@ -1,5 +1,5 @@
 {
-  "_lastRunAt": "2026-07-23T14:29:54.430Z",
+  "_lastRunAt": "2026-07-23T16:15:04.589Z",
   "XAU/USD": {
     "signal": "SCANNED",
     "price": 4050.5444,
@@ -66,7 +66,7 @@
   },
   "NZD/USD": {
     "signal": "SCANNED",
-    "price": 0.57749,
+    "price": 0.57748,
     "direction": "SELL",
     "voteTally": "3/4",
     "agreeing": [
@@ -83,28 +83,40 @@
     "val": 0.56377025,
     "swingHigh": 0.58679,
     "swingLow": 0.56714,
-    "atrStruct": 0.0009393914644542459,
-    "updatedAt": "2026-07-23T14:29:06.477Z"
+    "atrStruct": 0.0009744349312789457,
+    "updatedAt": "2026-07-23T16:14:16.458Z"
   },
   "AUD/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.6976,
+    "price": 0.69753,
     "biasD1": "NEUTRAL",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-23T14:28:18.450Z"
+    "updatedAt": "2026-07-23T16:13:28.449Z"
   },
   "USD/CAD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 1.4084,
+    "signal": "SCANNED",
+    "price": 1.40859,
+    "direction": "BUY",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
     "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
+    "bias30m": "BULLISH",
     "bias2h": "BEARISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-23T14:28:42.418Z"
+    "bias15m": "BULLISH",
+    "poc": 1.41986615,
+    "vah": 1.4245078500000001,
+    "val": 1.41375865,
+    "swingHigh": 1.42258,
+    "swingLow": 1.4002,
+    "atrStruct": 0.0012286726151777164,
+    "updatedAt": "2026-07-23T16:13:52.449Z"
   },
   "USD/JPY": {
     "signal": "NO_AGREEMENT",
@@ -119,12 +131,12 @@
   "GBP/JPY": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 218.21828,
+    "price": 218.1101,
     "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BEARISH",
     "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-23T01:20:40.655Z"
+    "bias15m": "BEARISH",
+    "updatedAt": "2026-07-23T16:13:04.725Z"
   },
   "EUR/JPY": {
     "signal": "NO_AGREEMENT",
