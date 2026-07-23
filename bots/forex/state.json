@@ -1,5 +1,5 @@
 {
-  "_lastRunAt": "2026-07-23T19:43:39.886Z",
+  "_lastRunAt": "2026-07-23T20:48:12.970Z",
   "XAU/USD": {
     "signal": "SCANNED",
     "price": 4050.5444,
@@ -94,17 +94,29 @@
     "bias30m": "BEARISH",
     "bias2h": "NEUTRAL",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-23T19:42:03.934Z"
+    "updatedAt": "2026-07-23T20:47:08.947Z"
   },
   "USD/CAD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
+    "signal": "SCANNED",
     "price": 1.40813,
+    "direction": "BUY",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
     "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
+    "bias30m": "BULLISH",
     "bias2h": "BEARISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-23T19:42:27.860Z"
+    "bias15m": "BULLISH",
+    "poc": 1.41986615,
+    "vah": 1.4245078500000001,
+    "val": 1.41375865,
+    "swingHigh": 1.42258,
+    "swingLow": 1.4002,
+    "atrStruct": 0.0011804881222705697,
+    "updatedAt": "2026-07-23T20:47:24.955Z"
   },
   "USD/JPY": {
     "signal": "NO_AGREEMENT",
@@ -124,7 +136,7 @@
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-23T19:41:39.853Z"
+    "updatedAt": "2026-07-23T20:46:52.947Z"
   },
   "EUR/JPY": {
     "signal": "NO_AGREEMENT",
