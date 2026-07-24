@@ -1,26 +1,14 @@
 {
-  "_lastRunAt": "2026-07-24T11:55:06.208Z",
+  "_lastRunAt": "2026-07-24T14:09:17.116Z",
   "XAU/USD": {
-    "signal": "SCANNED",
-    "price": 4054.42824,
-    "direction": "SELL",
-    "voteTally": "3/4",
-    "agreeing": [
-      "D1",
-      "30M",
-      "2H"
-    ],
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 4065.14352,
     "biasD1": "BEARISH",
-    "bias30m": "BEARISH",
-    "bias2h": "BEARISH",
+    "bias30m": "NEUTRAL",
+    "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "poc": 4064.3740285,
-    "vah": 4109.8396345,
-    "val": 3991.1238854999997,
-    "swingHigh": 4165.68194,
-    "swingLow": 3961.80817,
-    "atrStruct": 14.3656326336851,
-    "updatedAt": "2026-07-24T11:51:30.177Z"
+    "updatedAt": "2026-07-24T14:05:41.143Z"
   },
   "EUR/USD": {
     "signal": "NO_AGREEMENT",
@@ -66,7 +54,7 @@
   },
   "NZD/USD": {
     "signal": "SCANNED",
-    "price": 0.57876,
+    "price": 0.57846,
     "direction": "SELL",
     "voteTally": "3/4",
     "agreeing": [
@@ -82,23 +70,23 @@
     "vah": 0.57888065,
     "val": 0.56377025,
     "swingHigh": 0.58679,
-    "swingLow": 0.56726,
-    "atrStruct": 0.0008313285603213132,
-    "updatedAt": "2026-07-24T11:54:18.275Z"
+    "swingLow": 0.56732,
+    "atrStruct": 0.0008469479488697984,
+    "updatedAt": "2026-07-24T14:08:29.106Z"
   },
   "AUD/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.69884,
+    "price": 0.69785,
     "biasD1": "NEUTRAL",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-07-24T11:53:30.169Z"
+    "updatedAt": "2026-07-24T14:07:41.174Z"
   },
   "USD/CAD": {
     "signal": "SCANNED",
-    "price": 1.40868,
+    "price": 1.40975,
     "direction": "BUY",
     "voteTally": "3/4",
     "agreeing": [
@@ -112,11 +100,11 @@
     "bias15m": "BULLISH",
     "poc": 1.41986615,
     "vah": 1.4245078500000001,
-    "val": 1.41351435,
+    "val": 1.41327005,
     "swingHigh": 1.42104,
     "swingLow": 1.4002,
-    "atrStruct": 0.0011206857382480284,
-    "updatedAt": "2026-07-24T11:53:54.187Z"
+    "atrStruct": 0.0012420653283731725,
+    "updatedAt": "2026-07-24T14:08:05.148Z"
   },
   "USD/JPY": {
     "signal": "NO_AGREEMENT",
@@ -141,11 +129,11 @@
   "EUR/JPY": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 185.7535,
+    "price": 186.30456,
     "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-21T07:28:13.216Z"
+    "updatedAt": "2026-07-24T14:09:17.116Z"
   }
 }
