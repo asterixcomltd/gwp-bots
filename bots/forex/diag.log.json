@@ -1,6 +1,39 @@
 [
   {
     "symbol": "NZD/USD",
+    "barTime": 1784862000,
+    "price": 0.57772,
+    "fired": false,
+    "reason": "DUAL_MULTI_TF_GATE_FAILED",
+    "pocAligned": [],
+    "fibAligned": [
+      "30M",
+      "D1"
+    ],
+    "ts": "2026-07-24T04:42:17.560Z"
+  },
+  {
+    "symbol": "AUD/USD",
+    "biasD1": "NEUTRAL",
+    "bias30m": "BEARISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-24T04:41:29.534Z"
+  },
+  {
+    "symbol": "GBP/JPY",
+    "biasD1": "BULLISH",
+    "bias30m": "BEARISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-24T04:41:05.535Z"
+  },
+  {
+    "symbol": "NZD/USD",
     "barTime": 1784854800,
     "price": 0.5783,
     "fired": false,
