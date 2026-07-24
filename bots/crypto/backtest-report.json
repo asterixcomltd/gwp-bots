@@ -324,39 +324,40 @@
   },
   {
     "symbol": "XRP-USDT",
-    "direction": "BUY",
-    "entryTime": 1762569000,
-    "entryPrice": 2.2019797999999997,
-    "slPrice": 2.2019797999999997,
-    "tp1Price": 2.38236,
-    "tp2Price": 2.64626275,
-    "origSlPrice": 2.055267175804761,
-    "rr1": 1.23,
-    "rr2": 3.03,
+    "direction": "SELL",
+    "entryTime": 1763050500,
+    "entryPrice": 2.5554304,
+    "slPrice": 2.5554304,
+    "tp1Price": 2.37771,
+    "tp2Price": 2.22002875,
+    "origSlPrice": 2.701432841097409,
+    "rr1": 1.22,
+    "rr2": 2.3,
     "patterns": [
+      "PIN_BAR",
       "CLOSE_REJECTION"
     ],
-    "pivot": "VAL",
+    "pivot": "VAH",
     "fibPct": "78.6%",
     "voteTally": "3/4",
     "agreeing": [
       "D1",
-      "30M",
+      "2H",
       "15M"
     ],
     "confluenceScore": 1,
     "td9Confirms": false,
     "slAtrMult": 0.25,
     "prominence": {
-      "prominenceRatio": 1.477771450163136,
+      "prominenceRatio": 2.1631418877292794,
       "computed": true
     },
     "migration": {
-      "migrating": true,
-      "direction": "DOWN",
-      "distance": -0.6639784,
-      "currentPOC": 2.36393735,
-      "pastPOC": 3.02791575
+      "migrating": false,
+      "direction": null,
+      "distance": 0.0038274999999998727,
+      "currentPOC": 2.4010862499999996,
+      "pastPOC": 2.3972587499999998
     },
     "nakedPOC": {
       "naked": false,
@@ -367,23 +368,24 @@
     "multiTFPOC": {
       "anyAligned": true,
       "alignedLabels": [
+        "30M",
         "D1"
       ]
     },
     "multiTFFib": {
       "anyAligned": true,
       "alignedLabels": [
-        "30M"
+        "D1"
       ]
     },
     "beMoved": true,
     "tp1Hit": true,
-    "halfR": 1.23,
-    "result": "TP1+BE",
-    "exitPrice": 2.2019797999999997,
-    "rr": 0.61,
-    "exitTime": 1763256600,
-    "hoursHeld": 191
+    "halfR": 1.22,
+    "result": "TP1+TP2",
+    "exitPrice": 2.22002875,
+    "rr": 1.76,
+    "exitTime": 1763242200,
+    "hoursHeld": 53
   },
   {
     "symbol": "XRP-USDT",
@@ -1528,10 +1530,10 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.25,
-    "exitTime": 1784534400,
-    "exitPrice": 0.326,
-    "result": "OPEN",
-    "rr": 1.34,
-    "hoursHeld": 39
+    "result": "TP1+TP2",
+    "exitPrice": 0.3303895,
+    "rr": 1.83,
+    "exitTime": 1784659500,
+    "hoursHeld": 74
   }
 ]
