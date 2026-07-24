@@ -1,5 +1,71 @@
 [
   {
+    "symbol": "EUR/USD",
+    "direction": "SELL",
+    "entryTime": 1784547000,
+    "entryPrice": 1.14421484,
+    "slPrice": 1.14421484,
+    "tp1Price": 1.1391233242465242,
+    "tp2Price": 1.13731195,
+    "origSlPrice": 1.1484577697945633,
+    "rr1": 1.2,
+    "rr2": 1.63,
+    "patterns": [
+      "POC_RECLAIM",
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "61.8%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.547688463140322,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.013298750000000137,
+      "currentPOC": 1.14387455,
+      "pastPOC": 1.1571733000000002
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 1.1603581,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 1.13731195,
+    "rr": 1.42,
+    "exitTime": 1784811600,
+    "hoursHeld": 74
+  },
+  {
     "symbol": "GBP/USD",
     "direction": "BUY",
     "entryTime": 1769090400,
