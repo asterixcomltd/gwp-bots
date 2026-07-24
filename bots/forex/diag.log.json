@@ -2,6 +2,57 @@
   {
     "symbol": "EUR/JPY",
     "biasD1": "BULLISH",
+    "bias30m": "NEUTRAL",
+    "bias2h": "BULLISH",
+    "bias15m": "NEUTRAL",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-24T18:54:09.697Z"
+  },
+  {
+    "symbol": "NZD/USD",
+    "barTime": 1784912400,
+    "price": 0.57921,
+    "fired": false,
+    "reason": "DUAL_MULTI_TF_GATE_FAILED",
+    "pocAligned": [],
+    "fibAligned": [
+      "30M",
+      "D1"
+    ],
+    "ts": "2026-07-24T18:53:37.692Z"
+  },
+  {
+    "symbol": "USD/CAD",
+    "barTime": 1784912400,
+    "price": 1.40921,
+    "fired": false,
+    "reason": "NO_CONFLUENCE",
+    "ts": "2026-07-24T18:53:21.678Z"
+  },
+  {
+    "symbol": "AUD/USD",
+    "biasD1": "NEUTRAL",
+    "bias30m": "BEARISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-24T18:53:05.765Z"
+  },
+  {
+    "symbol": "XAU/USD",
+    "biasD1": "BEARISH",
+    "bias30m": "BEARISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "NEUTRAL",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-24T18:51:45.661Z"
+  },
+  {
+    "symbol": "EUR/JPY",
+    "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
