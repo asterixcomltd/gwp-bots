@@ -1,14 +1,26 @@
 {
-  "_lastRunAt": "2026-07-24T11:58:44.638Z",
+  "_lastRunAt": "2026-07-24T14:12:47.189Z",
   "MSFT": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 381.56,
+    "signal": "SCANNED",
+    "price": 381.455,
+    "direction": "SELL",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H"
+    ],
     "biasD1": "BEARISH",
     "bias30m": "BEARISH",
-    "bias2h": "NEUTRAL",
+    "bias2h": "BEARISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-24T11:53:56.547Z"
+    "poc": 386.72430315,
+    "vah": 403.70610005000003,
+    "val": 373.02930565,
+    "swingHigh": 403.98,
+    "swingLow": 373.35001,
+    "atrStruct": 4.287699488770306,
+    "updatedAt": "2026-07-24T14:07:59.101Z"
   },
   "GOOGL": {
     "signal": "NO_AGREEMENT",
@@ -43,12 +55,12 @@
   "AMD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 539.5,
+    "price": 529.16,
     "biasD1": "BULLISH",
     "bias30m": "NEUTRAL",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-24T11:57:08.628Z"
+    "updatedAt": "2026-07-24T14:11:11.229Z"
   },
   "NFLX": {
     "signal": "NO_AGREEMENT",
@@ -95,21 +107,34 @@
   "AVGO": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 390.235,
-    "biasD1": "BULLISH",
+    "price": 384,
+    "biasD1": "NEUTRAL",
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-07-23T16:16:00.863Z"
+    "updatedAt": "2026-07-24T14:12:15.180Z"
   },
   "AAPL": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 321.575,
+    "signal": "SCANNED",
+    "price": 327.615,
+    "direction": "BUY",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
     "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BULLISH",
     "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-07-24T11:53:24.548Z"
+    "bias15m": "BULLISH",
+    "poc": 297.93585,
+    "vah": 325.48935,
+    "val": 290.58825,
+    "swingHigh": 334.98,
+    "swingLow": 307.051514,
+    "atrStruct": 3.2069683342485042,
+    "updatedAt": "2026-07-24T14:07:27.085Z"
   }
 }
