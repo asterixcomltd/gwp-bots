@@ -117,7 +117,7 @@ module.exports = async function runWeeklySummary({ config, telegram, botLabel, d
 
   if (!recent.length) {
     const equityLine = latest
-      ? `\n\n📊 *Live Equity:* $${latest.capital} | +${latest.totalReturn}% total | ${latest.cumulativeR}R | Max DD ${latest.maxDrawdownPct}%`
+      ? `\n\n📊 *Live Equity:* $${latest.capital} | ${latest.totalReturn > 0 ? '+' : ''}${latest.totalReturn}% total | ${latest.cumulativeR}R | Max DD ${latest.maxDrawdownPct}%`
       : '';
     await send(`📅 *${botLabel} Weekly Summary*\n\nNo signals logged in the last 7 days.${equityLine}`);
     console.log('✅ Weekly summary sent (no signals).');
@@ -163,7 +163,7 @@ module.exports = async function runWeeklySummary({ config, telegram, botLabel, d
     msg += `\n\n━━━━━━━━━━━━━━━━━━━━`;
     msg += `\n📊 *Live Equity Snapshot:*`;
     msg += `\n  Capital:     $${latest.capital}`;
-    msg += `\n  Total return: +${latest.totalReturn}%`;
+    msg += `\n  Total return: ${latest.totalReturn > 0 ? '+' : ''}${latest.totalReturn}%`;
     msg += `\n  Cum. R:      ${latest.cumulativeR}R`;
     msg += `\n  Max drawdown: ${latest.maxDrawdownPct}%`;
     msg += `\n  Total trades: ${latest.totalTrades}`;
