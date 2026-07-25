@@ -201,6 +201,16 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         : core.isNearZone(price, fib, atrStruct, config.NEAR_ZONE_ATR_MULT);
       if (!nearZonePass) {
         console.log(`  ⏳ Price not near 2H zone ($${fib.zoneLow.toFixed(4)}–$${fib.zoneHigh.toFixed(4)}). Waiting.`);
+        logDiag({ symbol, barTime, price, fired: false, reason: 'NOT_NEAR_ZONE', zoneLow: fib.zoneLow, zoneHigh: fib.zoneHigh });
+        // Same reasoning as the !resolved branch above: keep state.json's
+        // updatedAt current every scan, even while just waiting for price
+        // to approach the zone, so /status never flags this symbol as
+        // stale when the bot is actually scanning it fine every cycle.
+        saveState(symbol, {
+          signal: 'WAITING_FOR_ZONE', direction, price,
+          biasD1: biasD1?.bias, bias30m: bias2h?.bias, bias2h: biasStruct.bias, bias15m: bias15m?.bias,
+          voteTally: resolved.tally, agreeing: resolved.agreeing,
+        });
         return;
       }
 
