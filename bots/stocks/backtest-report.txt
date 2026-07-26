@@ -13,10 +13,10 @@
   Open (unrealised)      : 0
   Win rate (all closed)  : 87.5%  (7W / 1L)
   No-real-loss rate      : 87.5%  (7 no-loss / 1 real loss — excludes 0 breakeven scratches; this is NOT the same as "win rate")
-  Profit factor          : 15.38
-  Total R accumulated    : 7.62R
-  Avg win / avg loss     : +1.16R / -0.53R
-  Avg hours held         : 93h
+  Profit factor          : 29.85
+  Total R accumulated    : 7.50R
+  Avg win / avg loss     : +1.11R / -0.26R
+  Avg hours held         : 78h
 
 ── OUTCOME BREAKDOWN ───────────────────────────────────────────────
   TP1 reached (partial banked) : 6
@@ -27,7 +27,7 @@
   Timeouts                     : 2
 
 ── $ P&L SIMULATION (1.5% risk/trade + 0.1% slippage, $1000 start) ──
-  Final capital : $1097.51  (9.8% return)  |  Max drawdown: 0.9%
+  Final capital : $1095.62  (9.6% return)  |  Max drawdown: 0.5%
 
 ── TIMEFRAME VOTE BREAKDOWN ────────────────────────────────────────
   3/4 agreement: 8 signals
@@ -36,8 +36,8 @@
   AAPL       1 trades | 100% WR | 1.67R total
   MSFT       1 trades | 100% WR | 1.36R total
   NVDA       0 trades — see funnel diagnostics below
-  AMZN       1 trades | 100% WR | 0.86R total
-  GOOGL      1 trades | 0% WR | -0.53R total
+  AMZN       1 trades | 100% WR | 0.47R total
+  GOOGL      1 trades | 0% WR | -0.26R total
   META       1 trades | 100% WR | 0.60R total
   TSLA       1 trades | 100% WR | 1.60R total
   AMD        1 trades | 100% WR | 1.46R total
@@ -47,69 +47,69 @@
 
 ── BY DIRECTION ────────────────────────────────────────────────────
   SELL   1 trades | 100% WR | 1.67R total
-  BUY    7 trades | 86% WR | 5.95R total
+  BUY    7 trades | 86% WR | 5.83R total
 
 ── BY CONFIDENCE TIER (drives RISK_TIER_MATRIX) ─────────────────────
-  2H-confirmed    8 trades | 87.5% WR | 0 SL | 7.62R total
+  2H-confirmed    8 trades | 87.5% WR | 0 SL | 7.50R total
 
 ── BY PIVOT (drives RISK_TIER_MATRIX) ───────────────────────────────
-  POC             6 trades | 83.3% WR | 0 SL | 5.40R total
-  VAL             2 trades | 100.0% WR | 0 SL | 2.22R total
+  POC             6 trades | 83.3% WR | 0 SL | 5.67R total
+  VAL             2 trades | 100.0% WR | 0 SL | 1.83R total
 
 ── BY FIB LEVEL ──────────────────────────────────────────────────────
-  61.8%           6 trades | 83.3% WR | 0 SL | 5.56R total
+  61.8%           6 trades | 83.3% WR | 0 SL | 5.44R total
   78.6%           2 trades | 100.0% WR | 0 SL | 2.06R total
 
 ── BY VOTE TALLY (drives VOTE_STRENGTH_MULT) ────────────────────────
-  3-of-3          8 trades | 87.5% WR | 0 SL | 7.62R total
+  3-of-4          8 trades | 87.5% WR | 0 SL | 7.50R total
 
 ── BY MULTI-TF POC ALIGNMENT (POC pivot only) ───────────────────────
-  aligned (30M)        6 trades | 83.3% WR | 0 SL | 5.40R total
+  aligned (30M)        6 trades | 83.3% WR | 0 SL | 5.67R total
 
 ── BY MULTI-TF FIB ALIGNMENT (all pivots — DUAL_MULTI_TF_GATE) ──────
-  aligned (30M+D1)     7 trades | 100.0% WR | 0 SL | 8.15R total
-  aligned (D1)         1 trades | 0.0% WR | 0 SL | -0.53R total
+  aligned (30M+D1)     7 trades | 100.0% WR | 0 SL | 7.76R total
+  aligned (D1)         1 trades | 0.0% WR | 0 SL | -0.26R total
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
   AAPL:
-    scanned=1059  voteOk=813(bull=555/bear=258)  volatilityOk=813  structureOk=809
-    notOverExtended=809  nearZone=49  prominenceOk=24  confluenceOk=24  htf2hAligned=24  dualMultiTFOk=9
+    scanned=1045  voteOk=799(bull=541/bear=258)  volatilityOk=799  structureOk=795
+    notOverExtended=795  nearZone=49  prominenceOk=24  confluenceOk=24  htf2hAligned=24  dualMultiTFOk=9
     notInvalidated=9  cooldownOk=9  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   MSFT:
-    scanned=1054  voteOk=747(bull=306/bear=441)  volatilityOk=747  structureOk=740
-    notOverExtended=740  nearZone=41  prominenceOk=37  confluenceOk=37  htf2hAligned=37  dualMultiTFOk=12
-    notInvalidated=12  cooldownOk=12  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
+    scanned=1040  voteOk=738(bull=306/bear=432)  volatilityOk=738  structureOk=731
+    notOverExtended=731  nearZone=32  prominenceOk=28  confluenceOk=28  htf2hAligned=28  dualMultiTFOk=9
+    notInvalidated=9  cooldownOk=9  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   NVDA:
-    scanned=1080  voteOk=749(bull=349/bear=400)  volatilityOk=749  structureOk=749
+    scanned=1066  voteOk=749(bull=349/bear=400)  volatilityOk=749  structureOk=749
     notOverExtended=749  nearZone=168  prominenceOk=97  confluenceOk=97  htf2hAligned=97  dualMultiTFOk=18
     notInvalidated=18  cooldownOk=18  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   AMZN:
-    scanned=1004  voteOk=655(bull=248/bear=407)  volatilityOk=655  structureOk=655
-    notOverExtended=655  nearZone=78  prominenceOk=44  confluenceOk=44  htf2hAligned=44  dualMultiTFOk=44
-    notInvalidated=44  cooldownOk=44  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
+    scanned=1016  voteOk=678(bull=273/bear=405)  volatilityOk=678  structureOk=678
+    notOverExtended=678  nearZone=83  prominenceOk=49  confluenceOk=49  htf2hAligned=49  dualMultiTFOk=49
+    notInvalidated=49  cooldownOk=49  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   GOOGL:
-    scanned=976  voteOk=454(bull=98/bear=356)  volatilityOk=454  structureOk=454
-    notOverExtended=454  nearZone=15  prominenceOk=15  confluenceOk=15  htf2hAligned=15  dualMultiTFOk=3
-    notInvalidated=3  cooldownOk=3  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
+    scanned=988  voteOk=481(bull=117/bear=364)  volatilityOk=481  structureOk=481
+    notOverExtended=481  nearZone=42  prominenceOk=24  confluenceOk=24  htf2hAligned=24  dualMultiTFOk=12
+    notInvalidated=12  cooldownOk=12  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   META:
-    scanned=1017  voteOk=672(bull=187/bear=485)  volatilityOk=672  structureOk=672
-    notOverExtended=672  nearZone=92  prominenceOk=84  confluenceOk=84  htf2hAligned=84  dualMultiTFOk=84
-    notInvalidated=84  cooldownOk=84  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
+    scanned=1003  voteOk=671(bull=186/bear=485)  volatilityOk=671  structureOk=671
+    notOverExtended=671  nearZone=91  prominenceOk=83  confluenceOk=83  htf2hAligned=83  dualMultiTFOk=83
+    notInvalidated=83  cooldownOk=83  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   TSLA:
-    scanned=1026  voteOk=708(bull=146/bear=562)  volatilityOk=708  structureOk=707
-    notOverExtended=707  nearZone=115  prominenceOk=67  confluenceOk=67  htf2hAligned=67  dualMultiTFOk=59
+    scanned=1012  voteOk=694(bull=132/bear=562)  volatilityOk=694  structureOk=693
+    notOverExtended=693  nearZone=115  prominenceOk=67  confluenceOk=67  htf2hAligned=67  dualMultiTFOk=59
     notInvalidated=59  cooldownOk=59  triggerOk=5  driftOk=5  tp2RangeOk=1  opened=1
   AMD:
-    scanned=1056  voteOk=720(bull=614/bear=106)  volatilityOk=720  structureOk=720
-    notOverExtended=720  nearZone=213  prominenceOk=123  confluenceOk=123  htf2hAligned=123  dualMultiTFOk=86
+    scanned=1042  voteOk=706(bull=600/bear=106)  volatilityOk=706  structureOk=706
+    notOverExtended=706  nearZone=213  prominenceOk=123  confluenceOk=123  htf2hAligned=123  dualMultiTFOk=86
     notInvalidated=86  cooldownOk=86  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   NFLX:
-    scanned=949  voteOk=673(bull=1/bear=672)  volatilityOk=673  structureOk=673
-    notOverExtended=673  nearZone=42  prominenceOk=32  confluenceOk=32  htf2hAligned=32  dualMultiTFOk=32
-    notInvalidated=32  cooldownOk=32  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
+    scanned=935  voteOk=661(bull=1/bear=660)  volatilityOk=661  structureOk=661
+    notOverExtended=661  nearZone=30  prominenceOk=20  confluenceOk=20  htf2hAligned=20  dualMultiTFOk=20
+    notInvalidated=20  cooldownOk=20  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   AVGO:
-    scanned=1080  voteOk=789(bull=353/bear=436)  volatilityOk=789  structureOk=789
-    notOverExtended=789  nearZone=149  prominenceOk=147  confluenceOk=147  htf2hAligned=147  dualMultiTFOk=18
+    scanned=1066  voteOk=787(bull=351/bear=436)  volatilityOk=787  structureOk=787
+    notOverExtended=787  nearZone=147  prominenceOk=145  confluenceOk=145  htf2hAligned=145  dualMultiTFOk=18
     notInvalidated=18  cooldownOk=18  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   SPCX:
     scanned=0  voteOk=0(bull=0/bear=0)  volatilityOk=0  structureOk=0
@@ -126,8 +126,8 @@
 ── RECENT TRADES (last 20) ─────────────────────────────────────────
   ✅ 2026-06-08 17:30 | AAPL SELL | TP1+TP2 | +1.67R | 3/4 | POC_RECLAIM+VAH_VAL_RECLAIM+ENGULFING
   ✅ 2026-05-28 13:30 | MSFT BUY | TP1+TP2 | +1.36R | 3/4 | VAH_VAL_RECLAIM+ENGULFING+CLOSE_REJECTION
-  ✅ 2026-07-01 14:00 | AMZN BUY | EARLY_TIMEOUT | +0.86R | 3/4 | VAH_VAL_RECLAIM+ENGULFING+CLOSE_REJECTION
-  ❌ 2026-06-15 13:30 | GOOGL BUY | EARLY_TIMEOUT | -0.53R | 3/4 | PIN_BAR+ENGULFING
+  ✅ 2026-07-01 14:00 | AMZN BUY | EARLY_TIMEOUT | +0.47R | 3/4 | VAH_VAL_RECLAIM+ENGULFING+CLOSE_REJECTION
+  ❌ 2026-06-15 13:30 | GOOGL BUY | EARLY_TIMEOUT | -0.26R | 3/4 | PIN_BAR+ENGULFING
   ✅ 2026-05-27 18:00 | META BUY | TP1+BE | +0.6R | 3/4 | CLOSE_REJECTION
   ✅ 2026-06-29 14:30 | TSLA BUY | TP1+TP2 | +1.6R | 3/4 | POC_RECLAIM+VAH_VAL_RECLAIM+ENGULFING+CLOSE_REJECTION
   ✅ 2026-07-13 14:00 | AMD BUY | TP1+TP2 | +1.46R | 3/4 | CLOSE_REJECTION
