@@ -420,7 +420,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
     const byVoteTally = {};
     for (const t of closed) {
-      const key = (t.agreeing || []).length ? `${t.agreeing.length}-of-3` : 'N/A';
+      const key = (t.agreeing || []).length ? `${t.agreeing.length}-of-4` : 'N/A';
       if (!byVoteTally[key]) byVoteTally[key] = { trades: 0, wins: 0, sl: 0, totalRR: 0 };
       byVoteTally[key].trades++;
       if (t.rr > 0) byVoteTally[key].wins++;
