@@ -385,8 +385,20 @@ module.exports = {
   // ── Backtest-only settings ──────────────────────────────────────────────
   BACKTEST_DAYS: 360,
   STARTING_CAPITAL: 1000,
-  EARLY_TIMEOUT_BARS: 70,        // close sim trades early if TP1 not hit by then (× STRUCT_BAR_SECONDS)
-  MAX_HOLD_STRUCT_BARS: 200,     // absolute hold-time ceiling (× STRUCT_BAR_SECONDS) — see core.js evaluateOpenTrade()
+  // v1.1.6 FIX — these bar counts were ported unchanged from MVS (whose
+  // STRUCT_BAR_SECONDS was 3600, i.e. 1H structure) back when GWP still
+  // used 1H/30M structure/bias too. The v1.1.4 RE-ROLE moved structure to
+  // 2H (STRUCT_BAR_SECONDS=7200 below) but these two counts were never
+  // re-derived — so the ACTUAL wall-clock ceilings had silently doubled
+  // from MVS's backtested ~70h early-timeout / ~8.3-day max-hold to
+  // ~140h / ~16.7 days, with no comment anywhere flagging the change
+  // (contrast VOTE_STRENGTH_MULT above, whose re-role impact IS documented).
+  // Halved both bar counts here to restore the original, MVS-validated
+  // wall-clock durations under the new 2H bar size. If a wider hold window
+  // is actually wanted going forward, that should be a deliberate,
+  // re-backtested choice — not a silent side effect of a timeframe rename.
+  EARLY_TIMEOUT_BARS: 35,        // = 35 × 2H = 70h, matches MVS's original intent (× STRUCT_BAR_SECONDS)
+  MAX_HOLD_STRUCT_BARS: 100,     // = 100 × 2H = 200h (~8.3 days), matches MVS's original intent (× STRUCT_BAR_SECONDS)
 
   // ── Volatility regime filter — OFF by default, ported from MVS's own
   // v10.15.1 revert (cut signal count 15-20% with no confirmed quality
