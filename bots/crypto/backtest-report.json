@@ -56,11 +56,11 @@
       ]
     },
     "beMoved": true,
-    "result": "BE",
-    "exitPrice": 2313.76922,
-    "rr": 0,
-    "exitTime": 1778121900,
-    "hoursHeld": 75
+    "result": "EARLY_TIMEOUT",
+    "exitPrice": 2345.52,
+    "rr": 0.32,
+    "exitTime": 1778105700,
+    "hoursHeld": 70
   },
   {
     "symbol": "SOL-USDT",
@@ -252,10 +252,10 @@
     },
     "beMoved": true,
     "result": "EARLY_TIMEOUT",
-    "exitPrice": 87867.4,
-    "rr": 0.6,
-    "exitTime": 1766912400,
-    "hoursHeld": 140
+    "exitPrice": 87488.5,
+    "rr": 0.68,
+    "exitTime": 1766660400,
+    "hoursHeld": 70
   },
   {
     "symbol": "BTC-USDT",
@@ -321,71 +321,6 @@
     "rr": 2.12,
     "exitTime": 1775601900,
     "hoursHeld": 48
-  },
-  {
-    "symbol": "XRP-USDT",
-    "direction": "SELL",
-    "entryTime": 1763050500,
-    "entryPrice": 2.5554304,
-    "slPrice": 2.5554304,
-    "tp1Price": 2.37771,
-    "tp2Price": 2.22002875,
-    "origSlPrice": 2.701432841097409,
-    "rr1": 1.22,
-    "rr2": 2.3,
-    "patterns": [
-      "PIN_BAR",
-      "CLOSE_REJECTION"
-    ],
-    "pivot": "VAH",
-    "fibPct": "78.6%",
-    "voteTally": "3/4",
-    "agreeing": [
-      "D1",
-      "2H",
-      "15M"
-    ],
-    "confluenceScore": 1,
-    "td9Confirms": false,
-    "slAtrMult": 0.25,
-    "prominence": {
-      "prominenceRatio": 2.1631418877292794,
-      "computed": true
-    },
-    "migration": {
-      "migrating": false,
-      "direction": null,
-      "distance": 0.0038274999999998727,
-      "currentPOC": 2.4010862499999996,
-      "pastPOC": 2.3972587499999998
-    },
-    "nakedPOC": {
-      "naked": false,
-      "priorPOC": 3.0215069999999997,
-      "tested": true,
-      "aligned": false
-    },
-    "multiTFPOC": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M",
-        "D1"
-      ]
-    },
-    "multiTFFib": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "D1"
-      ]
-    },
-    "beMoved": true,
-    "tp1Hit": true,
-    "halfR": 1.22,
-    "result": "TP1+TP2",
-    "exitPrice": 2.22002875,
-    "rr": 1.76,
-    "exitTime": 1763242200,
-    "hoursHeld": 53
   },
   {
     "symbol": "XRP-USDT",
@@ -954,10 +889,10 @@
       ]
     },
     "result": "EARLY_TIMEOUT",
-    "exitPrice": 8.994,
-    "rr": 0.31,
-    "exitTime": 1772887500,
-    "hoursHeld": 140
+    "exitPrice": 9.379,
+    "rr": -0.26,
+    "exitTime": 1772635500,
+    "hoursHeld": 70
   },
   {
     "symbol": "AVAX-USDT",
@@ -1080,11 +1015,11 @@
       ]
     },
     "beMoved": true,
-    "result": "BE",
-    "exitPrice": 13.56072,
-    "rr": 0,
-    "exitTime": 1768319100,
-    "hoursHeld": 94
+    "result": "EARLY_TIMEOUT",
+    "exitPrice": 13.316,
+    "rr": 0.34,
+    "exitTime": 1768234500,
+    "hoursHeld": 70
   },
   {
     "symbol": "LINK-USDT",
@@ -1276,11 +1211,11 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.2,
-    "result": "TP1+BE",
-    "exitPrice": 1.1914816,
-    "rr": 0.6,
-    "exitTime": 1777485600,
-    "hoursHeld": 324
+    "result": "TIMEOUT",
+    "exitPrice": 1.2486,
+    "rr": 1.16,
+    "exitTime": 1777040100,
+    "hoursHeld": 200
   },
   {
     "symbol": "LTC-USDT",
