@@ -1,6 +1,181 @@
 [
   {
     "symbol": "MNT-USDT",
+    "barTime": 1785196800,
+    "price": 0.4002,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.41786,
+    "zoneHigh": 0.42488,
+    "ts": "2026-07-28T01:01:48.142Z"
+  },
+  {
+    "symbol": "POL-USDT",
+    "barTime": 1785196800,
+    "price": 0.0732,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.07962,
+    "zoneHigh": 0.08186,
+    "ts": "2026-07-28T01:01:45.954Z"
+  },
+  {
+    "symbol": "TRX-USDT",
+    "barTime": 1785196800,
+    "price": 0.324,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.32964,
+    "zoneHigh": 0.33152,
+    "ts": "2026-07-28T01:01:43.774Z"
+  },
+  {
+    "symbol": "LTC-USDT",
+    "barTime": 1785196800,
+    "price": 46.01,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 47.54,
+    "zoneHigh": 48.120000000000005,
+    "ts": "2026-07-28T01:01:41.590Z"
+  },
+  {
+    "symbol": "DOT-USDT",
+    "barTime": 1785196800,
+    "price": 0.7591,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.8206,
+    "zoneHigh": 0.8445,
+    "ts": "2026-07-28T01:01:39.407Z"
+  },
+  {
+    "symbol": "BNB-USDT",
+    "barTime": 1785196800,
+    "price": 565.856,
+    "biasD1": "NEUTRAL",
+    "bias30m": "BEARISH",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 2,
+    "confluenceLevel": "78.6%",
+    "confluencePivot": "VAH",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-07-28T01:01:37.220Z"
+  },
+  {
+    "symbol": "LINK-USDT",
+    "barTime": 1785196800,
+    "price": 8.3451,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 8.65656,
+    "zoneHigh": 8.78558,
+    "ts": "2026-07-28T01:01:35.037Z"
+  },
+  {
+    "symbol": "AVAX-USDT",
+    "barTime": 1785196800,
+    "price": 6.426,
+    "biasD1": "BEARISH",
+    "bias30m": "BEARISH",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 2,
+    "confluenceLevel": "61.8%",
+    "confluencePivot": "POC",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-07-28T01:01:32.843Z"
+  },
+  {
+    "symbol": "DOGE-USDT",
+    "barTime": 1785196800,
+    "price": 0.06994,
+    "fired": false,
+    "reason": "DUAL_MULTI_TF_GATE_FAILED",
+    "pocAligned": [],
+    "fibAligned": [
+      "30M",
+      "D1"
+    ],
+    "ts": "2026-07-28T01:01:30.651Z"
+  },
+  {
+    "symbol": "ADA-USDT",
+    "barTime": 1785196800,
+    "price": 0.1552,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.16994,
+    "zoneHigh": 0.17532,
+    "ts": "2026-07-28T01:01:28.459Z"
+  },
+  {
+    "symbol": "XRP-USDT",
+    "barTime": 1785196800,
+    "price": 1.05841,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 1.122004,
+    "zoneHigh": 1.143202,
+    "ts": "2026-07-28T01:01:26.269Z"
+  },
+  {
+    "symbol": "BTC-USDT",
+    "barTime": 1785196800,
+    "price": 63472.4,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 65559.56,
+    "zoneHigh": 66257.88,
+    "ts": "2026-07-28T01:01:24.067Z"
+  },
+  {
+    "symbol": "SOL-USDT",
+    "barTime": 1785196800,
+    "price": 73.68,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 76.71199999999999,
+    "zoneHigh": 77.79599999999999,
+    "ts": "2026-07-28T01:01:21.878Z"
+  },
+  {
+    "symbol": "ETH-USDT",
+    "barTime": 1785196800,
+    "price": 1878.24,
+    "fired": false,
+    "reason": "DUAL_MULTI_TF_GATE_FAILED",
+    "pocAligned": [],
+    "fibAligned": [
+      "30M",
+      "D1"
+    ],
+    "ts": "2026-07-28T01:01:19.683Z"
+  },
+  {
+    "symbol": "MNT-USDT",
     "barTime": 1785189600,
     "price": 0.4018,
     "fired": false,
