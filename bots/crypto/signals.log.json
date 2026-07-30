@@ -1,5 +1,72 @@
 [
   {
+    "symbol": "TRX-USDT",
+    "signal": "FIRED",
+    "direction": "BUY",
+    "entryTime": 1785424500,
+    "entryPrice": 0.32554,
+    "slPrice": 0.32314746121132526,
+    "tp1Price": 0.3284110465464097,
+    "tp2Price": 0.33144999999999997,
+    "risk": 0.0023925387886747362,
+    "rr1": 1.2,
+    "rr2": 2.4701793876761386,
+    "confluencePivot": "POC",
+    "fibPct": "78.6%",
+    "patterns": [
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "riskMult": 1,
+    "biasD1": "NEUTRAL",
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 13.176762824993006,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "freshPrice": 0.329,
+    "driftPct": 1.063,
+    "alertDelivered": true,
+    "time": "2026-07-30T15:23:00.530Z"
+  },
+  {
     "symbol": "DOT-USDT",
     "signal": "FIRED",
     "direction": "SELL",
