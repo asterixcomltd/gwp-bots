@@ -1,6 +1,135 @@
 [
   {
     "symbol": "EUR/JPY",
+    "barTime": 1785502800,
+    "price": 183.19542,
+    "biasD1": "NEUTRAL",
+    "bias30m": "BEARISH",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 2,
+    "confluenceLevel": "70% mid-pocket",
+    "confluencePivot": "VAH",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-07-31T14:45:04.199Z"
+  },
+  {
+    "symbol": "USD/CHF",
+    "biasD1": "NEUTRAL",
+    "bias30m": "BEARISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-31T14:44:39.660Z"
+  },
+  {
+    "symbol": "NZD/USD",
+    "biasD1": "BEARISH",
+    "bias30m": "NEUTRAL",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-31T14:44:15.657Z"
+  },
+  {
+    "symbol": "USD/CAD",
+    "barTime": 1785502800,
+    "price": 1.40414,
+    "fired": false,
+    "reason": "DUAL_MULTI_TF_GATE_FAILED",
+    "pocAligned": [],
+    "fibAligned": [
+      "D1"
+    ],
+    "ts": "2026-07-31T14:43:51.653Z"
+  },
+  {
+    "symbol": "AUD/USD",
+    "barTime": 1785502800,
+    "price": 0.7014,
+    "fired": false,
+    "reason": "NO_CONFLUENCE",
+    "ts": "2026-07-31T14:43:27.644Z"
+  },
+  {
+    "symbol": "GBP/JPY",
+    "barTime": 1785502800,
+    "price": 214.18717,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 217.021434,
+    "zoneHigh": 218.33612200000002,
+    "ts": "2026-07-31T14:43:04.019Z"
+  },
+  {
+    "symbol": "USD/JPY",
+    "biasD1": "NEUTRAL",
+    "bias30m": "NEUTRAL",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-07-31T14:42:39.639Z"
+  },
+  {
+    "symbol": "GBP/USD",
+    "barTime": 1785502800,
+    "price": 1.34392,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 2,
+    "confluenceLevel": "70% mid-pocket",
+    "confluencePivot": "POC",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-07-31T14:42:15.678Z"
+  },
+  {
+    "symbol": "EUR/USD",
+    "barTime": 1785502800,
+    "price": 1.14885,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 1.139048,
+    "zoneHigh": 1.142676,
+    "ts": "2026-07-31T14:41:51.596Z"
+  },
+  {
+    "symbol": "XAU/USD",
+    "barTime": 1785502800,
+    "price": 4040.53008,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 4084.1324320000003,
+    "zoneHigh": 4124.907186,
+    "ts": "2026-07-31T14:41:27.613Z"
+  },
+  {
+    "symbol": "EUR/JPY",
     "biasD1": "NEUTRAL",
     "bias30m": "NEUTRAL",
     "bias2h": "BEARISH",
