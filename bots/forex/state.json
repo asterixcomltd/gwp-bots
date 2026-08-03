@@ -1,48 +1,55 @@
 {
-  "_lastRunAt": "2026-08-03T07:43:20.726Z",
+  "_lastRunAt": "2026-08-03T11:03:44.081Z",
   "XAU/USD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 4057.18903,
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "SELL",
+    "price": 4047.09974,
     "biasD1": "BEARISH",
-    "bias30m": "BULLISH",
+    "bias30m": "BEARISH",
     "bias2h": "BEARISH",
-    "bias15m": "BULLISH",
-    "updatedAt": "2026-08-03T07:39:44.657Z"
+    "bias15m": "BEARISH",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "updatedAt": "2026-08-03T11:00:08.327Z"
   },
   "EUR/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 1.15277,
+    "price": 1.15228,
     "biasD1": "NEUTRAL",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-08-03T07:40:08.669Z"
+    "updatedAt": "2026-08-03T11:00:32.081Z"
   },
   "GBP/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 1.3468,
+    "price": 1.34604,
     "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-08-03T07:40:32.667Z"
+    "updatedAt": "2026-08-03T11:00:56.068Z"
   },
   "USD/CHF": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.80832,
+    "price": 0.80918,
     "biasD1": "NEUTRAL",
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-08-03T07:42:56.721Z"
+    "updatedAt": "2026-08-03T11:03:20.074Z"
   },
   "NZD/USD": {
     "signal": "SCANNED",
-    "price": 0.58768,
+    "price": 0.58638,
     "direction": "SELL",
     "voteTally": "3/4",
     "agreeing": [
@@ -59,22 +66,22 @@
     "val": 0.56358485,
     "swingHigh": 0.59017,
     "swingLow": 0.57625,
-    "atrStruct": 0.0006448911001363635,
-    "updatedAt": "2026-08-03T07:42:32.710Z"
+    "atrStruct": 0.0006647275302196211,
+    "updatedAt": "2026-08-03T11:02:56.053Z"
   },
   "AUD/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.70209,
+    "price": 0.70009,
     "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-08-03T07:41:44.692Z"
+    "updatedAt": "2026-08-03T11:02:08.113Z"
   },
   "USD/CAD": {
     "signal": "SCANNED",
-    "price": 1.40385,
+    "price": 1.40446,
     "direction": "BUY",
     "voteTally": "3/4",
     "agreeing": [
@@ -88,33 +95,32 @@
     "bias15m": "BULLISH",
     "poc": 1.4199162,
     "vah": 1.4245026,
-    "val": 1.4089597999999999,
+    "val": 1.4087049999999999,
     "swingHigh": 1.41269,
     "swingLow": 1.39915,
-    "atrStruct": 0.0008030499488096783,
-    "updatedAt": "2026-08-03T07:42:08.697Z"
+    "atrStruct": 0.0007683951089226514,
+    "updatedAt": "2026-08-03T11:02:32.091Z"
   },
   "USD/JPY": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "SELL",
-    "price": 156.63317,
+    "price": 156.82621,
     "biasD1": "BEARISH",
     "bias30m": "BEARISH",
     "bias2h": "BEARISH",
-    "bias15m": "BEARISH",
-    "voteTally": "4/4",
+    "bias15m": "NEUTRAL",
+    "voteTally": "3/4",
     "agreeing": [
       "D1",
       "30M",
-      "2H",
-      "15M"
+      "2H"
     ],
-    "updatedAt": "2026-08-03T07:40:56.672Z"
+    "updatedAt": "2026-08-03T11:01:20.096Z"
   },
   "GBP/JPY": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "SELL",
-    "price": 210.95881,
+    "price": 211.09499,
     "biasD1": "BEARISH",
     "bias30m": "BEARISH",
     "bias2h": "BEARISH",
@@ -126,12 +132,12 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-03T07:41:20.708Z"
+    "updatedAt": "2026-08-03T11:01:44.069Z"
   },
   "EUR/JPY": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "SELL",
-    "price": 180.55819,
+    "price": 180.72255,
     "biasD1": "BEARISH",
     "bias30m": "BEARISH",
     "bias2h": "BEARISH",
@@ -143,6 +149,6 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-03T07:43:20.725Z"
+    "updatedAt": "2026-08-03T11:03:44.081Z"
   }
 }
