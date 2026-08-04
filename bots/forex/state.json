@@ -1,18 +1,24 @@
 {
-  "_lastRunAt": "2026-08-04T12:25:29.599Z",
+  "_lastRunAt": "2026-08-04T15:10:53.675Z",
   "XAU/USD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 4066.25999,
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "BUY",
+    "price": 4081.91889,
     "biasD1": "BEARISH",
     "bias30m": "BULLISH",
-    "bias2h": "NEUTRAL",
+    "bias2h": "BULLISH",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-08-04T12:21:53.435Z"
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "updatedAt": "2026-08-04T15:07:17.625Z"
   },
   "EUR/USD": {
     "signal": "SCANNED",
-    "price": 1.1515,
+    "price": 1.1525,
     "direction": "SELL",
     "voteTally": "3/4",
     "agreeing": [
@@ -29,52 +35,64 @@
     "val": 1.13838525,
     "swingHigh": 1.15587,
     "swingLow": 1.13542,
-    "atrStruct": 0.0010279787271030498,
-    "updatedAt": "2026-08-04T12:22:17.442Z"
+    "atrStruct": 0.0010529510453082445,
+    "updatedAt": "2026-08-04T15:07:41.661Z"
   },
   "GBP/USD": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 1.3447,
+    "price": 1.34482,
     "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "updatedAt": "2026-08-04T12:22:41.443Z"
+    "updatedAt": "2026-08-04T15:08:05.712Z"
   },
   "USD/CHF": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 0.80923,
+    "price": 0.80906,
     "biasD1": "NEUTRAL",
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
-    "bias15m": "BULLISH",
-    "updatedAt": "2026-08-04T12:25:05.570Z"
+    "bias15m": "NEUTRAL",
+    "updatedAt": "2026-08-04T15:10:29.768Z"
   },
   "NZD/USD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 0.58829,
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "BUY",
+    "price": 0.58846,
     "biasD1": "BEARISH",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BULLISH",
     "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-04T12:24:41.492Z"
+    "bias15m": "BULLISH",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "updatedAt": "2026-08-04T15:10:05.764Z"
   },
   "AUD/USD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 0.70304,
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "BUY",
+    "price": 0.70378,
     "biasD1": "NEUTRAL",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BULLISH",
     "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-04T12:23:53.479Z"
+    "bias15m": "BULLISH",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "updatedAt": "2026-08-04T15:09:17.645Z"
   },
   "USD/CAD": {
     "signal": "SCANNED",
-    "price": 1.40602,
+    "price": 1.40572,
     "direction": "BUY",
     "voteTally": "3/4",
     "agreeing": [
@@ -91,37 +109,37 @@
     "val": 1.4084501999999999,
     "swingHigh": 1.41269,
     "swingLow": 1.39915,
-    "atrStruct": 0.0010801311312184409,
-    "updatedAt": "2026-08-04T12:24:17.479Z"
+    "atrStruct": 0.0010865416386526424,
+    "updatedAt": "2026-08-04T15:09:41.652Z"
   },
   "USD/JPY": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 157.54719,
+    "price": 157.56129,
     "biasD1": "BEARISH",
     "bias30m": "NEUTRAL",
     "bias2h": "BEARISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-04T12:23:05.464Z"
+    "updatedAt": "2026-08-04T15:08:29.622Z"
   },
   "GBP/JPY": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 211.86825,
+    "price": 211.88832,
     "biasD1": "BEARISH",
     "bias30m": "NEUTRAL",
     "bias2h": "BEARISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-04T12:23:29.843Z"
+    "updatedAt": "2026-08-04T15:08:53.633Z"
   },
   "EUR/JPY": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 181.47416,
+    "price": 181.54366,
     "biasD1": "BEARISH",
     "bias30m": "NEUTRAL",
     "bias2h": "BEARISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-04T12:25:29.599Z"
+    "updatedAt": "2026-08-04T15:10:53.674Z"
   }
 }
