@@ -382,10 +382,13 @@ standard as the rest of this repo.
   Size positions so 3-4 consecutive losses (normal variance) doesn't
   meaningfully damage the account.
 
-## Renaming
+## Why "Ghost Wick Protocol" — permanent, not a placeholder anymore
 
-Per your note — the name/branding here (GWP / "Ghost Wick Protocol") is a
-placeholder for now, per your instruction to focus on content first. The
-name lives in exactly these places when you're ready to change it: each
-bot's `strategy.js`/`commands.js`/`setup-bot.js` `botLabel` field, each
-`config.js` header comment, and this README.
+This was originally logged as a placeholder name (see prior commit history), with a full rename considered and drafted. Final decision: **keeping it.**
+
+- **"Wick"** is genuinely technical, not just thematic — the entire shared pattern-detection engine (`POC_RECLAIM`, `VAH_VAL_RECLAIM`, `PIN_BAR`, `CLOSE_REJECTION`) is built on candle-wick rejection behavior. Price "ghosting through" a zone — piercing it briefly via the wick, without actually closing there — is the literal mechanic the name evokes.
+- **"Ghost"** — the same idea, one level more evocative: a wick that passes through a level like it isn't really there, which is exactly what a valid rejection/reclaim pattern looks like on a chart.
+- **"Protocol"** — three independent bots (Crypto/Forex/Stocks) all running the same shared rules, like a protocol every market variant follows identically.
+
+A rename would have touched working `botLabel` fields, `config.js` headers, `package.json`, and 16 GitHub Actions workflow names, across three sub-bots, for a purely cosmetic gain. Not worth it — the name has real technical grounding and the placeholder status is retired.
+
