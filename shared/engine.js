@@ -270,6 +270,16 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       }
 
       const fibPct = bestFibLevel === fib.level618 ? '61.8%' : bestFibLevel === fib.level786 ? '78.6%' : '70% mid-pocket';
+
+      // Ported from MVS-bot (see shared/config-base.js MID_POCKET_EXCLUDE
+      // for the full rationale) — same position as the equivalent gate
+      // in MVS's strategy.js, right after prominence, before logging.
+      if (bestFibLevel === fibMid && config.MID_POCKET_EXCLUDE) {
+        console.log(`  ⚠️ Mid-pocket Fib (neither 61.8% nor 78.6%) — historically the weakest Fib segment. Skipping.`);
+        logDiag({ symbol, barTime, price, fired: false, reason: 'MID_POCKET_EXCLUDED' });
+        return;
+      }
+
       console.log(`  ✅ CONFLUENCE (score ${bestScore}): Fib ${fibPct} ($${bestFibLevel.toFixed(4)}) ↔ ${bestPivot.name} ($${bestPivot.price.toFixed(4)})`);
 
       // ── STEP 5: 30M ZONE CROSS-CHECK ──────────────────────────────────

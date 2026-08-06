@@ -265,6 +265,18 @@ module.exports = {
   POC_PROMINENCE_PENALTY_MULT: 0.8,
   POC_PROMINENCE_REQUIRE_DECISIVE: process.env.POC_PROMINENCE_REQUIRE_DECISIVE === 'false' ? false : true,
 
+  // Ported from MVS-bot: the "70%-mid" Fib candidate (fibMid — neither
+  // the 61.8% nor 78.6% named ratio, see shared/engine.js where it's
+  // selected) underperformed consistently across three independent MVS
+  // backtests, then again in MVS's live trading (the one loss out of two
+  // real losses that had an identifiable weak point was a mid-pocket
+  // entry). Same shared scoring algorithm here, so the same fix applies.
+  // Defaulted ON directly (not tested in isolation on GWP's own data
+  // first, since this repo has too few resolved live signals yet to
+  // validate independently) — this is a port of a proven fix to the
+  // shared core algorithm, not a new, GWP-specific claim.
+  MID_POCKET_EXCLUDE: process.env.MID_POCKET_EXCLUDE === 'false' ? false : true,
+
   // #2 POC MIGRATION — v10.13 direction fix ported as-is: migration
   // CONFIRMING trade direction gets the penalty (a POC that's already
   // migrated toward the trade direction is a level that's already been
