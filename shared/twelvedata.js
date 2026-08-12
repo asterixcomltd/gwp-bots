@@ -90,6 +90,15 @@ const getKeyState = (key) => {
 
 const isDailyExhaustion = (msg) => /run out of api credits.*(current day|today)/i.test(msg || '');
 const isMinuteExhaustion = (msg) => /run out of api credits.*(current minute)/i.test(msg || '');
+// "No data is available on the specified dates" is Twelve Data's answer
+// when a query's symbol+interval+date-range genuinely has no bars yet
+// (e.g. asking for a bar that hasn't printed, or a brand-new symbol
+// without enough history) — it is a property of the QUERY, not of which
+// key asked it. Retrying the same query on 4 more keys (and, with a
+// single key configured, 2 more full rounds) just burns credits and
+// time for an answer that will never change. Treated like a normal
+// empty-result response: fail fast on the FIRST key that hits it.
+const isNoDataForQuery = (msg) => /no data is available on the specified dates/i.test(msg || '');
 
 module.exports = function createTwelveDataClient(config) {
   const BASE = 'https://api.twelvedata.com/time_series';
@@ -166,6 +175,13 @@ module.exports = function createTwelveDataClient(config) {
           return res.data; // success
         } catch (e) {
           const msg = e.response?.data?.message || e.message;
+          if (isNoDataForQuery(msg)) {
+            // Deterministic for this query — every other key would get
+            // the identical answer. Log once and return immediately
+            // instead of cycling the remaining keys/rounds.
+            console.error(`  ℹ️ Twelve Data: no data available for this symbol/date-range yet (key ...${key.slice(-4)}) — not retrying other keys, this isn't key-specific.`);
+            return { status: 'error', message: msg, __noDataForQuery: true };
+          }
           console.error(`  ❌ Twelve Data fetch error (key ...${key.slice(-4)}):`, msg);
           // network-level failure isn't this key's fault specifically — don't mark it exhausted, just try the next key/round
         }
