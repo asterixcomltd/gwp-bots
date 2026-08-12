@@ -1,7 +1,11 @@
 name: GWP Crypto — Scan
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # v1.1.5 FIX: was on the exact round quarter-hour (:00/:15/:30/:45),
+    # the most congested slot for GitHub Actions' shared cron scheduler —
+    # see forex-scan.yml's v1.1.4 note. Staggered 12 minutes off the hour,
+    # clear of forex (+5) and stocks (+7).
+    - cron: '12-59/15 * * * *'
   workflow_dispatch: {}
 
 concurrency:
