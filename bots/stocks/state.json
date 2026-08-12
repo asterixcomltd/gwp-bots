@@ -1,28 +1,28 @@
 {
-  "_lastRunAt": "2026-08-12T14:50:08.693Z",
+  "_lastRunAt": "2026-08-12T15:48:32.784Z",
   "MSFT": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 499.125,
+    "price": 492.71,
     "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-12T14:47:44.464Z"
+    "updatedAt": "2026-08-12T15:44:56.645Z"
   },
   "GOOGL": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 344.03,
+    "price": 342.5,
     "biasD1": "NEUTRAL",
     "bias30m": "NEUTRAL",
     "bias2h": "BEARISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-12T14:48:32.570Z"
+    "updatedAt": "2026-08-12T15:46:08.997Z"
   },
   "META": {
     "signal": "SCANNED",
-    "price": 595.3,
+    "price": 582.61,
     "direction": "SELL",
     "voteTally": "3/4",
     "agreeing": [
@@ -39,43 +39,55 @@
     "val": 597.9607,
     "swingHigh": 610.845,
     "swingLow": 524.46,
-    "atrStruct": 7.201430667579778,
-    "updatedAt": "2026-08-12T14:48:48.537Z"
+    "atrStruct": 7.659899905609795,
+    "updatedAt": "2026-08-12T15:46:33.457Z"
   },
   "TSLA": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 329.48,
+    "price": 324.44,
     "biasD1": "BEARISH",
     "bias30m": "BULLISH",
     "bias2h": "BEARISH",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-08-12T14:49:04.907Z"
+    "updatedAt": "2026-08-12T15:46:56.676Z"
   },
   "AMD": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 483.805,
+    "signal": "SCANNED",
+    "price": 486.65,
+    "direction": "SELL",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
     "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
+    "bias30m": "BEARISH",
     "bias2h": "BEARISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-12T14:49:20.539Z"
+    "bias15m": "BEARISH",
+    "poc": 513.2718889,
+    "vah": 555.0226837,
+    "val": 506.84868969999997,
+    "swingHigh": 548.85,
+    "swingLow": 424.15,
+    "atrStruct": 9.416679590745003,
+    "updatedAt": "2026-08-12T15:47:20.685Z"
   },
   "NFLX": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 74.2,
+    "price": 73.81,
     "biasD1": "BEARISH",
     "bias30m": "NEUTRAL",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-12T14:49:36.605Z"
+    "updatedAt": "2026-08-12T15:47:44.694Z"
   },
   "NVDA": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "BUY",
-    "price": 221.15,
+    "price": 223.195,
     "biasD1": "BULLISH",
     "bias30m": "BULLISH",
     "bias2h": "BULLISH",
@@ -87,22 +99,22 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-12T14:48:00.493Z"
+    "updatedAt": "2026-08-12T15:45:21.670Z"
   },
   "AMZN": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 272.08,
+    "price": 268.68,
     "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BULLISH",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-12T14:48:16.552Z"
+    "updatedAt": "2026-08-12T15:45:44.715Z"
   },
   "AVGO": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "BUY",
-    "price": 419.335,
+    "price": 419.32,
     "biasD1": "BULLISH",
     "bias30m": "BULLISH",
     "bias2h": "BULLISH",
@@ -114,12 +126,12 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-12T14:49:52.529Z"
+    "updatedAt": "2026-08-12T15:48:08.777Z"
   },
   "AAPL": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "SELL",
-    "price": 303.3,
+    "price": 300.805,
     "biasD1": "BULLISH",
     "bias30m": "BEARISH",
     "bias2h": "BEARISH",
@@ -130,12 +142,12 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-12T14:47:28.457Z"
+    "updatedAt": "2026-08-12T15:44:32.641Z"
   },
   "SPCX": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "BUY",
-    "price": 136.61,
+    "price": 142.55,
     "bias30m": "BULLISH",
     "bias2h": "BULLISH",
     "bias15m": "BULLISH",
@@ -145,6 +157,6 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-12T14:50:08.693Z"
+    "updatedAt": "2026-08-12T15:48:32.784Z"
   }
 }
