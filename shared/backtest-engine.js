@@ -210,6 +210,9 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       if (!core.isPOCProminenceTrusted(bestPivot.name, prominenceForGate, config)) continue;
       // Ported from MVS-bot — mirrors the live gate in shared/engine.js.
       if (bestFibLevel === fibMid && config.MID_POCKET_EXCLUDE) continue;
+      // v1.1.8 ADDITION — mirrors the live gate in shared/engine.js (see
+      // config-base.js FIB_618_EXCLUDE for the cross-bot evidence).
+      if (bestFibLevel === fib.level618 && config.FIB_618_EXCLUDE) continue;
       funnel.prominenceOk++;
       funnel.confluenceOk++;
 

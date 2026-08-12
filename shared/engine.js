@@ -280,6 +280,21 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         return;
       }
 
+      // v1.1.8 ADDITION (see config-base.js FIB_618_EXCLUDE for the full
+      // cross-bot evidence) — the 61.8% Fib level is GWP's own
+      // demonstrated weak segment (56% combined WR vs 78.6%'s 93% across
+      // all three bots' backtests). Same position in the pipeline as
+      // MID_POCKET_EXCLUDE, right after it, for the same reason: cheapest
+      // possible check (a level-identity comparison), so it runs after
+      // the more expensive confluence/prominence work has already
+      // resolved bestFibLevel, but before anything downstream spends more
+      // work on a setup this would reject anyway.
+      if (bestFibLevel === fib.level618 && config.FIB_618_EXCLUDE) {
+        console.log(`  ⚠️ 61.8% Fib pocket — historically the weaker Fib segment on GWP's own data. Skipping.`);
+        logDiag({ symbol, barTime, price, fired: false, reason: 'FIB_618_EXCLUDED' });
+        return;
+      }
+
       console.log(`  ✅ CONFLUENCE (score ${bestScore}): Fib ${fibPct} ($${bestFibLevel.toFixed(4)}) ↔ ${bestPivot.name} ($${bestPivot.price.toFixed(4)})`);
 
       // ── STEP 5: 30M ZONE CROSS-CHECK ──────────────────────────────────

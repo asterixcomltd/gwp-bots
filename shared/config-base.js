@@ -261,7 +261,18 @@ module.exports = {
   // dataset-cited constants elsewhere) — a reasonable candidate to A/B
   // test against real backtest data. Now env-tunable so that can be done
   // without a code change; was previously hardcoded.
-  POC_PROMINENCE_MIN_RATIO: parseFloat(process.env.POC_PROMINENCE_MIN_RATIO) || 1.5,
+  // v1.1.8 FIX: lowered 1.5 → 1.25. Funnel diagnostics across all three
+  // bots' 360/60-day backtests show this gate rejecting a large share of
+  // POC candidates (crypto: 21,920 → 6,131 ticks survived, a 72% cut) with
+  // NO GWP-specific evidence the 1.5 threshold itself is well-calibrated —
+  // unlike POC_REQUIRE_STRUCT_CONFIRM or FIB_618_EXCLUDE below, which are
+  // backed by GWP's own resolved trades. 1.25 is a deliberately modest
+  // step (not a removal — POC_PROMINENCE_REQUIRE_DECISIVE below still
+  // applies), meant to be re-tested via backtest.js and compared against
+  // the pre-change reports committed in each bot folder, not assumed
+  // correct. Revert to 1.5 (or tune further) if backtest results don't
+  // support this level.
+  POC_PROMINENCE_MIN_RATIO: parseFloat(process.env.POC_PROMINENCE_MIN_RATIO) || 1.25,
   POC_PROMINENCE_PENALTY_MULT: 0.8,
   POC_PROMINENCE_REQUIRE_DECISIVE: process.env.POC_PROMINENCE_REQUIRE_DECISIVE === 'false' ? false : true,
 
@@ -276,6 +287,23 @@ module.exports = {
   // validate independently) — this is a port of a proven fix to the
   // shared core algorithm, not a new, GWP-specific claim.
   MID_POCKET_EXCLUDE: process.env.MID_POCKET_EXCLUDE === 'false' ? false : true,
+
+  // v1.1.8 ADDITION — FIB_618_EXCLUDE: unlike MID_POCKET_EXCLUDE above,
+  // this one IS a GWP-specific finding, not a port. Aggregating the "BY
+  // FIB LEVEL" breakdown across all three bots' own backtest-report.txt
+  // (committed in each bots/<name>/ folder) shows the 61.8% level
+  // consistently underperforming the 78.6% level in EVERY bot:
+  //   Crypto:  61.8% 44.4% WR (9 trades)  vs 78.6% 83.3% WR (12 trades)
+  //   Forex:   61.8% 61.5% WR (13 trades) vs 78.6% 100%  WR (14 trades)
+  //   Stocks:  61.8% 66.7% WR (3 trades)  vs 78.6% 100%  WR (3 trades)
+  //   Combined: 61.8% ~56% WR (25 trades) vs 78.6% ~93% WR (29 trades)
+  // Same direction in three independent markets/timeframes is a real
+  // signal, but the per-bot samples are still small (3-14 trades each) —
+  // defaulted ON given how consistent the direction is, but this has NOT
+  // been re-validated with a fresh backtest.js run after this change (no
+  // network access in the environment this was written in) — re-run and
+  // compare against the pre-change reports before trusting it live.
+  FIB_618_EXCLUDE: process.env.FIB_618_EXCLUDE === 'false' ? false : true,
 
   // #2 POC MIGRATION — v10.13 direction fix ported as-is: migration
   // CONFIRMING trade direction gets the penalty (a POC that's already
