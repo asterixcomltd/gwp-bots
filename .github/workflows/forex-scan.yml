@@ -36,6 +36,11 @@ jobs:
           FOREX_TWELVE_DATA_KEYS: ${{ secrets.FOREX_TWELVE_DATA_KEYS }}
           TWELVE_DATA_KEYS: ${{ secrets.TWELVE_DATA_KEYS }}
           TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
+      - name: Publish live signals to AxTrader Gist
+        run: node ../../shared/publish-gist.js forex
+        working-directory: bots/forex
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
       - name: Commit updated state/log files (race-safe)
         run: |
           git config user.name "gwp-bot"
