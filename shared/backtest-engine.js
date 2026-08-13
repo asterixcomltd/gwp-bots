@@ -197,6 +197,13 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       const fibMid = (fib.zoneHigh + fib.zoneLow) / 2;
       const checkLevels = [fib.level618, fib.level786, fibMid];
       const checkPivots = [{ name: 'POC', price: vpStruct.pocPrice }, { name: 'VAH', price: vpStruct.vahPrice }, { name: 'VAL', price: vpStruct.valPrice }];
+      // v1.1.9 (frequency) — mirrors engine.js: anchored VWAP as a 4th
+      // pivot, same swing window (windowStruct.slice(-STRUCT_FIB_LOOKBACK))
+      // that produced swingStruct via tfBiasVote() above.
+      if (config.VWAP_CONFLUENCE_ENABLED) {
+        const vwapAnchor = core.calcAnchoredVWAP(windowStruct.slice(-config.STRUCT_FIB_LOOKBACK), direction);
+        if (vwapAnchor != null) checkPivots.push({ name: 'VWAP', price: vwapAnchor });
+      }
       let bestScore = 0, bestFibLevel = null, bestPivot = null;
       for (const lvl of checkLevels) for (const pivot of checkPivots) {
         const sc = core.confluenceScore(lvl, pivot.price, atrStruct, config.CONFLUENCE_ATR_MULT);
@@ -261,7 +268,8 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       const rejection = core.detectRejection(window15m, entryZoneLow, entryZoneHigh, direction,
         { poc: vpStruct.pocPrice, vah: vpStruct.vahPrice, val: vpStruct.valPrice },
         config.ABSORPTION_BODY_RATIO, config.REJECTION_MIN_PATTERNS, config.ALLOW_SOLO_TRIGGER,
-        config.SOLO_ELIGIBLE_PATTERNS, config.TRIGGER_LOOKBACK_BARS);
+        config.SOLO_ELIGIBLE_PATTERNS, config.TRIGGER_LOOKBACK_BARS,
+        config.LIQUIDITY_SWEEP_ENABLED, config.LIQUIDITY_SWEEP_LOOKBACK_BARS);
       if (!rejection.valid) continue;
       funnel.triggerOk++;
 

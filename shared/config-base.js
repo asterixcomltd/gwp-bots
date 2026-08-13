@@ -199,7 +199,13 @@ module.exports = {
   // means: check the current candle, and if it didn't qualify, the one
   // before it. Set to `1` to restore the original single-candle-only
   // behavior.
-  TRIGGER_LOOKBACK_BARS: parseInt(process.env.TRIGGER_LOOKBACK_BARS, 10) || 2,
+  // v1.1.9 (frequency): 2→3. Exact same reasoning as the 1→2 change
+  // above — still a scan-timing recovery, not a quality change (every
+  // candle checked still has to pass the identical zone-touch +
+  // pattern-count + absorption-veto gates as candle[-1] would). Re-test
+  // via backtest.js; revert to 2 if the extra candle's trades don't hold
+  // up as well as the rest on your data.
+  TRIGGER_LOOKBACK_BARS: parseInt(process.env.TRIGGER_LOOKBACK_BARS, 10) || 3,
 
   // Solo trigger: a single pattern in SOLO_ELIGIBLE_PATTERNS is enough IF
   // every other gate (2H/30M/15M vote, confluence, HTF zone, RR) still
@@ -207,7 +213,44 @@ module.exports = {
   // excluded — see PATTERN_RISK_MATRIX below for the same evidence MVS
   // used to exclude it (POC_RECLAIM-present trades: markedly weaker WR).
   ALLOW_SOLO_TRIGGER: process.env.ALLOW_SOLO_TRIGGER === 'false' ? false : true,
-  SOLO_ELIGIBLE_PATTERNS: ['VAH_VAL_RECLAIM', 'CLOSE_REJECTION'],
+  SOLO_ELIGIBLE_PATTERNS: ['VAH_VAL_RECLAIM', 'CLOSE_REJECTION', 'LIQUIDITY_SWEEP'],
+
+  // ── LIQUIDITY SWEEP + RECLAIM (frequency addition) ──────────────────────
+  // A 6th trigger pattern alongside the original five in core.js
+  // detectRejection(). Distinct micro-structure the single-candle body/
+  // wick-ratio patterns don't catch: price wicks THROUGH a recent prior
+  // swing extreme (stop-hunt / liquidity grab — standard order-flow
+  // terminology) and closes back inside it on the same candle. Pure
+  // price action against candles already fetched — no new data source,
+  // no smoothing, no lag. Still gated by the same zone-touch requirement
+  // every pattern in detectRejection() has, and by REJECTION_MIN_PATTERNS/
+  // solo-eligibility exactly like the existing five — this widens WHAT
+  // counts as a valid trigger, it doesn't loosen HOW MANY are required.
+  // Added live-by-default given the underlying concept (liquidity
+  // sweeps precede genuine institutional entries) is well-established
+  // market-structure theory, same evidentiary standard as
+  // MID_POCKET_EXCLUDE above — re-validate with backtest.js before
+  // trusting it live, same as any other setting in this file.
+  LIQUIDITY_SWEEP_ENABLED: process.env.LIQUIDITY_SWEEP_ENABLED === 'false' ? false : true,
+  // How many candles BACK (candle being checked excluded) count as "the
+  // recent swing" that can be swept. 10 × 15M trigger bars = 2.5h — short
+  // enough to stay a genuine short-term grab, not just "any new local
+  // extreme somewhere in the last day."
+  LIQUIDITY_SWEEP_LOOKBACK_BARS: parseInt(process.env.LIQUIDITY_SWEEP_LOOKBACK_BARS, 10) || 10,
+
+  // ── ANCHORED VWAP CONFLUENCE (frequency addition) ────────────────────────
+  // A 4th confluence pivot alongside POC/VAH/VAL in the Fib×pivot check
+  // (engine.js/backtest-engine.js). VWAP is the standard institutional
+  // fair-value/execution benchmark — pure volume-weighted price, no
+  // smoothing, no lag. Anchored at the SAME swing extreme that already
+  // defines the Fib zone being checked (see core.js calcAnchoredVWAP),
+  // so this is an additional lens on the same structural swing, not an
+  // unrelated new opinion. Treated exactly like VAH/VAL (score>=1,
+  // no POC-style extra strictness or prominence gate — those are
+  // specifically about volume-histogram row dominance, not applicable
+  // here). Widens the MENU of valid confluence points; does not loosen
+  // the tolerance of any existing one (CONFLUENCE_ATR_MULT unchanged).
+  VWAP_CONFLUENCE_ENABLED: process.env.VWAP_CONFLUENCE_ENABLED === 'false' ? false : true,
 
   // ── Absorption veto ─────────────────────────────────────────────────────
   ABSORPTION_BODY_RATIO: 0.70,
@@ -238,7 +281,13 @@ module.exports = {
 
   // ── Signal cooldown ─────────────────────────────────────────────────────
   // Suppress re-alert on same symbol+direction for N structure(2H) bars.
-  SIGNAL_COOLDOWN_BARS: 3,
+  // v1.1.9 (frequency): 3→2 (6h→4h). This is a spam-throttle between
+  // re-alerts on the SAME symbol+direction, not a quality gate on any
+  // individual signal — every re-alert still has to independently pass
+  // every gate above (vote, confluence, trigger, etc.) from scratch.
+  // Re-test via backtest.js; revert to 3 if this produces noticeably
+  // clustered/correlated signals you don't want on your data.
+  SIGNAL_COOLDOWN_BARS: parseInt(process.env.SIGNAL_COOLDOWN_BARS, 10) || 2,
 
   // ── ATR ─────────────────────────────────────────────────────────────────
   ATR_PERIOD: 14,
