@@ -225,7 +225,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         swingHigh: swingStruct.high, swingLow: swingStruct.low, atrStruct,
       });
 
-      // ── STEP 4: CONFLUENCE CHECK (Fib × POC/VAH/VAL on 2H) ───────────
+      // ── STEP 4: CONFLUENCE CHECK (Fib × POC/VAH/VAL/VWAP on 2H) ──────
       const fibMid = (fib.zoneHigh + fib.zoneLow) / 2;
       const checkLevels = [fib.level618, fib.level786, fibMid];
       const checkPivots = [
@@ -233,6 +233,16 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         { name: 'VAH', price: vpStruct.vahPrice },
         { name: 'VAL', price: vpStruct.valPrice },
       ];
+      // v1.1.9 (frequency) — anchored VWAP as a 4th pivot, same swing
+      // window that already produced swingStruct/fib above (see
+      // core.js calcAnchoredVWAP header). Additive only: widens which
+      // pivots can produce confluence, doesn't touch POC/VAH/VAL's own
+      // tolerance or the fibData used elsewhere.
+      let vwapAnchor = null;
+      if (config.VWAP_CONFLUENCE_ENABLED) {
+        vwapAnchor = core.calcAnchoredVWAP(data30m.slice(-config.STRUCT_FIB_LOOKBACK), direction);
+        if (vwapAnchor != null) checkPivots.push({ name: 'VWAP', price: vwapAnchor });
+      }
 
       let bestScore = 0, bestFibLevel = null, bestPivot = null;
       for (const lvl of checkLevels) {
@@ -373,7 +383,8 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         data15m, entryZoneLow, entryZoneHigh, direction,
         { poc: vpStruct.pocPrice, vah: vpStruct.vahPrice, val: vpStruct.valPrice },
         config.ABSORPTION_BODY_RATIO, config.REJECTION_MIN_PATTERNS, config.ALLOW_SOLO_TRIGGER,
-        config.SOLO_ELIGIBLE_PATTERNS, config.TRIGGER_LOOKBACK_BARS
+        config.SOLO_ELIGIBLE_PATTERNS, config.TRIGGER_LOOKBACK_BARS,
+        config.LIQUIDITY_SWEEP_ENABLED, config.LIQUIDITY_SWEEP_LOOKBACK_BARS
       );
 
       logDiag({

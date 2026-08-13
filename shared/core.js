@@ -409,7 +409,7 @@ const isZoneInvalidated = (closePrice, zoneRef, atr, direction, atrMult) => {
 // most-recent candles (most-recent first) and fires on the first one that
 // qualifies, while still requiring the trade's zone/absorption/pattern
 // checks to hold on THAT specific candle (not a relaxed check).
-const detectRejection = (candles, zoneLow, zoneHigh, direction, pivots, absorptionBodyRatio, minPatterns = 2, allowSolo = false, soloPatterns = ['VAH_VAL_RECLAIM', 'CLOSE_REJECTION'], lookbackBars = 1) => {
+const detectRejection = (candles, zoneLow, zoneHigh, direction, pivots, absorptionBodyRatio, minPatterns = 2, allowSolo = false, soloPatterns = ['VAH_VAL_RECLAIM', 'CLOSE_REJECTION'], lookbackBars = 1, sweepEnabled = true, sweepLookbackBars = 10) => {
   if (candles.length < 2) return { valid: false, patterns: [], absorptionVeto: false, score: 0, solo: false, barsAgo: 0 };
 
   const checkOne = (idx) => {
@@ -447,6 +447,31 @@ const detectRejection = (candles, zoneLow, zoneHigh, direction, pivots, absorpti
       if (upperWick > body * 1.5 && body > 0) patterns.push('PIN_BAR');
       if (c.close < c.open && c.close < p.close && c.open > p.open) patterns.push('ENGULFING');
       if (c.high >= zoneLow && c.close < zoneLow) patterns.push('CLOSE_REJECTION');
+    }
+
+    // LIQUIDITY_SWEEP — a distinct micro-structure pattern the five
+    // single-candle checks above don't catch: price wicks THROUGH a
+    // recent prior swing extreme (a stop-hunt / liquidity grab, real
+    // order-flow terminology, not an indicator) and closes back inside
+    // it on the SAME candle. Pure price action against the candles
+    // already in hand — no smoothing, no external data, zero lag.
+    // sweepLookbackBars defines "recent" (candles strictly BEFORE idx,
+    // idx itself excluded) — kept short (config default 10 × 15M = 2.5h)
+    // so this stays a genuine short-term liquidity grab, not just "any
+    // new local extreme," and inherits the same touchedZone requirement
+    // every other pattern here does (this code only runs past that
+    // check above).
+    if (sweepEnabled) {
+      const priorWindow = candles.slice(Math.max(0, idx - sweepLookbackBars), idx);
+      if (priorWindow.length >= 3) {
+        if (direction === 'BUY') {
+          const priorSwingLow = Math.min(...priorWindow.map(d => d.low));
+          if (c.low < priorSwingLow && c.close > priorSwingLow) patterns.push('LIQUIDITY_SWEEP');
+        } else {
+          const priorSwingHigh = Math.max(...priorWindow.map(d => d.high));
+          if (c.high > priorSwingHigh && c.close < priorSwingHigh) patterns.push('LIQUIDITY_SWEEP');
+        }
+      }
     }
 
     const score = patterns.length;
@@ -574,6 +599,54 @@ const computePOCProminence = (vp) => {
   const pocVol = volArr[pocIdx];
   const prominenceRatio = avgNeighbor > 0 ? pocVol / avgNeighbor : (pocVol > 0 ? Infinity : 1);
   return { prominenceRatio, computed: true };
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+//  ANCHORED VWAP — added as a 4th confluence pivot alongside POC/VAH/VAL
+//  (see engine.js/backtest-engine.js confluence-check callers). VWAP
+//  (volume-weighted average price) is the standard institutional
+//  execution/fair-value benchmark — pure sum(typicalPrice × volume) /
+//  sum(volume), no smoothing, no lookback window shorter than the data
+//  handed in, so it carries none of the lag a moving average would.
+//  "Anchored" means it's computed from a specific structural start point
+//  forward (not a rolling window) — same convention institutional desks
+//  use (anchor at the session open, a swing extreme, an earnings date,
+//  etc.). Here it's anchored at the SAME swing extreme that already
+//  defines the caller's Fib zone (the low for a BUY zone, the high for a
+//  SELL zone) — the two are structurally tied to the same event, not two
+//  independently-chosen reference points, which keeps this an additional
+//  lens on the same swing rather than an unrelated new opinion.
+//  fibData should be the SAME slice already used to derive that swing
+//  (data.slice(-fibLookback) in tfBiasVote) — pass that exact array, not
+//  a re-sliced one, so the anchor this finds is guaranteed to be the same
+//  candle that produced swing.high/swing.low. Real .volume field is used
+//  as-is; upstream data clients (kucoin.js/twelvedata.js) already
+//  substitute a true-range proxy for sources with no real volume (see
+//  twelvedata.js header), so this function doesn't need its own
+//  synthetic-volume fallback — one source of truth for that, not two.
+//  Returns null (never a fabricated number) if the window is too short
+//  or has no usable volume at all — callers must treat null as "VWAP not
+//  available this scan," not as a zero or a rejection.
+const calcAnchoredVWAP = (fibData, direction) => {
+  if (!Array.isArray(fibData) || fibData.length < 3) return null;
+  const anchorPrice = direction === 'BUY'
+    ? Math.min(...fibData.map(d => d.low))
+    : Math.max(...fibData.map(d => d.high));
+  const anchorIdx = direction === 'BUY'
+    ? fibData.findIndex(d => d.low === anchorPrice)
+    : fibData.findIndex(d => d.high === anchorPrice);
+  if (anchorIdx === -1) return null;
+  const window = fibData.slice(anchorIdx);
+  if (window.length < 2) return null;
+  let cumPV = 0, cumVol = 0;
+  for (const c of window) {
+    const typicalPrice = (c.high + c.low + c.close) / 3;
+    const vol = c.volume > 0 ? c.volume : 0;
+    cumPV += typicalPrice * vol;
+    cumVol += vol;
+  }
+  if (cumVol <= 0) return null;
+  return cumPV / cumVol;
 };
 
 //  #2 — POC MIGRATION. A POC that has been drifting steadily in one
@@ -966,7 +1039,7 @@ module.exports = {
   calcATR, calcFib, calcVolumeProfile, tfBiasVote, isNearZone, isNearZoneWick, resolveDirection,
   confluenceScore, checkHTFZoneAlignment, isZoneInvalidated,
   detectRejection, computeTradeLevels, computeRiskMultiplier, computeTDSequential,
-  computePOCProminence, computePOCMigration, computeNakedPOC, computePOCQualityMultiplier,
+  computePOCProminence, calcAnchoredVWAP, computePOCMigration, computeNakedPOC, computePOCQualityMultiplier,
   isPOCProminenceTrusted, evaluateOpenTrade,
   calcATRSeries, calcATRPercentile, computeMultiTFPOCAlignment, computeMultiTFFibAlignment, computeVoteStrengthMultiplier,
 };

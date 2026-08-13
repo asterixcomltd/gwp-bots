@@ -64,6 +64,7 @@ const HUMANIZE = {
   PIN_BAR: 'Pin bar rejection',
   CLOSE_REJECTION: 'Close rejection',
   ENGULFING: 'Engulfing candle',
+  LIQUIDITY_SWEEP: 'Liquidity sweep + reclaim',
 };
 
 function fmtPrice(n) {
