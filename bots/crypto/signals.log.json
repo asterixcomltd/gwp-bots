@@ -1,5 +1,70 @@
 [
   {
+    "symbol": "TRX-USDT",
+    "signal": "FIRED",
+    "direction": "BUY",
+    "entryTime": 1787036400,
+    "entryPrice": 0.3308112,
+    "slPrice": 0.3282569338195359,
+    "tp1Price": 0.3339,
+    "tp2Price": 0.335898,
+    "risk": 0.0025542661804641154,
+    "rr1": 1.2092709928292227,
+    "rr2": 1.9914917399390477,
+    "confluencePivot": "VAL",
+    "fibPct": "78.6%",
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "riskMult": 1,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BULLISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.8235076621347392,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "freshPrice": 0.3332,
+    "driftPct": 0.722,
+    "alertDelivered": true,
+    "time": "2026-08-18T07:04:36.383Z"
+  },
+  {
     "symbol": "AVAX-USDT",
     "signal": "FIRED",
     "direction": "SELL",
