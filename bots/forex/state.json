@@ -1,5 +1,5 @@
 {
-  "_lastRunAt": "2026-08-20T13:22:16.704Z",
+  "_lastRunAt": "2026-08-20T14:08:08.745Z",
   "XAU/USD": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "BUY",
@@ -15,7 +15,7 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:17:04.703Z"
+    "updatedAt": "2026-08-20T14:04:40.626Z"
   },
   "EUR/USD": {
     "signal": "WAITING_FOR_ZONE",
@@ -32,7 +32,7 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:17:28.624Z"
+    "updatedAt": "2026-08-20T14:04:56.589Z"
   },
   "GBP/USD": {
     "signal": "WAITING_FOR_ZONE",
@@ -49,7 +49,7 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:17:52.610Z"
+    "updatedAt": "2026-08-20T14:05:12.635Z"
   },
   "USD/CHF": {
     "signal": "WAITING_FOR_ZONE",
@@ -65,7 +65,7 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:20:16.705Z"
+    "updatedAt": "2026-08-20T14:06:48.809Z"
   },
   "NZD/USD": {
     "signal": "WAITING_FOR_ZONE",
@@ -81,24 +81,23 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:19:52.649Z"
+    "updatedAt": "2026-08-20T14:06:32.817Z"
   },
   "AUD/USD": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "BUY",
     "price": 0.71206,
     "biasD1": "BULLISH",
-    "bias30m": "BULLISH",
+    "bias30m": "NEUTRAL",
     "bias2h": "BULLISH",
     "bias15m": "BULLISH",
-    "voteTally": "4/4",
+    "voteTally": "3/4",
     "agreeing": [
       "D1",
-      "30M",
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:19:04.643Z"
+    "updatedAt": "2026-08-20T14:06:00.661Z"
   },
   "USD/CAD": {
     "signal": "WAITING_FOR_ZONE",
@@ -114,29 +113,17 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:19:28.644Z"
+    "updatedAt": "2026-08-20T14:06:16.643Z"
   },
   "USD/JPY": {
-    "signal": "SCANNED",
+    "signal": "NO_AGREEMENT",
+    "direction": null,
     "price": 158.65138,
-    "direction": "SELL",
-    "voteTally": "3/4",
-    "agreeing": [
-      "D1",
-      "30M",
-      "15M"
-    ],
     "biasD1": "BEARISH",
-    "bias30m": "BEARISH",
+    "bias30m": "NEUTRAL",
     "bias2h": "BULLISH",
     "bias15m": "BEARISH",
-    "poc": 157.8087925,
-    "vah": 162.1623055,
-    "val": 157.3819775,
-    "swingHigh": 159.74526,
-    "swingLow": 157.2254,
-    "atrStruct": 0.20441253224717698,
-    "updatedAt": "2026-08-20T13:18:16.666Z"
+    "updatedAt": "2026-08-20T14:05:28.632Z"
   },
   "GBP/JPY": {
     "signal": "WAITING_FOR_ZONE",
@@ -152,7 +139,7 @@
       "30M",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:18:40.623Z"
+    "updatedAt": "2026-08-20T14:05:44.648Z"
   },
   "EUR/JPY": {
     "signal": "WAITING_FOR_ZONE",
@@ -169,7 +156,7 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:20:40.717Z"
+    "updatedAt": "2026-08-20T14:07:05.154Z"
   },
   "EUR/GBP": {
     "signal": "NO_AGREEMENT",
@@ -179,7 +166,7 @@
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-20T13:21:04.689Z"
+    "updatedAt": "2026-08-20T14:07:20.638Z"
   },
   "AUD/JPY": {
     "signal": "WAITING_FOR_ZONE",
@@ -196,7 +183,7 @@
       "2H",
       "15M"
     ],
-    "updatedAt": "2026-08-20T13:21:28.696Z"
+    "updatedAt": "2026-08-20T14:07:36.744Z"
   },
   "EUR/AUD": {
     "signal": "NO_AGREEMENT",
@@ -206,7 +193,7 @@
     "bias30m": "BULLISH",
     "bias2h": "NEUTRAL",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-08-20T13:21:52.791Z"
+    "updatedAt": "2026-08-20T14:07:52.680Z"
   },
   "GBP/CAD": {
     "signal": "NO_AGREEMENT",
@@ -216,6 +203,6 @@
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-08-20T13:22:16.704Z"
+    "updatedAt": "2026-08-20T14:08:08.745Z"
   }
 }
