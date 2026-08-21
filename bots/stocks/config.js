@@ -90,6 +90,23 @@ module.exports = {
     // credit budget exhausted" or funnel WARMUP shortfalls after
     // deploying before adding more than this.
     'SPY', 'QQQ', 'JPM',
+    // v1.1.10 (2026-08-18, frequency) — 4 more, still modest, same
+    // caution as v1.1.9 above (unconfirmed whether the credit-budget
+    // concern flagged there has actually materialized — watch for it).
+    // Justification for touching this bot specifically, not crypto/
+    // forex: confirmed via real funnel diagnostics that stocks' near-
+    // zero signal rate (3 trades / 360 days, vs crypto's 34 and forex's
+    // 39 in the same window) is a genuine, structural data-depth
+    // problem — DUAL_MULTI_TF_GATE, already at its loosest sensible
+    // setting (MIN_ALIGNED=1), still collapsed some symbols' candidate
+    // count straight to 0 (e.g. htf2hAligned=42 -> dualMultiTFOk=0 for
+    // one stocks symbol) — a pattern crypto/forex's own funnel data does
+    // NOT show anywhere (checked directly, not assumed). Consistent
+    // with the known equities-history-depth ceiling, not a mis-tuned
+    // gate — nothing left to safely loosen there without disabling a
+    // real quality check, so symbol count is the only lever with real
+    // headroom left for this specific bot.
+    'V', 'MA', 'XOM', 'DIA',
   ],
 
   // ── Timeframes — Twelve Data interval strings ───────────────────────────
