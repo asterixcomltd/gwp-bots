@@ -8,30 +8,30 @@
     here was chosen to hit a target win rate — see config.js header.
 
 ── SUMMARY ─────────────────────────────────────────────────────────
-  Total signals fired    : 34  (~0.66/week across all symbols)
-  Closed trades          : 34
+  Total signals fired    : 35  (~0.68/week across all symbols)
+  Closed trades          : 35
   Open (unrealised)      : 0
-  Win rate (all closed)  : 82.4%  (28W / 6L)
-  No-real-loss rate      : 97.1%  (33 no-loss / 1 real loss — excludes 5 breakeven scratches; this is NOT the same as "win rate")
-  Profit factor          : 123.43
-  Total R accumulated    : 36.73R
+  Win rate (all closed)  : 82.9%  (29W / 6L)
+  No-real-loss rate      : 97.1%  (34 no-loss / 1 real loss — excludes 5 breakeven scratches; this is NOT the same as "win rate")
+  Profit factor          : 127.67
+  Total R accumulated    : 38.00R
   Avg win / avg loss     : +1.32R / -0.05R
-  Avg hours held         : 54h
+  Avg hours held         : 52h
 
 ── OUTCOME BREAKDOWN ───────────────────────────────────────────────
-  TP1 reached (partial banked) : 25
-  TP2 reached (full target)    : 15
+  TP1 reached (partial banked) : 26
+  TP2 reached (full target)    : 16
     ..of which runner gave back to BE : 10
   SL hits                      : 0
   BE hits (never reached TP1)  : 5
   Timeouts                     : 4
 
 ── $ P&L SIMULATION (1.5% risk/trade + 0.1% slippage, $1000 start) ──
-  Final capital : $1651.34  (65.1% return)  |  Max drawdown: 0.6%
+  Final capital : $1681.15  (68.1% return)  |  Max drawdown: 0.6%
 
 ── TIMEFRAME VOTE BREAKDOWN ────────────────────────────────────────
   3/4 agreement: 32 signals
-  4/4 agreement: 2 signals
+  4/4 agreement: 3 signals
 
 ── BY SYMBOL ───────────────────────────────────────────────────────
   ETH-USDT   1 trades | 100% WR | 1.95R total
@@ -49,127 +49,127 @@
   POL-USDT   3 trades | 100% WR | 4.41R total
   MNT-USDT   0 trades — see funnel diagnostics below
   ATOM-USDT  1 trades | 100% WR | 2.13R total
-  NEAR-USDT  3 trades | 67% WR | 2.24R total
+  NEAR-USDT  4 trades | 75% WR | 3.51R total
   APT-USDT   2 trades | 50% WR | 1.75R total
   ARB-USDT   1 trades | 100% WR | 3.11R total
   OP-USDT    3 trades | 67% WR | 1.21R total
   SUI-USDT   2 trades | 100% WR | 3.56R total
 
 ── BY DIRECTION ────────────────────────────────────────────────────
-  BUY    11 trades | 91% WR | 17.60R total
+  BUY    12 trades | 92% WR | 18.87R total
   SELL   23 trades | 78% WR | 19.13R total
 
 ── BY CONFIDENCE TIER (drives RISK_TIER_MATRIX) ─────────────────────
-  2H-confirmed    10 trades | 100.0% WR | 0 SL | 11.92R total
+  2H-confirmed    11 trades | 100.0% WR | 0 SL | 13.19R total
   no-2H-confirm   24 trades | 75.0% WR | 0 SL | 24.81R total
 
 ── BY PIVOT (drives RISK_TIER_MATRIX) ───────────────────────────────
   VWAP            25 trades | 84.0% WR | 0 SL | 29.58R total
   VAH             4 trades | 50.0% WR | 0 SL | 1.21R total
-  POC             4 trades | 100.0% WR | 0 SL | 4.11R total
+  POC             5 trades | 100.0% WR | 0 SL | 5.38R total
   VAL             1 trades | 100.0% WR | 0 SL | 1.83R total
 
 ── BY FIB LEVEL ──────────────────────────────────────────────────────
-  78.6%           34 trades | 82.4% WR | 0 SL | 36.73R total
+  78.6%           35 trades | 82.9% WR | 0 SL | 38.00R total
 
 ── BY VOTE TALLY (drives VOTE_STRENGTH_MULT) ────────────────────────
   3-of-4          32 trades | 81.3% WR | 0 SL | 34.68R total
-  4-of-4          2 trades | 100.0% WR | 0 SL | 2.05R total
+  4-of-4          3 trades | 100.0% WR | 0 SL | 3.32R total
 
 ── BY MULTI-TF POC ALIGNMENT (POC pivot only) ───────────────────────
-  aligned (30M)        1 trades | 100.0% WR | 0 SL | 0.60R total
+  aligned (30M)        2 trades | 100.0% WR | 0 SL | 1.87R total
   aligned (30M+D1)     1 trades | 100.0% WR | 0 SL | 1.16R total
   aligned (D1)         2 trades | 100.0% WR | 0 SL | 2.35R total
 
 ── BY MULTI-TF FIB ALIGNMENT (all pivots — DUAL_MULTI_TF_GATE) ──────
   aligned (30M+D1)     26 trades | 88.5% WR | 0 SL | 31.22R total
-  aligned (D1)         7 trades | 57.1% WR | 0 SL | 3.38R total
+  aligned (D1)         8 trades | 62.5% WR | 0 SL | 4.65R total
   aligned (30M)        1 trades | 100.0% WR | 0 SL | 2.13R total
 
 ── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───
   ETH-USDT:
-    scanned=24241  voteOk=13323(bull=6196/bear=7127)  volatilityOk=13323  structureOk=13323
-    notOverExtended=13323  nearZone=2145  prominenceOk=405  confluenceOk=405  htf2hAligned=405  dualMultiTFOk=5
+    scanned=24208  voteOk=13374(bull=6247/bear=7127)  volatilityOk=13374  structureOk=13374
+    notOverExtended=13374  nearZone=2145  prominenceOk=405  confluenceOk=405  htf2hAligned=405  dualMultiTFOk=5
     notInvalidated=5  cooldownOk=5  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   SOL-USDT:
-    scanned=23812  voteOk=12162(bull=4563/bear=7599)  volatilityOk=12162  structureOk=12162
-    notOverExtended=12162  nearZone=1239  prominenceOk=270  confluenceOk=270  htf2hAligned=267  dualMultiTFOk=87
+    scanned=23779  voteOk=12163(bull=4644/bear=7519)  volatilityOk=12163  structureOk=12163
+    notOverExtended=12163  nearZone=1231  prominenceOk=270  confluenceOk=270  htf2hAligned=267  dualMultiTFOk=87
     notInvalidated=87  cooldownOk=87  triggerOk=5  driftOk=5  tp2RangeOk=2  opened=2
   BTC-USDT:
-    scanned=24445  voteOk=12380(bull=6026/bear=6354)  volatilityOk=12380  structureOk=12380
-    notOverExtended=12380  nearZone=1050  prominenceOk=110  confluenceOk=110  htf2hAligned=108  dualMultiTFOk=47
+    scanned=24412  voteOk=12382(bull=6044/bear=6338)  volatilityOk=12382  structureOk=12382
+    notOverExtended=12382  nearZone=1034  prominenceOk=110  confluenceOk=110  htf2hAligned=108  dualMultiTFOk=47
     notInvalidated=47  cooldownOk=47  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   XRP-USDT:
-    scanned=23940  voteOk=13514(bull=2825/bear=10689)  volatilityOk=13514  structureOk=13514
-    notOverExtended=13514  nearZone=1081  prominenceOk=119  confluenceOk=119  htf2hAligned=119  dualMultiTFOk=18
+    scanned=23907  voteOk=13509(bull=2970/bear=10539)  volatilityOk=13509  structureOk=13509
+    notOverExtended=13509  nearZone=1089  prominenceOk=119  confluenceOk=119  htf2hAligned=119  dualMultiTFOk=18
     notInvalidated=18  cooldownOk=18  triggerOk=2  driftOk=2  tp2RangeOk=2  opened=2
   ADA-USDT:
-    scanned=24302  voteOk=13059(bull=2764/bear=10295)  volatilityOk=13059  structureOk=13059
-    notOverExtended=13059  nearZone=1796  prominenceOk=301  confluenceOk=301  htf2hAligned=301  dualMultiTFOk=35
+    scanned=24269  voteOk=12946(bull=2748/bear=10198)  volatilityOk=12946  structureOk=12946
+    notOverExtended=12946  nearZone=1745  prominenceOk=260  confluenceOk=260  htf2hAligned=260  dualMultiTFOk=35
     notInvalidated=35  cooldownOk=35  triggerOk=4  driftOk=4  tp2RangeOk=1  opened=1
   DOGE-USDT:
-    scanned=24445  voteOk=12993(bull=3348/bear=9645)  volatilityOk=12993  structureOk=12993
-    notOverExtended=12989  nearZone=1304  prominenceOk=157  confluenceOk=157  htf2hAligned=157  dualMultiTFOk=18
+    scanned=24412  voteOk=12967(bull=3420/bear=9547)  volatilityOk=12967  structureOk=12967
+    notOverExtended=12963  nearZone=1300  prominenceOk=157  confluenceOk=157  htf2hAligned=157  dualMultiTFOk=18
     notInvalidated=18  cooldownOk=18  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   AVAX-USDT:
-    scanned=24424  voteOk=13396(bull=4045/bear=9351)  volatilityOk=13396  structureOk=13396
-    notOverExtended=13396  nearZone=2020  prominenceOk=478  confluenceOk=478  htf2hAligned=478  dualMultiTFOk=135
+    scanned=24391  voteOk=13365(bull=4110/bear=9255)  volatilityOk=13365  structureOk=13365
+    notOverExtended=13365  nearZone=2019  prominenceOk=478  confluenceOk=478  htf2hAligned=478  dualMultiTFOk=135
     notInvalidated=135  cooldownOk=135  triggerOk=9  driftOk=9  tp2RangeOk=1  opened=1
   LINK-USDT:
-    scanned=24210  voteOk=13875(bull=5344/bear=8531)  volatilityOk=13875  structureOk=13875
-    notOverExtended=13874  nearZone=1733  prominenceOk=316  confluenceOk=316  htf2hAligned=316  dualMultiTFOk=163
+    scanned=24177  voteOk=13954(bull=5423/bear=8531)  volatilityOk=13954  structureOk=13954
+    notOverExtended=13953  nearZone=1733  prominenceOk=316  confluenceOk=316  htf2hAligned=316  dualMultiTFOk=163
     notInvalidated=163  cooldownOk=163  triggerOk=4  driftOk=4  tp2RangeOk=2  opened=2
   BNB-USDT:
-    scanned=24166  voteOk=11969(bull=5286/bear=6683)  volatilityOk=11969  structureOk=11969
-    notOverExtended=11969  nearZone=1684  prominenceOk=348  confluenceOk=348  htf2hAligned=348  dualMultiTFOk=114
+    scanned=24133  voteOk=12109(bull=5426/bear=6683)  volatilityOk=12109  structureOk=12109
+    notOverExtended=12109  nearZone=1684  prominenceOk=348  confluenceOk=348  htf2hAligned=348  dualMultiTFOk=114
     notInvalidated=114  cooldownOk=108  triggerOk=2  driftOk=2  tp2RangeOk=2  opened=2
   DOT-USDT:
-    scanned=23550  voteOk=13895(bull=2279/bear=11616)  volatilityOk=13895  structureOk=13895
-    notOverExtended=13895  nearZone=1417  prominenceOk=519  confluenceOk=519  htf2hAligned=519  dualMultiTFOk=71
+    scanned=23517  voteOk=13885(bull=2363/bear=11522)  volatilityOk=13885  structureOk=13885
+    notOverExtended=13885  nearZone=1411  prominenceOk=519  confluenceOk=519  htf2hAligned=519  dualMultiTFOk=71
     notInvalidated=71  cooldownOk=71  triggerOk=2  driftOk=2  tp2RangeOk=2  opened=2
   LTC-USDT:
-    scanned=24118  voteOk=14037(bull=4294/bear=9743)  volatilityOk=14037  structureOk=14037
-    notOverExtended=14036  nearZone=2507  prominenceOk=481  confluenceOk=481  htf2hAligned=477  dualMultiTFOk=148
+    scanned=24085  voteOk=13919(bull=4270/bear=9649)  volatilityOk=13919  structureOk=13919
+    notOverExtended=13918  nearZone=2413  prominenceOk=481  confluenceOk=481  htf2hAligned=477  dualMultiTFOk=148
     notInvalidated=148  cooldownOk=148  triggerOk=6  driftOk=6  tp2RangeOk=3  opened=3
   TRX-USDT:
-    scanned=23580  voteOk=13547(bull=10006/bear=3541)  volatilityOk=13547  structureOk=13547
-    notOverExtended=13518  nearZone=1686  prominenceOk=515  confluenceOk=515  htf2hAligned=515  dualMultiTFOk=277
+    scanned=23547  voteOk=13551(bull=10109/bear=3442)  volatilityOk=13551  structureOk=13551
+    notOverExtended=13522  nearZone=1686  prominenceOk=515  confluenceOk=515  htf2hAligned=515  dualMultiTFOk=277
     notInvalidated=277  cooldownOk=277  triggerOk=23  driftOk=23  tp2RangeOk=3  opened=3
   POL-USDT:
-    scanned=24391  voteOk=12617(bull=3223/bear=9394)  volatilityOk=12617  structureOk=12617
-    notOverExtended=12617  nearZone=1291  prominenceOk=144  confluenceOk=144  htf2hAligned=144  dualMultiTFOk=37
+    scanned=24358  voteOk=12593(bull=3362/bear=9231)  volatilityOk=12593  structureOk=12593
+    notOverExtended=12593  nearZone=1288  prominenceOk=144  confluenceOk=144  htf2hAligned=144  dualMultiTFOk=37
     notInvalidated=37  cooldownOk=34  triggerOk=3  driftOk=3  tp2RangeOk=3  opened=3
   MNT-USDT:
-    scanned=24445  voteOk=13503(bull=2427/bear=11076)  volatilityOk=13503  structureOk=13503
-    notOverExtended=13492  nearZone=1141  prominenceOk=332  confluenceOk=332  htf2hAligned=332  dualMultiTFOk=21
+    scanned=24412  voteOk=13500(bull=2424/bear=11076)  volatilityOk=13500  structureOk=13500
+    notOverExtended=13489  nearZone=1147  prominenceOk=332  confluenceOk=332  htf2hAligned=332  dualMultiTFOk=21
     notInvalidated=21  cooldownOk=21  triggerOk=0  driftOk=0  tp2RangeOk=0  opened=0
   ATOM-USDT:
-    scanned=23718  voteOk=12844(bull=4692/bear=8152)  volatilityOk=12844  structureOk=12844
-    notOverExtended=12842  nearZone=1387  prominenceOk=338  confluenceOk=338  htf2hAligned=338  dualMultiTFOk=169
+    scanned=23685  voteOk=12821(bull=4763/bear=8058)  volatilityOk=12821  structureOk=12821
+    notOverExtended=12819  nearZone=1395  prominenceOk=338  confluenceOk=338  htf2hAligned=338  dualMultiTFOk=169
     notInvalidated=169  cooldownOk=169  triggerOk=12  driftOk=12  tp2RangeOk=1  opened=1
   NEAR-USDT:
-    scanned=23841  voteOk=14540(bull=6859/bear=7681)  volatilityOk=14540  structureOk=14535
-    notOverExtended=14522  nearZone=2610  prominenceOk=786  confluenceOk=786  htf2hAligned=786  dualMultiTFOk=305
-    notInvalidated=305  cooldownOk=305  triggerOk=65  driftOk=65  tp2RangeOk=3  opened=3
+    scanned=23807  voteOk=14574(bull=6981/bear=7593)  volatilityOk=14574  structureOk=14569
+    notOverExtended=14556  nearZone=2647  prominenceOk=833  confluenceOk=833  htf2hAligned=833  dualMultiTFOk=318
+    notInvalidated=318  cooldownOk=316  triggerOk=66  driftOk=66  tp2RangeOk=4  opened=4
   APT-USDT:
-    scanned=24283  voteOk=12828(bull=2899/bear=9929)  volatilityOk=12828  structureOk=12828
-    notOverExtended=12828  nearZone=1469  prominenceOk=222  confluenceOk=222  htf2hAligned=222  dualMultiTFOk=76
+    scanned=24250  voteOk=12902(bull=2970/bear=9932)  volatilityOk=12902  structureOk=12902
+    notOverExtended=12902  nearZone=1533  prominenceOk=222  confluenceOk=222  htf2hAligned=222  dualMultiTFOk=76
     notInvalidated=76  cooldownOk=76  triggerOk=2  driftOk=2  tp2RangeOk=2  opened=2
   ARB-USDT:
-    scanned=24388  voteOk=12571(bull=4027/bear=8544)  volatilityOk=12571  structureOk=12570
-    notOverExtended=12570  nearZone=1038  prominenceOk=347  confluenceOk=347  htf2hAligned=341  dualMultiTFOk=174
-    notInvalidated=174  cooldownOk=174  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
+    scanned=24355  voteOk=12546(bull=4090/bear=8456)  volatilityOk=12546  structureOk=12545
+    notOverExtended=12545  nearZone=974  prominenceOk=307  confluenceOk=307  htf2hAligned=301  dualMultiTFOk=152
+    notInvalidated=152  cooldownOk=152  triggerOk=1  driftOk=1  tp2RangeOk=1  opened=1
   OP-USDT:
-    scanned=24000  voteOk=12461(bull=2830/bear=9631)  volatilityOk=12461  structureOk=12461
-    notOverExtended=12461  nearZone=1109  prominenceOk=310  confluenceOk=310  htf2hAligned=310  dualMultiTFOk=95
-    notInvalidated=95  cooldownOk=95  triggerOk=6  driftOk=6  tp2RangeOk=3  opened=3
+    scanned=23967  voteOk=12364(bull=2829/bear=9535)  volatilityOk=12364  structureOk=12364
+    notOverExtended=12364  nearZone=1053  prominenceOk=270  confluenceOk=270  htf2hAligned=270  dualMultiTFOk=55
+    notInvalidated=55  cooldownOk=55  triggerOk=3  driftOk=3  tp2RangeOk=3  opened=3
   SUI-USDT:
-    scanned=23298  voteOk=12560(bull=3354/bear=9206)  volatilityOk=12560  structureOk=12560
-    notOverExtended=12560  nearZone=1428  prominenceOk=142  confluenceOk=142  htf2hAligned=142  dualMultiTFOk=2
-    notInvalidated=2  cooldownOk=2  triggerOk=2  driftOk=2  tp2RangeOk=2  opened=2
+    scanned=23265  voteOk=12591(bull=3401/bear=9190)  volatilityOk=12591  structureOk=12591
+    notOverExtended=12591  nearZone=1420  prominenceOk=150  confluenceOk=150  htf2hAligned=150  dualMultiTFOk=10
+    notInvalidated=10  cooldownOk=10  triggerOk=2  driftOk=2  tp2RangeOk=2  opened=2
 
 ── PATTERN FREQUENCY ───────────────────────────────────────────────
-  CLOSE_REJECTION      23x
+  CLOSE_REJECTION      24x
   ENGULFING            16x
   PIN_BAR              9x
   LIQUIDITY_SWEEP      6x
@@ -177,7 +177,6 @@
   VAH_VAL_RECLAIM      1x
 
 ── RECENT TRADES (last 20) ─────────────────────────────────────────
-  ❌ 2026-04-23 10:00 | LTC-USDT SELL | BE | 0R | 3/4 | ENGULFING+CLOSE_REJECTION
   ✅ 2026-04-28 04:15 | LTC-USDT SELL | TP1+BE | +0.61R | 3/4 | ENGULFING+CLOSE_REJECTION
   ✅ 2026-02-23 16:00 | TRX-USDT SELL | TP1+BE | +0.61R | 3/4 | CLOSE_REJECTION
   ✅ 2026-07-04 06:00 | TRX-USDT BUY | TP1+TP2 | +2.23R | 3/4 | ENGULFING+CLOSE_REJECTION
@@ -189,6 +188,7 @@
   ✅ 2026-05-06 00:00 | NEAR-USDT BUY | TP1+TP2 | +2.35R | 3/4 | PIN_BAR+LIQUIDITY_SWEEP
   ❌ 2026-06-08 16:30 | NEAR-USDT BUY | EARLY_TIMEOUT | -0.3R | 3/4 | PIN_BAR+ENGULFING
   ✅ 2026-08-03 00:45 | NEAR-USDT BUY | EARLY_TIMEOUT | +0.19R | 3/4 | ENGULFING+LIQUIDITY_SWEEP
+  ✅ 2026-08-22 05:00 | NEAR-USDT BUY | TP1+TP2 | +1.27R | 4/4 | CLOSE_REJECTION
   ❌ 2025-12-31 00:15 | APT-USDT SELL | BE | 0R | 3/4 | PIN_BAR+LIQUIDITY_SWEEP
   ✅ 2026-03-23 15:00 | APT-USDT BUY | TP1+TP2 | +1.75R | 3/4 | CLOSE_REJECTION
   ✅ 2026-08-19 07:15 | ARB-USDT BUY | TP1+TP2 | +3.11R | 3/4 | PIN_BAR+ENGULFING
