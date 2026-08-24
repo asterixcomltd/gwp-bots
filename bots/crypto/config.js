@@ -36,4 +36,10 @@ module.exports = {
 
   // ── KuCoin API ──────────────────────────────────────────────────────────
   BASE_URL: 'https://api.kucoin.com/api/v1',
+
+  // Where shared/kucoin.js persists candle-cache.json (v1.2.0) — this
+  // bot's existing *-scan.yml already does `git add bots/crypto/*.json`,
+  // so the cache file starts getting committed automatically with no
+  // workflow change needed. Same pattern as forex/stocks' Twelve Data cache.
+  __cacheDir: __dirname,
 };
