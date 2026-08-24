@@ -6,8 +6,30 @@
  *  (fetchKlines/fetchHistory). Real candle volume — no synthetic-volume
  *  handling needed here (see shared/twelvedata.js for why Forex/Stocks
  *  need that).
+ *
+ *  v1.2.0 — INCREMENTAL CANDLE CACHE. KuCoin has no per-key daily credit
+ *  cap the way Twelve Data does, so this bot never had the forcing
+ *  function that made shared/twelvedata.js build a cache — but the
+ *  underlying waste was identical: every 15-min scan was re-fetching the
+ *  FULL lookback window (up to ~520 bars) for all 4 timeframes × every
+ *  symbol, even though D1/2H/30M candles almost never change between
+ *  consecutive 15-min scans. That's 80 full-window HTTP calls per scan
+ *  (20 symbols × 4 TFs) for no reason, all landing on KuCoin from
+ *  GitHub's shared runner IP ranges — needless load and needless
+ *  exposure to HTTP 429. This port reuses the exact same cache file
+ *  design as twelvedata.js (candle-cache.json, keyed "SYMBOL|interval",
+ *  committed back to the repo by the scan workflow's existing `git add
+ *  bots/crypto/*.json` step — no workflow change needed): skip the
+ *  network call entirely when the next bar isn't due yet, otherwise
+ *  fetch only the DELTA since the last cached bar (via the same
+ *  startAt/endAt ranged endpoint fetchHistory already used) instead of
+ *  the full window. fetchHistory() itself is untouched — a deep
+ *  historical backtest pull is a one-off, not a repeating 15-min cost,
+ *  exactly as twelvedata.js's header notes.
  * ═══════════════════════════════════════════════════════════════════════
  */
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 
 module.exports = function createKucoinClient(config) {
@@ -33,8 +55,10 @@ module.exports = function createKucoinClient(config) {
     return e.message; // no response at all — DNS failure, timeout, network-level block, etc.
   };
 
-  // ── Live fetch — most recent N candles (v10.4-style retry) ────────────
-  const getKlines = async (symbol, interval, limit, maxRetries = 2) => {
+  // ── Raw fetch — most recent N candles (v10.4-style retry) ──────────────
+  // Same logic as before, just renamed so getKlines() below can wrap it
+  // with the cache layer without shadowing.
+  const fetchRecent = async (symbol, interval, limit, maxRetries = 2) => {
     const safeLimit = Math.min(limit + 20, 1500); // buffer for ATR/VP warmup
     const url = `${BASE_URL}/market/candles?symbol=${symbol}&type=${interval}&limit=${safeLimit}`;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -60,16 +84,17 @@ module.exports = function createKucoinClient(config) {
     return [];
   };
 
-  // ── Paged history fetch — used by backtest.js ──────────────────────────
+  // ── Paged/ranged fetch — used by fetchHistory() AND by getKlines()'s
+  // delta-fetch below (a small range counts as "paged" with one page) ────
   const FETCH_MAX_RETRIES = 5;
-  const fetchKlinesRange = async (symbol, interval, startAt, endAt) => {
+  const fetchKlinesRange = async (symbol, interval, startAt, endAt, maxRetries = FETCH_MAX_RETRIES) => {
     const url = `${BASE_URL}/market/candles?symbol=${symbol}&type=${interval}&startAt=${startAt}&endAt=${endAt}`;
-    for (let attempt = 1; attempt <= FETCH_MAX_RETRIES; attempt++) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const res = await axios.get(url, { timeout: 20000 });
         if (res.data.code !== '200000') {
-          console.error(`\n  ⚠️  KuCoin ${res.data.code} for ${symbol} ${interval} (attempt ${attempt}/${FETCH_MAX_RETRIES}): ${res.data.msg || 'unknown'}`);
-          if (attempt === FETCH_MAX_RETRIES) return { ok: false, bars: [] };
+          console.error(`\n  ⚠️  KuCoin ${res.data.code} for ${symbol} ${interval} (attempt ${attempt}/${maxRetries}): ${res.data.msg || 'unknown'}`);
+          if (attempt === maxRetries) return { ok: false, bars: [] };
           await sleep(500 * attempt);
           continue;
         }
@@ -78,14 +103,86 @@ module.exports = function createKucoinClient(config) {
           .sort((a, b) => a.time - b.time);
         return { ok: true, bars };
       } catch (e) {
-        console.error(`\n  ⚠️  Fetch error for ${symbol} ${interval} (attempt ${attempt}/${FETCH_MAX_RETRIES}): ${describeAxiosError(e)}`);
-        if (attempt === FETCH_MAX_RETRIES) return { ok: false, bars: [] };
+        console.error(`\n  ⚠️  Fetch error for ${symbol} ${interval} (attempt ${attempt}/${maxRetries}): ${describeAxiosError(e)}`);
+        if (attempt === maxRetries) return { ok: false, bars: [] };
         await sleep(500 * attempt);
       }
     }
     return { ok: false, bars: [] };
   };
 
+  // ── Incremental candle cache ─────────────────────────────────────────
+  // One JSON file per bot folder, keyed by "SYMBOL|interval" — identical
+  // shape/behavior to shared/twelvedata.js's cache. config.__cacheDir
+  // must be set (bots/crypto/config.js now sets it to __dirname); if
+  // it isn't, caching is simply skipped and every call falls through to
+  // a full fetchRecent() — same as running with no cache, never a hard
+  // failure.
+  const CACHE_FILE = config.__cacheDir ? path.join(config.__cacheDir, 'candle-cache.json') : null;
+  let cache = null;
+  const loadCache = () => {
+    if (cache) return cache;
+    try { cache = CACHE_FILE && fs.existsSync(CACHE_FILE) ? JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8')) : {}; }
+    catch { cache = {}; }
+    return cache;
+  };
+  const saveCache = () => {
+    if (!CACHE_FILE || !cache) return;
+    try { fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2)); } catch (e) { console.error('  ⚠️ Failed to save candle-cache.json (non-fatal):', e.message); }
+  };
+  const MAX_CACHED_BARS = 2500; // generous ceiling per symbol+interval, trimmed on save
+
+  // ── Live fetch — most recent N candles, cache-aware ─────────────────────
+  const getKlines = async (symbol, interval, limit, maxRetries = 2) => {
+    if (!CACHE_FILE) return fetchRecent(symbol, interval, limit, maxRetries); // no cacheDir configured — old behavior, unchanged
+
+    const barSeconds = BAR_SECONDS[interval] || 3600;
+    const c = loadCache();
+    const key = `${symbol}|${interval}`;
+    const cached = c[key];
+    const nowSec = Math.floor(Date.now() / 1000);
+
+    if (cached && cached.bars && cached.bars.length >= Math.min(limit, 20)) {
+      const lastBarTime = cached.bars[cached.bars.length - 1].time;
+      const nextBarDue = lastBarTime + barSeconds;
+      // Skip the network call entirely if a new bar isn't even due yet —
+      // this is the main saving for D1/2H/30M, which don't change
+      // between most consecutive 15-min scans.
+      if (nowSec < nextBarDue) {
+        return cached.bars.slice(-limit).map(b => ({ ...b }));
+      }
+      // A new bar (or a few, if this run was delayed) may be out — fetch
+      // only the delta since the last cached bar via the ranged
+      // endpoint, not a full-window re-fetch. A small ranged fetch is 1
+      // page, so 2 retries is plenty (matches fetchRecent's own budget).
+      const { ok, bars: freshBars } = await fetchKlinesRange(symbol, interval, lastBarTime + 1, nowSec, maxRetries);
+      if (!ok) {
+        // Couldn't get fresh data this round — serve slightly-stale
+        // cached bars rather than none; next scan tries again.
+        console.error(`  ⚠️ ${symbol} ${interval}: delta fetch failed — serving cached data (possibly stale) this run.`);
+        return cached.bars.slice(-limit).map(b => ({ ...b }));
+      }
+      if (freshBars.length) {
+        const merged = [...cached.bars, ...freshBars].filter((b, i, arr) => arr.findIndex(x => x.time === b.time) === i).sort((a, b) => a.time - b.time);
+        c[key] = { bars: merged.slice(-MAX_CACHED_BARS) };
+        saveCache();
+        return c[key].bars.slice(-limit).map(b => ({ ...b }));
+      }
+      // No new bars returned yet (KuCoin hasn't closed the next candle) — serve what we have.
+      return cached.bars.slice(-limit).map(b => ({ ...b }));
+    }
+
+    // No usable cache yet — full fetch, then seed the cache.
+    const bars = await fetchRecent(symbol, interval, limit, maxRetries);
+    if (bars.length) {
+      c[key] = { bars: bars.slice(-MAX_CACHED_BARS) };
+      saveCache();
+    }
+    return bars;
+  };
+
+  // ── Paged history fetch — used by backtest.js (no caching; a deep
+  // historical pull is a one-off, not a repeating 15-min cost) ───────────
   const fetchHistory = async (symbol, interval, historyDays) => {
     const barSeconds = BAR_SECONDS[interval] || 3600;
     const endAt = Math.floor(Date.now() / 1000);
