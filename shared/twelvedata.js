@@ -203,30 +203,43 @@ module.exports = function createTwelveDataClient(config) {
   };
 
   // ── Incremental candle cache ────────────────────────────────────────────
-  // One JSON file per bot folder, keyed by "SYMBOL|interval". Committed
-  // back to the repo by the scan workflow's existing `git add
-  // bots/<bot>/*.json` step — no workflow change needed for this to
-  // persist between runs.
-  const CACHE_FILE = config.__cacheDir ? path.join(config.__cacheDir, 'candle-cache.json') : null;
-  let cache = null;
-  const loadCache = () => {
-    if (cache) return cache;
-    try { cache = CACHE_FILE && fs.existsSync(CACHE_FILE) ? JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8')) : {}; }
-    catch { cache = {}; }
-    return cache;
+  // v1.2: ONE JSON FILE PER symbol+interval (not one giant file for the
+  // whole bot) — cache/<SYMBOL>_<interval>.json. Previously this was a
+  // single candle-cache.json holding every symbol×interval for the bot;
+  // since the 15M timeframe rolls a new bar on essentially every 15-min
+  // scan, that whole multi-MB file was being rewritten and committed to
+  // git history every run regardless of how many symbols actually
+  // changed. Splitting per-key means a scan only touches (and commits)
+  // the handful of small files that actually rolled a new bar — same
+  // cached data, same lookback guarantees, far less git churn. Picked up
+  // by the scan workflow's `git add bots/<bot>/*.json bots/<bot>/cache/*.json`
+  // step (workflow updated alongside this).
+  const CACHE_DIR = config.__cacheDir ? path.join(config.__cacheDir, 'cache') : null;
+  const cacheFilenameFor = (key) => key.replace(/[\/\\|]/g, '-').replace(/\s+/g, '_') + '.json'; // e.g. "XAU/USD|1day" -> "XAU-USD-1day.json"
+  const cacheMemo = {}; // per-run memoization — avoids re-reading the same file twice in one run (e.g. engine.js + position-tracker.js both touching the same symbol|interval)
+  const loadCacheEntry = (key) => {
+    if (cacheMemo[key]) return cacheMemo[key];
+    if (!CACHE_DIR) { cacheMemo[key] = { bars: [] }; return cacheMemo[key]; }
+    const file = path.join(CACHE_DIR, cacheFilenameFor(key));
+    try { cacheMemo[key] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { bars: [] }; }
+    catch { cacheMemo[key] = { bars: [] }; }
+    return cacheMemo[key];
   };
-  const saveCache = () => {
-    if (!CACHE_FILE || !cache) return;
-    try { fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2)); } catch (e) { console.error('  ⚠️ Failed to save candle-cache.json (non-fatal):', e.message); }
+  const saveCacheEntry = (key, entry) => {
+    cacheMemo[key] = entry;
+    if (!CACHE_DIR) return;
+    try {
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+      fs.writeFileSync(path.join(CACHE_DIR, cacheFilenameFor(key)), JSON.stringify(entry, null, 2));
+    } catch (e) { console.error(`  ⚠️ Failed to save cache for ${key} (non-fatal):`, e.message); }
   };
   const MAX_CACHED_BARS = 2500; // generous ceiling per symbol+interval, trimmed on save
 
   // ── Live fetch — most recent N candles, cache-aware ─────────────────────
   const getKlines = async (symbol, interval, limit) => {
     const barSeconds = BAR_SECONDS[interval] || 3600;
-    const c = loadCache();
     const key = `${symbol}|${interval}`;
-    const cached = c[key];
+    const cached = loadCacheEntry(key);
     const nowSec = Math.floor(Date.now() / 1000);
 
     if (cached && cached.bars && cached.bars.length >= Math.min(limit, 20)) {
@@ -252,9 +265,9 @@ module.exports = function createTwelveDataClient(config) {
       if (data && Array.isArray(data.values) && data.values.length) {
         const freshBars = toBars(data.values);
         const merged = [...cached.bars, ...freshBars].filter((b, i, arr) => arr.findIndex(x => x.time === b.time) === i).sort((a, b) => a.time - b.time);
-        c[key] = { bars: merged.slice(-MAX_CACHED_BARS) };
-        saveCache();
-        return applyVolumeFallback(c[key].bars.slice(-limit).map(b => ({ ...b })));
+        const newEntry = { bars: merged.slice(-MAX_CACHED_BARS) };
+        saveCacheEntry(key, newEntry);
+        return applyVolumeFallback(newEntry.bars.slice(-limit).map(b => ({ ...b })));
       }
       // No new bars returned (market closed, weekend, etc.) — serve what we have.
       return applyVolumeFallback(cached.bars.slice(-limit).map(b => ({ ...b })));
@@ -265,8 +278,7 @@ module.exports = function createTwelveDataClient(config) {
     const data = await request({ symbol, interval, outputsize: safeLimit, order: 'ASC' });
     if (!data || data.status === 'error' || !Array.isArray(data.values)) return [];
     const bars = toBars(data.values);
-    c[key] = { bars: bars.slice(-MAX_CACHED_BARS) };
-    saveCache();
+    saveCacheEntry(key, { bars: bars.slice(-MAX_CACHED_BARS) });
     return applyVolumeFallback(bars.slice(-limit));
   };
 

@@ -118,28 +118,37 @@ module.exports = function createKucoinClient(config) {
   // it isn't, caching is simply skipped and every call falls through to
   // a full fetchRecent() — same as running with no cache, never a hard
   // failure.
-  const CACHE_FILE = config.__cacheDir ? path.join(config.__cacheDir, 'candle-cache.json') : null;
-  let cache = null;
-  const loadCache = () => {
-    if (cache) return cache;
-    try { cache = CACHE_FILE && fs.existsSync(CACHE_FILE) ? JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8')) : {}; }
-    catch { cache = {}; }
-    return cache;
+  // v1.2: ONE JSON FILE PER symbol+interval instead of one monolithic
+  // candle-cache.json — see shared/twelvedata.js's cache section for the
+  // full reasoning (same change, same motivation, applied here too).
+  const CACHE_DIR = config.__cacheDir ? path.join(config.__cacheDir, 'cache') : null;
+  const cacheFilenameFor = (key) => key.replace(/[\/\\|]/g, '-').replace(/\s+/g, '_') + '.json';
+  const cacheMemo = {};
+  const loadCacheEntry = (key) => {
+    if (cacheMemo[key]) return cacheMemo[key];
+    if (!CACHE_DIR) { cacheMemo[key] = { bars: [] }; return cacheMemo[key]; }
+    const file = path.join(CACHE_DIR, cacheFilenameFor(key));
+    try { cacheMemo[key] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { bars: [] }; }
+    catch { cacheMemo[key] = { bars: [] }; }
+    return cacheMemo[key];
   };
-  const saveCache = () => {
-    if (!CACHE_FILE || !cache) return;
-    try { fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2)); } catch (e) { console.error('  ⚠️ Failed to save candle-cache.json (non-fatal):', e.message); }
+  const saveCacheEntry = (key, entry) => {
+    cacheMemo[key] = entry;
+    if (!CACHE_DIR) return;
+    try {
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+      fs.writeFileSync(path.join(CACHE_DIR, cacheFilenameFor(key)), JSON.stringify(entry, null, 2));
+    } catch (e) { console.error(`  ⚠️ Failed to save cache for ${key} (non-fatal):`, e.message); }
   };
   const MAX_CACHED_BARS = 2500; // generous ceiling per symbol+interval, trimmed on save
 
   // ── Live fetch — most recent N candles, cache-aware ─────────────────────
   const getKlines = async (symbol, interval, limit, maxRetries = 2) => {
-    if (!CACHE_FILE) return fetchRecent(symbol, interval, limit, maxRetries); // no cacheDir configured — old behavior, unchanged
+    if (!CACHE_DIR) return fetchRecent(symbol, interval, limit, maxRetries); // no cacheDir configured — old behavior, unchanged
 
     const barSeconds = BAR_SECONDS[interval] || 3600;
-    const c = loadCache();
     const key = `${symbol}|${interval}`;
-    const cached = c[key];
+    const cached = loadCacheEntry(key);
     const nowSec = Math.floor(Date.now() / 1000);
 
     if (cached && cached.bars && cached.bars.length >= Math.min(limit, 20)) {
@@ -164,9 +173,9 @@ module.exports = function createKucoinClient(config) {
       }
       if (freshBars.length) {
         const merged = [...cached.bars, ...freshBars].filter((b, i, arr) => arr.findIndex(x => x.time === b.time) === i).sort((a, b) => a.time - b.time);
-        c[key] = { bars: merged.slice(-MAX_CACHED_BARS) };
-        saveCache();
-        return c[key].bars.slice(-limit).map(b => ({ ...b }));
+        const newEntry = { bars: merged.slice(-MAX_CACHED_BARS) };
+        saveCacheEntry(key, newEntry);
+        return newEntry.bars.slice(-limit).map(b => ({ ...b }));
       }
       // No new bars returned yet (KuCoin hasn't closed the next candle) — serve what we have.
       return cached.bars.slice(-limit).map(b => ({ ...b }));
@@ -175,8 +184,7 @@ module.exports = function createKucoinClient(config) {
     // No usable cache yet — full fetch, then seed the cache.
     const bars = await fetchRecent(symbol, interval, limit, maxRetries);
     if (bars.length) {
-      c[key] = { bars: bars.slice(-MAX_CACHED_BARS) };
-      saveCache();
+      saveCacheEntry(key, { bars: bars.slice(-MAX_CACHED_BARS) });
     }
     return bars;
   };
