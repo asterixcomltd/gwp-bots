@@ -1,5 +1,71 @@
 [
   {
+    "symbol": "META",
+    "direction": "BUY",
+    "entryTime": 1787755500,
+    "entryPrice": 553.3599793,
+    "slPrice": 553.3599793,
+    "tp1Price": 575.0444542958294,
+    "tp2Price": 685.272211815,
+    "origSlPrice": 535.2895834701421,
+    "rr1": 1.2,
+    "rr2": 7.3,
+    "patterns": [
+      "ENGULFING",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAL",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": null,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -32.92244947500001,
+      "currentPOC": 577.026317025,
+      "pastPOC": 609.9487665
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 597.426689865,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "exitTime": 1787773500,
+    "exitPrice": 576.10999,
+    "result": "OPEN",
+    "rr": 1.23,
+    "hoursHeld": 5
+  },
+  {
     "symbol": "AMD",
     "direction": "BUY",
     "entryTime": 1783344600,
