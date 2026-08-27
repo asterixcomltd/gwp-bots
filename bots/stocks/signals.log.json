@@ -1,1 +1,67 @@
-[]
+[
+  {
+    "symbol": "SPY",
+    "signal": "FIRED",
+    "direction": "BUY",
+    "entryTime": 1787841000,
+    "entryPrice": 765.748602708,
+    "slPrice": 761.4861697443151,
+    "tp1Price": 770.8635222644219,
+    "tp2Price": 779.11864988,
+    "risk": 4.262432963684887,
+    "rr1": 1.2000000000000106,
+    "rr2": 3.1367172893768047,
+    "confluencePivot": "VWAP",
+    "fibPct": "78.6%",
+    "patterns": [
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "riskMult": 1,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BULLISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 8.336522855108823,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 53.38162127999999,
+      "currentPOC": 764.03764268,
+      "pastPOC": 710.6560214
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 746.35009123,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "freshPrice": 769.52,
+    "driftPct": 0.493,
+    "alertDelivered": true,
+    "time": "2026-08-27T14:43:03.712Z"
+  }
+]
