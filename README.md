@@ -259,6 +259,25 @@ Stocks in particular: 8 trades is too thin to draw real conclusions from yet —
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.2**: Candle cache split from one monolithic `candle-cache.json`
+  per bot into one small file per symbol+interval, under a new `cache/`
+  subdirectory (`shared/twelvedata.js` and `shared/kucoin.js` both
+  changed the same way; scan workflows updated to `git add` the new
+  subdirectory too). Reason: the 15M timeframe rolls a new bar on
+  essentially every 15-min scan, so the old single-file design meant a
+  13MB (forex) / 7.6MB (stocks) / growing (crypto) file was being
+  rewritten and committed to git history every single run, regardless of
+  how many symbols actually changed — a real, worsening git-bloat
+  trajectory over months, even though nothing was functionally broken.
+  Checked before touching anything: `MAX_CACHED_BARS=2500` is NOT
+  oversized padding — `NAKED_POC_ENABLED`/`POC_MIGRATION_ENABLED` default
+  on and need up to 1000 bars, and `position-tracker.js` can legitimately
+  need up to 1500 for a long-held open position — so the cap stayed as
+  is; only the storage granularity changed. Old `candle-cache.json` files
+  removed (dead weight, nothing reads them anymore). Tested against
+  mocked fetches before shipping: confirmed fetching one symbol no
+  longer touches any other symbol's file, and confirmed forex symbols
+  containing "/" (e.g. "XAU/USD") sanitize to safe filenames.
 - **v1.1.7**: Near-zone gate switched from close-only to wick-based touch
   (`NEAR_ZONE_USE_WICK`, now defaults `true`). The gate used to check only
   the STRUCT-TF candle's CLOSE against the padded zone — if price actually
