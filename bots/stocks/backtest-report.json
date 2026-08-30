@@ -30,11 +30,11 @@
       "computed": true
     },
     "migration": {
-      "migrating": true,
-      "direction": "DOWN",
-      "distance": -32.92244947500001,
-      "currentPOC": 577.026317025,
-      "pastPOC": 609.9487665
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
     },
     "nakedPOC": {
       "naked": false,
@@ -59,11 +59,11 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.2,
-    "exitTime": 1787773500,
-    "exitPrice": 576.10999,
+    "exitTime": 1787946300,
+    "exitPrice": 578.02002,
     "result": "OPEN",
-    "rr": 1.23,
-    "hoursHeld": 5
+    "rr": 1.28,
+    "hoursHeld": 53
   },
   {
     "symbol": "AMD",
@@ -258,6 +258,69 @@
     "rr": 0.6,
     "exitTime": 1783691100,
     "hoursHeld": 192
+  },
+  {
+    "symbol": "SPY",
+    "direction": "BUY",
+    "entryTime": 1787840100,
+    "entryPrice": 765.748602708,
+    "slPrice": 765.748602708,
+    "tp1Price": 770.8870812160742,
+    "tp2Price": 779.11864988,
+    "origSlPrice": 761.4665372846049,
+    "rr1": 1.2,
+    "rr2": 3.12,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 8.336522855108823,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 746.35009123,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "exitTime": 1787946300,
+    "exitPrice": 769.38,
+    "result": "OPEN",
+    "rr": 1.02,
+    "hoursHeld": 30
   },
   {
     "symbol": "XOM",
