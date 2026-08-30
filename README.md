@@ -259,6 +259,25 @@ Stocks in particular: 8 trades is too thin to draw real conclusions from yet —
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.2.1**: `shared/publish-gist.js`'s `rr` field (sent to AxTrader's
+  shared Gist feed) was built by preferring `rr2` — the R:R for TP2 —
+  whenever available. Confirmed real user-facing consequence: AxTrader's
+  own Telegram-alert text correctly shows rr1 next to tp1Price and rr2
+  next to tp2Price (`shared/engine.js`, unchanged, always correct), but
+  the AxTrader *frontend*'s Signal Archive card only ever renders TP1 —
+  no TP2 row exists in that template — and even its main live-feed card
+  ends up TP1-only for every GWP signal specifically, because `tp3`
+  above is set to `tp2Price` as a placeholder (GWP only ever computes
+  two real targets), which makes `tp3 === tp2 === tp` and silently
+  disables that card's own "show TP2/TP3" row. Net effect: a real fired
+  signal could show something like "R:R 6.5" sitting right next to a TP1
+  price that only actually yields ~3R on its own — the number and the
+  price it sat beside didn't correspond to each other, anywhere a user
+  could see. Fixed to prefer `rr1` (falls back to `rr2` only if `rr1` is
+  somehow missing), matching the one target every AxTrader card layout
+  actually displays. AxTrader's own `scripts/signal_bot.py` had the
+  identical bug (its `rr` field computed from its own `tp2`) and got the
+  same fix in the same pass — this wasn't isolated to one repo.
 - **v1.2**: Candle cache split from one monolithic `candle-cache.json`
   per bot into one small file per symbol+interval, under a new `cache/`
   subdirectory (`shared/twelvedata.js` and `shared/kucoin.js` both
