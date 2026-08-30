@@ -1,1 +1,70 @@
-[]
+[
+  {
+    "symbol": "EUR/GBP",
+    "signal": "FIRED",
+    "direction": "SELL",
+    "entryTime": 1788111000,
+    "entryPrice": 0.85651206,
+    "slPrice": 0.8590200882973961,
+    "tp1Price": 0.8535024260431248,
+    "tp2Price": 0.853241,
+    "risk": 0.0025080282973960477,
+    "rr1": 1.2,
+    "rr2": 1.3042356832242123,
+    "confluencePivot": "VAH",
+    "fibPct": "78.6%",
+    "patterns": [
+      "VAH_VAL_RECLAIM",
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "riskMult": 1,
+    "biasD1": "BEARISH",
+    "bias30m": "BEARISH",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 11.080645161290164,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.003748349999999956,
+      "currentPOC": 0.853241,
+      "pastPOC": 0.85698935
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.8632493,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "freshPrice": 0.85251,
+    "driftPct": 0.467,
+    "alertDelivered": true,
+    "time": "2026-08-30T17:39:57.909Z"
+  }
+]
