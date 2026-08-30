@@ -124,7 +124,22 @@ function toAxTraderSignal(sig) {
     score,
     tf: TF_LABEL,
     grade: gradeOf(score),
-    rr: sig.rr2 != null ? String(Math.round(sig.rr2 * 10) / 10) : (sig.rr1 != null ? String(sig.rr1) : ''),
+    // v1.2.1 FIX: this used to prefer rr2 (TP2's ratio) whenever
+    // available — but the AxTrader frontend's Signal Archive card only
+    // ever renders tp1, never tp2/tp3 (no such row exists in that
+    // template at all), and even the "smarter" live-feed card ends up
+    // TP1-only for every GWP signal specifically: tp3 above is set to
+    // tp2Price as a placeholder (GWP only ever computes two real
+    // targets), which makes tp3 === tp2 === the frontend's normalized
+    // `tp` field, so that card's "show TP2/TP3" condition
+    // (s.tp3 !== s.tp) is always false for us. Net effect: users were
+    // shown a TP2-based R:R number sitting next to a TP1 price it
+    // didn't correspond to — e.g. a real signal could show "R:R 6.5"
+    // next to a TP1 that only yields ~3R on its own. rr now matches
+    // rr1, the ratio that actually belongs to the one price every card
+    // layout displays. AxTrader's own scripts/signal_bot.py had the
+    // identical bug (rr computed from its tp2) and got the same fix.
+    rr: sig.rr1 != null ? String(Math.round(sig.rr1 * 10) / 10) : (sig.rr2 != null ? String(Math.round(sig.rr2 * 10) / 10) : ''),
     time: fmtTime(sig.entryTime || 0),
     ts: entryTs,
     expiresAt: entryTs + expiryMs,
