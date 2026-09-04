@@ -1,6 +1,224 @@
 [
   {
     "symbol": "DIA",
+    "barTime": 1788543000,
+    "price": 534.33,
+    "fired": false,
+    "reason": "FIB_618_EXCLUDED",
+    "ts": "2026-09-04T18:28:42.700Z"
+  },
+  {
+    "symbol": "XOM",
+    "biasD1": "BULLISH",
+    "bias30m": "NEUTRAL",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-09-04T18:28:18.710Z"
+  },
+  {
+    "symbol": "MA",
+    "barTime": 1788543000,
+    "price": 581.29,
+    "biasD1": "BULLISH",
+    "bias30m": "BEARISH",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "voteTally": "3/4",
+    "agreeing": [
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 1,
+    "confluenceLevel": "78.6%",
+    "confluencePivot": "VWAP",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-09-04T18:27:54.692Z"
+  },
+  {
+    "symbol": "V",
+    "biasD1": "BULLISH",
+    "bias30m": "BEARISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-09-04T18:27:30.770Z"
+  },
+  {
+    "symbol": "JPM",
+    "barTime": 1788543000,
+    "price": 359.425,
+    "fired": false,
+    "reason": "FIB_618_EXCLUDED",
+    "ts": "2026-09-04T18:27:06.754Z"
+  },
+  {
+    "symbol": "QQQ",
+    "biasD1": "NEUTRAL",
+    "bias30m": "BULLISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BULLISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-09-04T18:26:42.705Z"
+  },
+  {
+    "symbol": "SPY",
+    "barTime": 1788543000,
+    "price": 769.895,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 2,
+    "confluenceLevel": "78.6%",
+    "confluencePivot": "POC",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-09-04T18:26:18.755Z"
+  },
+  {
+    "symbol": "SPCX",
+    "barTime": 1788543000,
+    "price": 148.615,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 134.772,
+    "zoneHigh": 139.154,
+    "ts": "2026-09-04T18:25:54.743Z"
+  },
+  {
+    "symbol": "AVGO",
+    "barTime": 1788543000,
+    "price": 355.94,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 368.41326000000004,
+    "zoneHigh": 377.09768,
+    "ts": "2026-09-04T18:25:31.844Z"
+  },
+  {
+    "symbol": "NFLX",
+    "barTime": 1788543000,
+    "price": 79.13,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 80.69,
+    "zoneHigh": 82.14,
+    "ts": "2026-09-04T18:25:06.741Z"
+  },
+  {
+    "symbol": "AMD",
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "NEUTRAL",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-09-04T18:24:42.620Z"
+  },
+  {
+    "symbol": "TSLA",
+    "barTime": 1788543000,
+    "price": 353.56,
+    "fired": false,
+    "reason": "FIB_618_EXCLUDED",
+    "ts": "2026-09-04T18:24:18.631Z"
+  },
+  {
+    "symbol": "META",
+    "barTime": 1788543000,
+    "price": 612.4,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 553.700024,
+    "zoneHigh": 570.120018,
+    "ts": "2026-09-04T18:23:54.783Z"
+  },
+  {
+    "symbol": "GOOGL",
+    "barTime": 1788543000,
+    "price": 338.495,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 344.132006,
+    "zoneHigh": 347.866008,
+    "ts": "2026-09-04T18:23:30.686Z"
+  },
+  {
+    "symbol": "AMZN",
+    "barTime": 1788543000,
+    "price": 257.31,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 261.32,
+    "zoneHigh": 264.44,
+    "ts": "2026-09-04T18:23:07.284Z"
+  },
+  {
+    "symbol": "NVDA",
+    "barTime": 1788543000,
+    "price": 230.29,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 212.846,
+    "zoneHigh": 218.322,
+    "ts": "2026-09-04T18:22:42.673Z"
+  },
+  {
+    "symbol": "MSFT",
+    "biasD1": "BULLISH",
+    "bias30m": "BEARISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BEARISH",
+    "fired": false,
+    "reason": "NO_3OF4_AGREEMENT",
+    "ts": "2026-09-04T18:22:18.677Z"
+  },
+  {
+    "symbol": "AAPL",
+    "barTime": 1788543000,
+    "price": 321.01,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "htf30mAligned": true,
+    "confluenceScore": 2,
+    "confluenceLevel": "78.6%",
+    "confluencePivot": "POC",
+    "patterns": [],
+    "absorptionVeto": false,
+    "fired": false,
+    "reason": "PATTERNS_0_OF_2",
+    "ts": "2026-09-04T18:21:55.051Z"
+  },
+  {
+    "symbol": "DIA",
     "biasD1": "BULLISH",
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
@@ -19660,185 +19878,5 @@
     "fired": false,
     "reason": "NO_3OF4_AGREEMENT",
     "ts": "2026-08-24T15:24:05.594Z"
-  },
-  {
-    "symbol": "MA",
-    "barTime": 1787578200,
-    "price": 592.18,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 563.7359984,
-    "zoneHigh": 571.4119988,
-    "ts": "2026-08-24T15:23:49.556Z"
-  },
-  {
-    "symbol": "V",
-    "barTime": 1787578200,
-    "price": 377.3,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 362.0579904,
-    "zoneHigh": 366.0659928,
-    "ts": "2026-08-24T15:23:33.551Z"
-  },
-  {
-    "symbol": "JPM",
-    "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BEARISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T15:23:17.549Z"
-  },
-  {
-    "symbol": "QQQ",
-    "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BEARISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T15:23:01.555Z"
-  },
-  {
-    "symbol": "SPY",
-    "barTime": 1787578200,
-    "price": 763.765,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 772.24,
-    "zoneHigh": 775.38,
-    "ts": "2026-08-24T15:22:45.546Z"
-  },
-  {
-    "symbol": "SPCX",
-    "barTime": 1787578200,
-    "price": 133.815,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 114.02600000000001,
-    "zoneHigh": 122.917,
-    "ts": "2026-08-24T15:22:29.895Z"
-  },
-  {
-    "symbol": "AVGO",
-    "barTime": 1787578200,
-    "price": 362.63,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 403.076,
-    "zoneHigh": 417.538,
-    "ts": "2026-08-24T15:22:13.547Z"
-  },
-  {
-    "symbol": "NFLX",
-    "barTime": 1787578200,
-    "price": 80.305,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 74.47,
-    "zoneHigh": 76.11999999999999,
-    "ts": "2026-08-24T15:21:57.562Z"
-  },
-  {
-    "symbol": "AMD",
-    "barTime": 1787578200,
-    "price": 455.82,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 498.604,
-    "zoneHigh": 514.332,
-    "ts": "2026-08-24T15:21:41.553Z"
-  },
-  {
-    "symbol": "TSLA",
-    "barTime": 1787578200,
-    "price": 354.365,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 325.748,
-    "zoneHigh": 335.936,
-    "ts": "2026-08-24T15:21:25.547Z"
-  },
-  {
-    "symbol": "META",
-    "barTime": 1787578200,
-    "price": 551.28,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 580.6959999999999,
-    "zoneHigh": 595.1279999999999,
-    "ts": "2026-08-24T15:21:09.619Z"
-  },
-  {
-    "symbol": "GOOGL",
-    "biasD1": "NEUTRAL",
-    "bias30m": "BEARISH",
-    "bias2h": "BEARISH",
-    "bias15m": "NEUTRAL",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T15:20:53.341Z"
-  },
-  {
-    "symbol": "AMZN",
-    "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BEARISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T15:20:37.333Z"
-  },
-  {
-    "symbol": "NVDA",
-    "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BEARISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T15:20:21.577Z"
-  },
-  {
-    "symbol": "MSFT",
-    "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
-    "bias2h": "BULLISH",
-    "bias15m": "BEARISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T15:20:05.379Z"
-  },
-  {
-    "symbol": "AAPL",
-    "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BULLISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T15:19:49.039Z"
-  },
-  {
-    "symbol": "DIA",
-    "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "NEUTRAL",
-    "bias15m": "NEUTRAL",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T14:29:45.073Z"
-  },
-  {
-    "symbol": "XOM",
-    "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-08-24T14:29:29.089Z"
   }
 ]
