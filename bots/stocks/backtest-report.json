@@ -59,25 +59,90 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.2,
-    "exitTime": 1787946300,
-    "exitPrice": 578.02002,
-    "result": "OPEN",
-    "rr": 1.28,
-    "hoursHeld": 53
+    "result": "TIMEOUT",
+    "exitPrice": 608.52002,
+    "rr": 2.13,
+    "exitTime": 1788528600,
+    "hoursHeld": 215
   },
   {
     "symbol": "AMD",
     "direction": "BUY",
-    "entryTime": 1783344600,
+    "entryTime": 1783951200,
     "entryPrice": 514.47732358,
     "slPrice": 514.47732358,
-    "tp1Price": 542.9837378374317,
-    "tp2Price": 583.9644301,
-    "origSlPrice": 490.72197836547355,
+    "tp1Price": 542.2200890243734,
+    "tp2Price": 554.49248615,
+    "origSlPrice": 491.35835237635547,
     "rr1": 1.2,
-    "rr2": 2.93,
+    "rr2": 1.73,
     "patterns": [
       "CLOSE_REJECTION"
+    ],
+    "pivot": "POC",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.8571438972500638,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 554.49248615,
+    "rr": 1.46,
+    "exitTime": 1784035800,
+    "hoursHeld": 24
+  },
+  {
+    "symbol": "AMD",
+    "direction": "BUY",
+    "entryTime": 1784036700,
+    "entryPrice": 514.47732358,
+    "slPrice": 514.47732358,
+    "tp1Price": 542.2200890243734,
+    "tp2Price": 554.49248615,
+    "origSlPrice": 491.35835237635547,
+    "rr1": 1.2,
+    "rr2": 1.73,
+    "patterns": [
+      "CLOSE_REJECTION",
+      "LIQUIDITY_SWEEP"
     ],
     "pivot": "POC",
     "fibPct": "78.6%",
@@ -92,7 +157,7 @@
     "td9Confirms": false,
     "slAtrMult": 0.25,
     "prominence": {
-      "prominenceRatio": 1.3210014714392482,
+      "prominenceRatio": 1.8571438972500638,
       "computed": true
     },
     "migration": {
@@ -124,95 +189,32 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.2,
-    "result": "TP1+BE",
-    "exitPrice": 514.47732358,
-    "rr": 0.6,
-    "exitTime": 1783431000,
-    "hoursHeld": 24
+    "result": "TP1+TP2",
+    "exitPrice": 554.49248615,
+    "rr": 1.46,
+    "exitTime": 1784037600,
+    "hoursHeld": 0
   },
   {
-    "symbol": "AMD",
-    "direction": "BUY",
-    "entryTime": 1783431900,
-    "entryPrice": 514.47732358,
-    "slPrice": 514.47732358,
-    "tp1Price": 542.9837378374317,
-    "tp2Price": 583.9644301,
-    "origSlPrice": 490.72197836547355,
+    "symbol": "NFLX",
+    "direction": "SELL",
+    "entryTime": 1788530400,
+    "entryPrice": 81.85911,
+    "slPrice": 81.85911,
+    "tp1Price": 79.44660437211834,
+    "tp2Price": 73.5225,
+    "origSlPrice": 83.86953135656805,
     "rr1": 1.2,
-    "rr2": 2.93,
+    "rr2": 4.15,
     "patterns": [
       "POC_RECLAIM",
       "PIN_BAR"
     ],
     "pivot": "POC",
     "fibPct": "78.6%",
-    "voteTally": "3/4",
+    "voteTally": "4/4",
     "agreeing": [
       "D1",
-      "30M",
-      "2H"
-    ],
-    "confluenceScore": 2,
-    "td9Confirms": false,
-    "slAtrMult": 0.25,
-    "prominence": {
-      "prominenceRatio": 1.3210014714392482,
-      "computed": true
-    },
-    "migration": {
-      "migrating": false,
-      "direction": null,
-      "distance": 0,
-      "currentPOC": null,
-      "pastPOC": null
-    },
-    "nakedPOC": {
-      "naked": false,
-      "priorPOC": null,
-      "tested": null,
-      "aligned": false
-    },
-    "multiTFPOC": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M"
-      ]
-    },
-    "multiTFFib": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M",
-        "D1"
-      ]
-    },
-    "beMoved": true,
-    "tp1Hit": true,
-    "halfR": 1.2,
-    "result": "TP1+BE",
-    "exitPrice": 514.47732358,
-    "rr": 0.6,
-    "exitTime": 1784128500,
-    "hoursHeld": 194
-  },
-  {
-    "symbol": "NFLX",
-    "direction": "BUY",
-    "entryTime": 1782999000,
-    "entryPrice": 73.24396,
-    "slPrice": 73.24396,
-    "tp1Price": 76.47424892257455,
-    "tp2Price": 82.0781925,
-    "origSlPrice": 70.55205256452122,
-    "rr1": 1.2,
-    "rr2": 3.28,
-    "patterns": [
-      "CLOSE_REJECTION"
-    ],
-    "pivot": "POC",
-    "fibPct": "78.6%",
-    "voteTally": "3/4",
-    "agreeing": [
       "30M",
       "2H",
       "15M"
@@ -221,7 +223,7 @@
     "td9Confirms": false,
     "slAtrMult": 0.25,
     "prominence": {
-      "prominenceRatio": 2.255123594193543,
+      "prominenceRatio": 9.339241694047853,
       "computed": true
     },
     "migration": {
@@ -232,9 +234,9 @@
       "pastPOC": null
     },
     "nakedPOC": {
-      "naked": false,
-      "priorPOC": null,
-      "tested": null,
+      "naked": true,
+      "priorPOC": 67.2044,
+      "tested": false,
       "aligned": false
     },
     "multiTFPOC": {
@@ -253,11 +255,11 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.2,
-    "result": "TP1+BE",
-    "exitPrice": 73.24396,
-    "rr": 0.6,
-    "exitTime": 1783691100,
-    "hoursHeld": 192
+    "exitTime": 1788551100,
+    "exitPrice": 78.24,
+    "result": "OPEN",
+    "rr": 1.5,
+    "hoursHeld": 6
   },
   {
     "symbol": "SPY",
@@ -316,75 +318,10 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.2,
-    "exitTime": 1787946300,
-    "exitPrice": 769.38,
-    "result": "OPEN",
-    "rr": 1.02,
-    "hoursHeld": 30
-  },
-  {
-    "symbol": "XOM",
-    "direction": "BUY",
-    "entryTime": 1783431000,
-    "entryPrice": 136.53145999999998,
-    "slPrice": 136.53145999999998,
-    "tp1Price": 138.85916278300985,
-    "tp2Price": 148.85650635,
-    "origSlPrice": 134.5917076808251,
-    "rr1": 1.2,
-    "rr2": 6.35,
-    "patterns": [
-      "POC_RECLAIM",
-      "LIQUIDITY_SWEEP"
-    ],
-    "pivot": "POC",
-    "fibPct": "78.6%",
-    "voteTally": "3/4",
-    "agreeing": [
-      "30M",
-      "2H",
-      "15M"
-    ],
-    "confluenceScore": 2,
-    "td9Confirms": false,
-    "slAtrMult": 0.25,
-    "prominence": {
-      "prominenceRatio": 1.8270547280836638,
-      "computed": true
-    },
-    "migration": {
-      "migrating": false,
-      "direction": null,
-      "distance": 0,
-      "currentPOC": null,
-      "pastPOC": null
-    },
-    "nakedPOC": {
-      "naked": false,
-      "priorPOC": null,
-      "tested": null,
-      "aligned": false
-    },
-    "multiTFPOC": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M"
-      ]
-    },
-    "multiTFFib": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M",
-        "D1"
-      ]
-    },
-    "beMoved": true,
-    "tp1Hit": true,
-    "halfR": 1.2,
-    "result": "TIMEOUT",
-    "exitPrice": 146.21001,
-    "rr": 3.09,
-    "exitTime": 1784208600,
-    "hoursHeld": 216
+    "result": "TP1+BE",
+    "exitPrice": 765.748602708,
+    "rr": 0.6,
+    "exitTime": 1788183900,
+    "hoursHeld": 96
   }
 ]
