@@ -1,5 +1,71 @@
 [
   {
+    "symbol": "AAPL",
+    "signal": "FIRED",
+    "direction": "BUY",
+    "entryTime": 1789047900,
+    "entryPrice": 312.09892786,
+    "slPrice": 306.0810485788379,
+    "tp1Price": 319.3203829973945,
+    "tp2Price": 343.00994385,
+    "risk": 6.017879281162095,
+    "rr1": 1.2,
+    "rr2": 5.136529755051995,
+    "confluencePivot": "POC",
+    "fibPct": "78.6%",
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "riskMult": 1,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 6.017878465775684,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 1.655327184999976,
+      "currentPOC": 312.25671975,
+      "pastPOC": 310.601392565
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 297.87240345,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "freshPrice": 319.37,
+    "driftPct": 2.33,
+    "alertDelivered": true,
+    "time": "2026-09-10T13:53:56.262Z"
+  },
+  {
     "symbol": "SPY",
     "signal": "FIRED",
     "direction": "BUY",
