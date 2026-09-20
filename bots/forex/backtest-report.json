@@ -320,6 +320,69 @@
     "hoursHeld": 1
   },
   {
+    "symbol": "EUR/USD",
+    "direction": "SELL",
+    "entryTime": 1789344900,
+    "entryPrice": 1.1618704,
+    "slPrice": 1.1618704,
+    "tp1Price": 1.1571799999999999,
+    "tp2Price": 1.15196485,
+    "origSlPrice": 1.1656321600434711,
+    "rr1": 1.25,
+    "rr2": 2.63,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAH",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.328755364806907,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.0016268999999999867,
+      "currentPOC": 1.15506025,
+      "pastPOC": 1.15343335
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 1.1414529,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.25,
+    "result": "TP1+TP2",
+    "exitPrice": 1.15196485,
+    "rr": 1.94,
+    "exitTime": 1789581600,
+    "hoursHeld": 66
+  },
+  {
     "symbol": "GBP/USD",
     "direction": "BUY",
     "entryTime": 1788158700,
@@ -2134,72 +2197,6 @@
   },
   {
     "symbol": "EUR/GBP",
-    "direction": "BUY",
-    "entryTime": 1770280200,
-    "entryPrice": 0.8641397799999999,
-    "slPrice": 0.8641397799999999,
-    "tp1Price": 0.8679349999999999,
-    "tp2Price": 0.87153165,
-    "origSlPrice": 0.8610479814173976,
-    "rr1": 1.23,
-    "rr2": 2.39,
-    "patterns": [
-      "ENGULFING",
-      "CLOSE_REJECTION"
-    ],
-    "pivot": "VAL",
-    "fibPct": "78.6%",
-    "voteTally": "4/4",
-    "agreeing": [
-      "D1",
-      "30M",
-      "2H",
-      "15M"
-    ],
-    "confluenceScore": 2,
-    "td9Confirms": false,
-    "slAtrMult": 0.25,
-    "prominence": {
-      "prominenceRatio": 1.247107683180052,
-      "computed": true
-    },
-    "migration": {
-      "migrating": true,
-      "direction": "DOWN",
-      "distance": -0.011120300000000083,
-      "currentPOC": 0.86750895,
-      "pastPOC": 0.87862925
-    },
-    "nakedPOC": {
-      "naked": false,
-      "priorPOC": 0.87858011,
-      "tested": true,
-      "aligned": false
-    },
-    "multiTFPOC": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "D1"
-      ]
-    },
-    "multiTFFib": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M",
-        "D1"
-      ]
-    },
-    "beMoved": true,
-    "tp1Hit": true,
-    "halfR": 1.23,
-    "result": "TP1+TP2",
-    "exitPrice": 0.87153165,
-    "rr": 1.81,
-    "exitTime": 1770302700,
-    "hoursHeld": 6
-  },
-  {
-    "symbol": "EUR/GBP",
     "direction": "SELL",
     "entryTime": 1774263600,
     "entryPrice": 0.86809182,
@@ -2653,6 +2650,70 @@
     "rr": 1.63,
     "exitTime": 1788095700,
     "hoursHeld": 1
+  },
+  {
+    "symbol": "EUR/GBP",
+    "direction": "SELL",
+    "entryTime": 1789318800,
+    "entryPrice": 0.8588543399999999,
+    "slPrice": 0.8588543399999999,
+    "tp1Price": 0.8552249999999999,
+    "tp2Price": 0.8544001499999999,
+    "origSlPrice": 0.8617493459569514,
+    "rr1": 1.25,
+    "rr2": 1.54,
+    "patterns": [
+      "POC_RECLAIM",
+      "LIQUIDITY_SWEEP"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.9698701298701287,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.0019055499999999226,
+      "currentPOC": 0.8575726499999999,
+      "pastPOC": 0.8556671
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 0.8537928,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.25,
+    "result": "TP1+BE",
+    "exitPrice": 0.8588543399999999,
+    "rr": 0.63,
+    "exitTime": 1789642800,
+    "hoursHeld": 90
   },
   {
     "symbol": "AUD/JPY",
