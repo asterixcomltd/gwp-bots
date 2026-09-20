@@ -389,6 +389,70 @@
     "hoursHeld": 36
   },
   {
+    "symbol": "ADA-USDT",
+    "direction": "BUY",
+    "entryTime": 1789695900,
+    "entryPrice": 0.1993238,
+    "slPrice": 0.1993238,
+    "tp1Price": 0.21125,
+    "tp2Price": 0.2241165,
+    "origSlPrice": 0.18956134555413753,
+    "rr1": 1.22,
+    "rr2": 2.54,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.785381239872971,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.020420999999999995,
+      "currentPOC": 0.1953075,
+      "pastPOC": 0.1748865
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.16418,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.22,
+    "result": "TP1+TP2",
+    "exitPrice": 0.2241165,
+    "rr": 1.88,
+    "exitTime": 1789765200,
+    "hoursHeld": 19
+  },
+  {
     "symbol": "DOGE-USDT",
     "direction": "SELL",
     "entryTime": 1788976800,
@@ -646,6 +710,70 @@
     "rr": 0.6,
     "exitTime": 1783651500,
     "hoursHeld": 43
+  },
+  {
+    "symbol": "LINK-USDT",
+    "direction": "BUY",
+    "entryTime": 1789738200,
+    "entryPrice": 11.276474599999998,
+    "slPrice": 11.276474599999998,
+    "tp1Price": 12.15275,
+    "tp2Price": 12.5517265,
+    "origSlPrice": 10.575372408691289,
+    "rr1": 1.25,
+    "rr2": 1.82,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.5657997728408868,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 3.0534704999999978,
+      "currentPOC": 11.391119499999999,
+      "pastPOC": 8.337649
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 8.3544065,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.25,
+    "result": "TP1+TP2",
+    "exitPrice": 12.5517265,
+    "rr": 1.54,
+    "exitTime": 1789812900,
+    "hoursHeld": 21
   },
   {
     "symbol": "BNB-USDT",
@@ -2180,11 +2308,11 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.22,
-    "exitTime": 1789298100,
-    "exitPrice": 0.0949,
-    "result": "OPEN",
-    "rr": 1.56,
-    "hoursHeld": 92
+    "result": "TIMEOUT",
+    "exitPrice": 0.1012,
+    "rr": 1.1,
+    "exitTime": 1789686900,
+    "hoursHeld": 200
   },
   {
     "symbol": "SUI-USDT",
