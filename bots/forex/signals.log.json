@@ -1,5 +1,70 @@
 [
   {
+    "symbol": "AUD/JPY",
+    "signal": "FIRED",
+    "direction": "SELL",
+    "entryTime": 1790195400,
+    "entryPrice": 111.89790186,
+    "slPrice": 112.64887490808997,
+    "tp1Price": 110.950095,
+    "tp2Price": 110.1154923,
+    "risk": 0.7509730480899606,
+    "rr1": 1.2621050281507045,
+    "rr2": 2.373466750282743,
+    "confluencePivot": "VWAP",
+    "fibPct": "78.6%",
+    "patterns": [
+      "PIN_BAR",
+      "LIQUIDITY_SWEEP"
+    ],
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "riskMult": 1,
+    "biasD1": "BEARISH",
+    "bias30m": "BEARISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BEARISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 3.3494804191947094,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.5331299999999999,
+      "currentPOC": 112.8379275,
+      "pastPOC": 112.3047975
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 112.44272975,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "freshPrice": 111.48621,
+    "driftPct": 0.368,
+    "alertDelivered": true,
+    "time": "2026-09-23T20:34:31.742Z"
+  },
+  {
     "symbol": "EUR/GBP",
     "signal": "FIRED",
     "direction": "SELL",
