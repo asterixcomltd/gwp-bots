@@ -453,6 +453,70 @@
     "hoursHeld": 19
   },
   {
+    "symbol": "ADA-USDT",
+    "direction": "BUY",
+    "entryTime": 1791595800,
+    "entryPrice": 0.236319,
+    "slPrice": 0.236319,
+    "tp1Price": 0.25305,
+    "tp2Price": 0.2818365,
+    "origSlPrice": 0.22248829945487605,
+    "rr1": 1.21,
+    "rr2": 3.29,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.732844566514203,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 0.05686500000000003,
+      "currentPOC": 0.2521725,
+      "pastPOC": 0.1953075
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.1748865,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.21,
+    "exitTime": 1791720900,
+    "exitPrice": 0.2476,
+    "result": "OPEN",
+    "rr": 1.01,
+    "hoursHeld": 35
+  },
+  {
     "symbol": "DOGE-USDT",
     "direction": "SELL",
     "entryTime": 1788976800,
@@ -2188,6 +2252,71 @@
     "hoursHeld": 14
   },
   {
+    "symbol": "ARB-USDT",
+    "direction": "BUY",
+    "entryTime": 1791657000,
+    "entryPrice": 0.1781788,
+    "slPrice": 0.1781788,
+    "tp1Price": 0.1994,
+    "tp2Price": 0.21837700000000002,
+    "origSlPrice": 0.16150427094128736,
+    "rr1": 1.27,
+    "rr2": 2.41,
+    "patterns": [
+      "ENGULFING",
+      "LIQUIDITY_SWEEP"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 3.3566289476348024,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.03209199999999998,
+      "currentPOC": 0.133999,
+      "pastPOC": 0.166091
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.0787625,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.27,
+    "exitTime": 1791721800,
+    "exitPrice": 0.1988,
+    "result": "OPEN",
+    "rr": 1.25,
+    "hoursHeld": 18
+  },
+  {
     "symbol": "OP-USDT",
     "direction": "SELL",
     "entryTime": 1775740500,
@@ -2441,6 +2570,70 @@
     "rr": 1.1,
     "exitTime": 1789686900,
     "hoursHeld": 200
+  },
+  {
+    "symbol": "OP-USDT",
+    "direction": "BUY",
+    "entryTime": 1791562500,
+    "entryPrice": 0.1196386,
+    "slPrice": 0.1196386,
+    "tp1Price": 0.13105,
+    "tp2Price": 0.13153,
+    "origSlPrice": 0.1103040196634637,
+    "rr1": 1.22,
+    "rr2": 1.27,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 3.6460230793334882,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": -0.0002309999999999951,
+      "currentPOC": 0.10975,
+      "pastPOC": 0.109981
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 0.112537,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "D1"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.22,
+    "result": "TP1+TP2",
+    "exitPrice": 0.13153,
+    "rr": 1.25,
+    "exitTime": 1791588600,
+    "hoursHeld": 7
   },
   {
     "symbol": "SUI-USDT",
