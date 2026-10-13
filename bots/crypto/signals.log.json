@@ -3,6 +3,72 @@
     "symbol": "ETH-USDT",
     "signal": "FIRED",
     "direction": "BUY",
+    "entryTime": 1791908100,
+    "entryPrice": 2486.09308,
+    "slPrice": 2400.923421842616,
+    "tp1Price": 2591.69,
+    "tp2Price": 2687.47785,
+    "risk": 85.16965815738422,
+    "rr1": 1.23984200811125,
+    "rr2": 2.3645130714022953,
+    "confluencePivot": "VWAP",
+    "fibPct": "78.6%",
+    "patterns": [
+      "POC_RECLAIM",
+      "ENGULFING"
+    ],
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "riskMult": 0.65,
+    "biasD1": "BULLISH",
+    "bias30m": "BULLISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BULLISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.7631597661115357,
+      "computed": true
+    },
+    "migration": {
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "freshPrice": 2518,
+    "driftPct": 1.283,
+    "alertDelivered": true,
+    "time": "2026-10-13T16:27:08.360Z"
+  },
+  {
+    "symbol": "ETH-USDT",
+    "signal": "FIRED",
+    "direction": "BUY",
     "entryTime": 1791745200,
     "entryPrice": 2486.09308,
     "slPrice": 2403.6564561844953,
