@@ -29,11 +29,11 @@
       "computed": true
     },
     "migration": {
-      "migrating": true,
-      "direction": "UP",
-      "distance": 169.52181165000007,
-      "currentPOC": 545.6122683000001,
-      "pastPOC": 376.09045665
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
     },
     "nakedPOC": {
       "naked": true,
@@ -57,11 +57,11 @@
     "beMoved": true,
     "tp1Hit": true,
     "halfR": 1.2,
-    "exitTime": 1792179900,
-    "exitPrice": 528.95001,
+    "exitTime": 1792784700,
+    "exitPrice": 524.52502,
     "result": "OPEN",
-    "rr": 1.1,
-    "hoursHeld": 4
+    "rr": 1.29,
+    "hoursHeld": 172
   },
   {
     "symbol": "AMZN",
@@ -550,9 +550,9 @@
       "pastPOC": null
     },
     "nakedPOC": {
-      "naked": true,
-      "priorPOC": 67.2044,
-      "tested": false,
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
       "aligned": false
     },
     "multiTFPOC": {
@@ -678,8 +678,8 @@
     },
     "nakedPOC": {
       "naked": false,
-      "priorPOC": 746.05349795,
-      "tested": true,
+      "priorPOC": null,
+      "tested": null,
       "aligned": false
     },
     "multiTFPOC": {
