@@ -1,5 +1,72 @@
 [
   {
+    "symbol": "NZD/USD",
+    "signal": "FIRED",
+    "direction": "SELL",
+    "entryTime": 1793151000,
+    "entryPrice": 0.5680048600000001,
+    "slPrice": 0.5714742433041349,
+    "tp1Price": 0.5638416000350382,
+    "tp2Price": 0.5585,
+    "risk": 0.003469383304134821,
+    "rr1": 1.2000000000000064,
+    "rr2": 2.7396396324015684,
+    "confluencePivot": "VAH",
+    "fibPct": "78.6%",
+    "patterns": [
+      "POC_RECLAIM",
+      "CLOSE_REJECTION"
+    ],
+    "voteTally": "4/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "2H",
+      "15M"
+    ],
+    "riskMult": 0.65,
+    "biasD1": "BEARISH",
+    "bias30m": "BEARISH",
+    "bias2h": "BEARISH",
+    "bias15m": "BEARISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.8565436241610573,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.004873950000000016,
+      "currentPOC": 0.5615,
+      "pastPOC": 0.56637395
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.5879067,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "freshPrice": 0.56068,
+    "driftPct": 1.29,
+    "alertDelivered": true,
+    "time": "2026-10-28T01:42:21.174Z"
+  },
+  {
     "symbol": "AUD/JPY",
     "signal": "FIRED",
     "direction": "SELL",
