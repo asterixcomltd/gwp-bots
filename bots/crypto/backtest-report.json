@@ -1350,6 +1350,68 @@
     "hoursHeld": 30
   },
   {
+    "symbol": "LTC-USDT",
+    "direction": "BUY",
+    "entryTime": 1793217600,
+    "entryPrice": 57.40264,
+    "slPrice": 57.40264,
+    "tp1Price": 60.480000000000004,
+    "tp2Price": 68.8256,
+    "origSlPrice": 54.90457012751906,
+    "rr1": 1.23,
+    "rr2": 4.57,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VWAP",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 1,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.1177643833828865,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 2.7766500000000036,
+      "currentPOC": 56.656800000000004,
+      "pastPOC": 53.88015
+    },
+    "nakedPOC": {
+      "naked": false,
+      "priorPOC": 54.0053,
+      "tested": true,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "result": "BE",
+    "exitPrice": 57.40264,
+    "rr": 0,
+    "exitTime": 1793243700,
+    "hoursHeld": 7
+  },
+  {
     "symbol": "TRX-USDT",
     "direction": "SELL",
     "entryTime": 1771862400,
