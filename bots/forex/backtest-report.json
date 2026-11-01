@@ -46,7 +46,8 @@
     "multiTFPOC": {
       "anyAligned": true,
       "alignedLabels": [
-        "30M"
+        "30M",
+        "D1"
       ]
     },
     "multiTFFib": {
@@ -967,70 +968,6 @@
   {
     "symbol": "AUD/USD",
     "direction": "SELL",
-    "entryTime": 1773365400,
-    "entryPrice": 0.7134626000000001,
-    "slPrice": 0.7134626000000001,
-    "tp1Price": 0.70657,
-    "tp2Price": 0.70148995,
-    "origSlPrice": 0.7191573848332942,
-    "rr1": 1.21,
-    "rr2": 2.1,
-    "patterns": [
-      "CLOSE_REJECTION"
-    ],
-    "pivot": "VAH",
-    "fibPct": "78.6%",
-    "voteTally": "3/4",
-    "agreeing": [
-      "D1",
-      "30M",
-      "15M"
-    ],
-    "confluenceScore": 2,
-    "td9Confirms": false,
-    "slAtrMult": 0.25,
-    "prominence": {
-      "prominenceRatio": 2.0146612675859283,
-      "computed": true
-    },
-    "migration": {
-      "migrating": false,
-      "direction": null,
-      "distance": -0.00021414999999991302,
-      "currentPOC": 0.7026415500000001,
-      "pastPOC": 0.7028557
-    },
-    "nakedPOC": {
-      "naked": true,
-      "priorPOC": 0.66903925,
-      "tested": false,
-      "aligned": false
-    },
-    "multiTFPOC": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "D1"
-      ]
-    },
-    "multiTFFib": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "30M",
-        "D1"
-      ]
-    },
-    "beMoved": true,
-    "tp1Hit": true,
-    "halfR": 1.21,
-    "result": "TP1+TP2",
-    "exitPrice": 0.70148995,
-    "rr": 1.66,
-    "exitTime": 1773415800,
-    "hoursHeld": 14
-  },
-  {
-    "symbol": "AUD/USD",
-    "direction": "SELL",
     "entryTime": 1784283300,
     "entryPrice": 0.69916252,
     "slPrice": 0.69916252,
@@ -1284,6 +1221,71 @@
     "rr": 0.62,
     "exitTime": 1786695300,
     "hoursHeld": 43
+  },
+  {
+    "symbol": "NZD/USD",
+    "direction": "SELL",
+    "entryTime": 1793149200,
+    "entryPrice": 0.5680048600000001,
+    "slPrice": 0.5680048600000001,
+    "tp1Price": 0.5638141897517317,
+    "tp2Price": 0.5590999999999999,
+    "origSlPrice": 0.5714970852068904,
+    "rr1": 1.2,
+    "rr2": 2.55,
+    "patterns": [
+      "POC_RECLAIM",
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAH",
+    "fibPct": "78.6%",
+    "voteTally": "3/4",
+    "agreeing": [
+      "D1",
+      "30M",
+      "15M"
+    ],
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 1.7067879636109087,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.005259249999999938,
+      "currentPOC": 0.5615,
+      "pastPOC": 0.5667592499999999
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.5876549,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "30M",
+        "D1"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 0.5590999999999999,
+    "rr": 1.88,
+    "exitTime": 1793150100,
+    "hoursHeld": 0
   },
   {
     "symbol": "USD/CHF",
