@@ -8,7 +8,45 @@ indicators), same shared-core discipline, same trade-management mechanics
 sizing boost). The **only** structural change from MVS is the timeframe
 architecture itself.
 
-## Timeframe architecture (v1.1.2 mechanics, v1.1.4 RE-ROLE)
+## Timeframe architecture — v1.3.0 "H6" (current)
+
+Six timeframes vote; **3 of 6** must agree on direction (`MIN_TF_AGREE`).
+
+| Timeframe | Role | Notes |
+|-----------|------|-------|
+| **M15** | Vote + the engine's *clock* (freshest close, entry-drift guard, backtest tick, position tracking) | Optional extra role: **entry-timing** check (`m15Timing`) |
+| **M30** | **Trigger** — the rejection-candle patterns are read here, + vote | Pattern look-backs rescaled so wall-clock look-back is unchanged (3→2 bars, 10→5 bars) |
+| **H1** | Vote (built from 2 × M30) | Optional extra role: dual-gate member (`h1Gate`) |
+| **H2** | **Structure** — swing, Fib pocket, POC/VAH/VAL, ATR, SL anchor + vote | Unchanged job |
+| **H3** | **Bias** + vote (built from 6 × M30) | Dual-gate member (`h3Gate`, default on) |
+| **H4** | **Bias** + vote (built from 2 × H2) | Dual-gate member **and** the HTF zone cross-check |
+
+* **H1, H3, H4 are built, not fetched** (`shared/resample.js`): neither KuCoin nor Twelve Data serves a
+  3-hour candle, and building H1/H4 costs zero extra API calls. A built candle is emitted only once complete.
+  Equities use session-anchored buckets (09:30 ET open, DST-proof). Daily (D1) is no longer used by this profile.
+* The **decision pipeline now exists once** (`shared/setup-eval.js`) and is called by BOTH the live engine and the
+  backtest — live and backtest can no longer drift apart.
+* `GWP_TF_PROFILE=LEGACY` restores the old D1/30M/2H/15M 3-of-4 design as a one-line rollback.
+
+### Timeframe roles — what was found and what was NOT
+
+The owner asked for the best roles for M15, H1 and H3. Honest status: **the sandbox that built this has no market-data
+access**, so the only data available was the ~3 weeks of M15 candles committed in `bots/*/cache`. On that sample
+(a few trades per variant — statistically meaningless on its own):
+
+* M15 entry-timing: no consistent win-rate benefit → **off by default** (`GWP_M15_TIMING=true` to enable).
+* H1 as an extra gate member: no benefit → **vote only**.
+* H3 as a gate member: neutral-to-positive on stocks, neutral on crypto → **on by default**.
+* **Vote strictness was the only lever that moved win rate in both bots:** 4-of-6 instead of 3-of-6 lifted the win rate
+  (crypto ≈38%→60–75%, stocks ≈75%→83–86%) at roughly half the number of trades. Delivered default stays **3-of-6** as
+  specified; `GWP_MIN_TF_AGREE=4` switches it. This is a risk/frequency trade-off and is the owner's call.
+
+**To settle it properly, run the sweep:** Actions → *GWP … — Backtest* → Run workflow → `sweep = true`. It replays every
+role combination × (3 vs 4 of 6) × the LEGACY baseline on the *same* 360 days of real data and writes
+`backtest-sweep.txt` (with Wilson 95% win-rate ranges — overlapping ranges mean the difference is noise). Set the
+winners as `TF_ROLES` in the bot's `config.js` (or the `GWP_*` env vars).
+
+## Timeframe architecture (v1.1.2 mechanics, v1.1.4 RE-ROLE) — LEGACY profile
 
 MVS's own codebase documents its *original* v10.0 design as a 3-timeframe,
 2-of-3 vote (4H bias / 1H structure / 15m trigger) before it was later
@@ -258,6 +296,31 @@ Stocks in particular: 8 trades is too thin to draw real conclusions from yet —
 
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
+
+- **v1.3.0** — *accuracy release. Two real data bugs fixed, one real backtest bug fixed, timeframes re-architected.*
+  1. **Candle cache saved half-formed candles forever (live data corruption).** KuCoin/Twelve Data return the
+     still-forming candle as the newest bar; the cache stored it, then only fetched bars *newer* than it and kept the
+     first copy of any duplicate. Measured on the committed caches: ~32% of 2H bars, ~5% of 30M bars and nearly all D1
+     bars had volume far below the sum of their own 15M bars. Every volume profile, POC/VAH/VAL, swing and ATR was
+     computed on corrupted candles. Fixed: only **closed** candles are returned or stored; newer copies replace older;
+     old-format caches are discarded and reseeded once (`v:2`). *The first scan after deploying is slower (full
+     reseed) — scan timeouts for forex/stocks were raised 10→30 min for it.*
+  2. **Backtest look-ahead.** The replay advanced a higher-timeframe pointer as soon as a candle *opened*, so votes
+     and the structure price used candles that had not closed — up to 24h ahead on D1 (measured: a vote used a candle
+     closing 3.75h later). Backtest win rates were therefore optimistic. Fixed: a candle is visible only once closed.
+     **Expect lower, honest backtest numbers than before — that is the fix working, not a regression.**
+  3. **Backtest stale-state bug.** Timeframe bias/ATR was recomputed only on the tick a bar advanced; ticks spent
+     inside an open trade skipped it, so the next scan ran on a stale swing/bias. Fixed (persistent dirty flags).
+  4. **New:** 6-timeframe H6 profile (see above), `shared/resample.js`, `shared/setup-eval.js` (one shared decision
+     pipeline), `shared/tf-plan.js`, role sweep in the backtest, `GWP_TF_PROFILE` rollback switch.
+  5. Verification: with the LEGACY profile the refactored engine reproduces the old engine's gate funnel and trades
+     exactly on all three bots (≈68k replayed ticks, 0 differences). New tests: `tests/test-resample.js`,
+     `tests/test-no-lookahead.js` (fails on the old pointers), `tests/test-cache-closed-only.js` (fails on the old cache).
+  6. **Known, not changed (owner's call):** (a) the dual-gate comment says "BOTH timeframes" but
+     `DUAL_MULTI_TF_*_MIN_ALIGNED` defaults to 1, i.e. *either*; (b) Fib tie-break: when the 61.8% level and the
+     mid-pocket score equal, the exclusion filters can reject a setup that a 78.6% level would also have scored —
+     an opt-in A/B; (c) H3 and H4 are highly correlated, so the gate is less independent than D1+30M was.
+  7. **No risk or economic parameter was changed.**
 
 - **v1.2.1**: `shared/publish-gist.js`'s `rr` field (sent to AxTrader's
   shared Gist feed) was built by preferring `rr2` — the R:R for TP2 —
