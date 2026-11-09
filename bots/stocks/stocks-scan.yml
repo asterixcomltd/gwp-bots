@@ -1,0 +1,51 @@
+name: GWP Stocks — Scan
+on:
+  schedule:
+    - cron: '7-59/15 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: gwp-stocks-scan
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # v1.3.0: the FIRST scan after deploy reseeds every candle cache (closed-candle v2) — slow once, normal afterwards
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: node strategy.js
+        working-directory: bots/stocks
+        env:
+          STOCKS_TG_TOKEN: ${{ secrets.STOCKS_TG_TOKEN }}
+          STOCKS_CHAT_ID: ${{ secrets.STOCKS_CHAT_ID }}
+          STOCKS_TWELVE_DATA_KEYS: ${{ secrets.STOCKS_TWELVE_DATA_KEYS }}
+          TWELVE_DATA_KEYS: ${{ secrets.TWELVE_DATA_KEYS }}
+          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
+      - name: Publish live signals to AxTrader Gist
+        run: node ../../shared/publish-gist.js stocks
+        working-directory: bots/stocks
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+      - name: Commit updated state/log files (race-safe)
+        run: |
+          git config user.name "gwp-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add bots/stocks/*.json bots/stocks/cache/*.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "GWP Stocks: scan update [skip ci]"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && break
+            echo "Push attempt $i failed (likely a race with another bot's commit) — retrying..."
+            sleep $(( (RANDOM % 5) + 1 ))
+          done
