@@ -14,7 +14,7 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30  # v1.3.0: the FIRST scan after deploy reseeds every candle cache (closed-candle v2) — slow once, normal afterwards
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
