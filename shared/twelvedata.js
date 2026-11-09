@@ -235,50 +235,67 @@ module.exports = function createTwelveDataClient(config) {
   };
   const MAX_CACHED_BARS = 2500; // generous ceiling per symbol+interval, trimmed on save
 
-  // ── Live fetch — most recent N candles, cache-aware ─────────────────────
+  // ── CLOSED-CANDLE-ONLY CACHE (v2) ─────────────────────────────────────
+  // BUG FIXED (GWP v1.3.0): Twelve Data returns the still-FORMING candle as
+  // the newest bar. The old cache stored it, then only fetched bars NEWER
+  // than it and kept the first copy of any duplicate, so a half-formed
+  // candle stayed frozen in the cache forever (measured on the committed
+  // caches: ~32% of 2H bars, ~5% of 30M bars, nearly all D1 bars). Now only
+  // CLOSED candles (time + barSeconds <= now) are returned or stored, a
+  // newer copy of a bar replaces an older one, and cache entries written by
+  // the old code (no `v:2`) are discarded and reseeded once.
+  const closedOnly = (bars, barSeconds, nowSec) => bars.filter(b => b.time + barSeconds <= nowSec);
+  const CACHE_VERSION = 2;
+
+  // ── Live fetch — most recent N CLOSED candles, cache-aware ──────────────
   const getKlines = async (symbol, interval, limit) => {
     const barSeconds = BAR_SECONDS[interval] || 3600;
     const key = `${symbol}|${interval}`;
     const cached = loadCacheEntry(key);
     const nowSec = Math.floor(Date.now() / 1000);
 
-    if (cached && cached.bars && cached.bars.length >= Math.min(limit, 20)) {
+    const usable = cached && cached.v === CACHE_VERSION && Array.isArray(cached.bars) && cached.bars.length > 0
+      && (cached.bars.length >= limit || (cached.seededLimit || 0) >= limit);
+
+    if (usable) {
       const lastBarTime = cached.bars[cached.bars.length - 1].time;
-      const nextBarDue = lastBarTime + barSeconds;
-      // Skip the network call entirely if a new bar isn't even due yet —
-      // this is the main credit-saving mechanism for D1/2H/30M, whose
-      // bars simply don't change between most consecutive 15-min scans.
-      if (nowSec < nextBarDue) {
+      // The bar after `lastBarTime` only CLOSES at lastBarTime + 2*barSeconds
+      // — skip the network call (and the credit) until then.
+      if (nowSec < lastBarTime + 2 * barSeconds) {
         return applyVolumeFallback(cached.bars.slice(-limit).map(b => ({ ...b })));
       }
-      // A new bar (or a few, if this run was delayed) may be available —
-      // fetch only the delta since the last cached bar, not full history.
       const startDate = new Date((lastBarTime + 1) * 1000).toISOString().slice(0, 19).replace('T', ' ');
       const data = await request({ symbol, interval, order: 'ASC', start_date: startDate });
       if (data && data.__dailyExhausted) {
-        // Can't get fresh data — better to serve slightly-stale cached
-        // bars than none at all; core.js's own logic will just see an
-        // older "last bar" and proceed or wait as normal.
         console.error(`  ⚠️ ${symbol} ${interval}: serving cached data (possibly stale) — daily credit budget exhausted.`);
         return applyVolumeFallback(cached.bars.slice(-limit).map(b => ({ ...b })));
       }
       if (data && Array.isArray(data.values) && data.values.length) {
-        const freshBars = toBars(data.values);
-        const merged = [...cached.bars, ...freshBars].filter((b, i, arr) => arr.findIndex(x => x.time === b.time) === i).sort((a, b) => a.time - b.time);
-        const newEntry = { bars: merged.slice(-MAX_CACHED_BARS) };
-        saveCacheEntry(key, newEntry);
-        return applyVolumeFallback(newEntry.bars.slice(-limit).map(b => ({ ...b })));
+        const freshBars = closedOnly(toBars(data.values), barSeconds, nowSec);
+        if (freshBars.length) {
+          const byTime = new Map(cached.bars.map(b => [b.time, b]));
+          for (const b of freshBars) byTime.set(b.time, b); // newer copy wins
+          const merged = [...byTime.values()].sort((a, b) => a.time - b.time);
+          const newEntry = { v: CACHE_VERSION, seededLimit: cached.seededLimit || 0, bars: merged.slice(-MAX_CACHED_BARS) };
+          saveCacheEntry(key, newEntry);
+          return applyVolumeFallback(newEntry.bars.slice(-limit).map(b => ({ ...b })));
+        }
       }
-      // No new bars returned (market closed, weekend, etc.) — serve what we have.
+      // No new CLOSED bars (market closed, weekend, bar still forming) — serve what we have.
       return applyVolumeFallback(cached.bars.slice(-limit).map(b => ({ ...b })));
     }
 
-    // No usable cache yet — full fetch, then seed the cache.
-    const safeLimit = Math.min(limit + 20, 5000);
+    // No usable cache (missing, old pre-v2 format, or seeded for a smaller
+    // limit) — full fetch of CLOSED bars, then seed the cache.
+    const safeLimit = Math.min(limit + 21, 5000);
     const data = await request({ symbol, interval, outputsize: safeLimit, order: 'ASC' });
-    if (!data || data.status === 'error' || !Array.isArray(data.values)) return [];
-    const bars = toBars(data.values);
-    saveCacheEntry(key, { bars: bars.slice(-MAX_CACHED_BARS) });
+    if (!data || data.status === 'error' || !Array.isArray(data.values)) {
+      // Fetch failed — fall back to whatever (old-format) bars exist is NOT safe
+      // (they may contain partial candles), so return nothing; next scan retries.
+      return [];
+    }
+    const bars = closedOnly(toBars(data.values), barSeconds, nowSec);
+    if (bars.length) saveCacheEntry(key, { v: CACHE_VERSION, seededLimit: limit, bars: bars.slice(-MAX_CACHED_BARS) });
     return applyVolumeFallback(bars.slice(-limit));
   };
 
@@ -316,6 +333,7 @@ module.exports = function createTwelveDataClient(config) {
     }
     const seen = new Set();
     allBars = allBars.filter(b => (seen.has(b.time) ? false : (seen.add(b.time), true))).sort((a, b) => a.time - b.time);
+    allBars = closedOnly(allBars, BAR_SECONDS[interval] || 3600, Math.floor(Date.now() / 1000)); // never replay a half-formed newest candle
     if (sawError) {
       console.log(` ❌ STOPPED EARLY (${sawError}) — only ${allBars.length} bars fetched before the failure.`);
     } else {
