@@ -65,18 +65,23 @@ async function testBacktest(botDir, botName) {
   // BIAS_BAR_SECONDS directly means this can never drift out of sync
   // with config-base.js again, no matter how the roles get reassigned
   // in the future.
-  const trigger = base15m;
-  const struct  = aggregate(base15m, config.STRUCT_BAR_SECONDS);
-  const bias    = aggregate(base15m, config.BIAS_BAR_SECONDS);
-  const daily   = aggregate(base15m, config.DAILY_BAR_SECONDS);
+  const { buildPlan, derivePlanBars } = require('../shared/tf-plan.js');
+  const plan = buildPlan(config);
+  const base = {
+    M15: base15m,
+    M30: aggregate(base15m, config.BIAS_BAR_SECONDS),
+    H2: aggregate(base15m, config.STRUCT_BAR_SECONDS),
+    D1: aggregate(base15m, config.DAILY_BAR_SECONDS),
+  };
+  const planBars = derivePlanBars(plan, base);
 
-  const { backtestSymbol, generateReport } = createBacktestEngine({ config, core, version: '1.0.0', botLabel: botName });
+  const { backtestSymbol, generateReport } = createBacktestEngine({ config, core, version: '1.3.0', botLabel: botName, plan });
   const evalWindowStartTime = now - days * 86400;
 
-  const { trades, funnel } = await backtestSymbol('TESTSYM', trigger, struct, bias, daily, evalWindowStartTime);
+  const { trades, funnel } = await backtestSymbol('TESTSYM', planBars, evalWindowStartTime, plan);
   console.log(`[${botName}] backtest trades=${trades.length}, funnel=`, JSON.stringify(funnel));
 
-  const { lines } = generateReport(trades, days, { TESTSYM: funnel });
+  const { lines } = generateReport(trades, days, { TESTSYM: funnel }, plan);
   console.log(`[${botName}] report generated, ${lines.length} lines. Sample:\n` + lines.slice(0, 12).join('\n'));
   return 0;
 }

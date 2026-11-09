@@ -30,10 +30,8 @@ async function testBot(botDir, botName, tfSeconds) {
 
   const now = Math.floor(Date.now() / 1000);
   const fakeGetKlines = async (symbol, interval, limit) => {
-    const bs = interval === config.DAILY_TIMEFRAME ? tfSeconds.daily
-      : interval === config.BIAS_TIMEFRAME ? tfSeconds.bias
-      : interval === config.STRUCT_TIMEFRAME ? tfSeconds.struct
-      : tfSeconds.trigger;
+    const SECS = { '15min': 900, '30min': 1800, '1hour': 3600, '1h': 3600, '2hour': 7200, '2h': 7200, '4hour': 14400, '4h': 14400, '1day': 86400 };
+    const bs = SECS[interval] || 900;
     const startTime = now - (limit + 5) * bs;
     return genCandles(limit + 5, startTime, bs, 100 + Math.random() * 50, symbol.length * 7 + 13);
   };
