@@ -142,51 +142,62 @@ module.exports = function createKucoinClient(config) {
   };
   const MAX_CACHED_BARS = 2500; // generous ceiling per symbol+interval, trimmed on save
 
-  // ── Live fetch — most recent N candles, cache-aware ─────────────────────
-  const getKlines = async (symbol, interval, limit, maxRetries = 2) => {
-    if (!CACHE_DIR) return fetchRecent(symbol, interval, limit, maxRetries); // no cacheDir configured — old behavior, unchanged
+  // ── CLOSED-CANDLE-ONLY CACHE (v2) ─────────────────────────────────────
+  // BUG FIXED (GWP v1.3.0): KuCoin returns the still-FORMING candle as the
+  // newest bar. The old cache saved it as-is, then only ever fetched bars
+  // NEWER than it (`startAt = lastBarTime + 1`) and kept the first copy of
+  // any duplicate — so a half-formed candle was frozen into the cache
+  // forever. Measured on the committed cache files: ~32% of 2H bars and
+  // ~5% of 30M bars had volume far below the sum of their own 15M bars
+  // (i.e. saved mid-formation), and nearly all D1 bars. Every volume
+  // profile, POC/VAH/VAL, swing and ATR the strategy built was therefore
+  // computed on corrupted candles. Now only CLOSED candles are ever
+  // returned or stored (time + barSeconds <= now), and cache entries
+  // written by the old code (no `v:2` marker) are discarded and reseeded.
+  const closedOnly = (bars, barSeconds, nowSec) => bars.filter(b => b.time + barSeconds <= nowSec);
+  const CACHE_VERSION = 2;
 
+  // ── Live fetch — most recent N CLOSED candles, cache-aware ──────────────
+  const getKlines = async (symbol, interval, limit, maxRetries = 2) => {
     const barSeconds = BAR_SECONDS[interval] || 3600;
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (!CACHE_DIR) return closedOnly(await fetchRecent(symbol, interval, limit + 1, maxRetries), barSeconds, nowSec).slice(-limit); // no cacheDir — no cache, closed bars only
+
     const key = `${symbol}|${interval}`;
     const cached = loadCacheEntry(key);
-    const nowSec = Math.floor(Date.now() / 1000);
 
-    if (cached && cached.bars && cached.bars.length >= Math.min(limit, 20)) {
+    const usable = cached && cached.v === CACHE_VERSION && Array.isArray(cached.bars) && cached.bars.length > 0
+      && (cached.bars.length >= limit || (cached.seededLimit || 0) >= limit)
+      && ((nowSec - cached.bars[cached.bars.length - 1].time) / barSeconds) < 1400; // delta must fit one ranged page
+
+    if (usable) {
       const lastBarTime = cached.bars[cached.bars.length - 1].time;
-      const nextBarDue = lastBarTime + barSeconds;
-      // Skip the network call entirely if a new bar isn't even due yet —
-      // this is the main saving for D1/2H/30M, which don't change
-      // between most consecutive 15-min scans.
-      if (nowSec < nextBarDue) {
+      // The bar after `lastBarTime` only CLOSES at lastBarTime + 2*barSeconds.
+      if (nowSec < lastBarTime + 2 * barSeconds) {
         return cached.bars.slice(-limit).map(b => ({ ...b }));
       }
-      // A new bar (or a few, if this run was delayed) may be out — fetch
-      // only the delta since the last cached bar via the ranged
-      // endpoint, not a full-window re-fetch. A small ranged fetch is 1
-      // page, so 2 retries is plenty (matches fetchRecent's own budget).
-      const { ok, bars: freshBars } = await fetchKlinesRange(symbol, interval, lastBarTime + 1, nowSec, maxRetries);
+      const { ok, bars: fetched } = await fetchKlinesRange(symbol, interval, lastBarTime + 1, nowSec, maxRetries);
       if (!ok) {
-        // Couldn't get fresh data this round — serve slightly-stale
-        // cached bars rather than none; next scan tries again.
         console.error(`  ⚠️ ${symbol} ${interval}: delta fetch failed — serving cached data (possibly stale) this run.`);
         return cached.bars.slice(-limit).map(b => ({ ...b }));
       }
+      const freshBars = closedOnly(fetched, barSeconds, nowSec);
       if (freshBars.length) {
-        const merged = [...cached.bars, ...freshBars].filter((b, i, arr) => arr.findIndex(x => x.time === b.time) === i).sort((a, b) => a.time - b.time);
-        const newEntry = { bars: merged.slice(-MAX_CACHED_BARS) };
+        const byTime = new Map(cached.bars.map(b => [b.time, b]));
+        for (const b of freshBars) byTime.set(b.time, b); // newer copy wins
+        const merged = [...byTime.values()].sort((a, b) => a.time - b.time);
+        const newEntry = { v: CACHE_VERSION, seededLimit: cached.seededLimit || 0, bars: merged.slice(-MAX_CACHED_BARS) };
         saveCacheEntry(key, newEntry);
         return newEntry.bars.slice(-limit).map(b => ({ ...b }));
       }
-      // No new bars returned yet (KuCoin hasn't closed the next candle) — serve what we have.
       return cached.bars.slice(-limit).map(b => ({ ...b }));
     }
 
-    // No usable cache yet — full fetch, then seed the cache.
-    const bars = await fetchRecent(symbol, interval, limit, maxRetries);
-    if (bars.length) {
-      saveCacheEntry(key, { bars: bars.slice(-MAX_CACHED_BARS) });
-    }
-    return bars;
+    // No usable cache (missing, old pre-v2 format, or seeded for a smaller
+    // limit) — full fetch of CLOSED bars, then seed the cache.
+    const bars = closedOnly(await fetchRecent(symbol, interval, limit + 1, maxRetries), barSeconds, nowSec);
+    if (bars.length) saveCacheEntry(key, { v: CACHE_VERSION, seededLimit: limit, bars: bars.slice(-MAX_CACHED_BARS) });
+    return bars.slice(-limit);
   };
 
   // ── Paged history fetch — used by backtest.js (no caching; a deep
@@ -218,6 +229,7 @@ module.exports = function createKucoinClient(config) {
     }
     const seen = new Set();
     allBars = allBars.filter(b => (seen.has(b.time) ? false : (seen.add(b.time), true))).sort((a, b) => a.time - b.time);
+    allBars = closedOnly(allBars, barSeconds, endAt); // never replay a half-formed newest candle
     console.log(` ${allBars.length} bars${hadGap ? '  ⚠️  INCOMPLETE — see warnings above' : ''}`);
     return allBars;
   };

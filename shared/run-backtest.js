@@ -17,6 +17,7 @@ const path = require('path');
 const core = require('./core');
 const createBacktestEngine = require('./backtest-engine');
 const createTelegram = require('./telegram');
+const { buildPlan, derivePlanBars } = require('./tf-plan');
 
 const isNumeric = (s) => /^\d+$/.test(s);
 
@@ -28,9 +29,12 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   const days = parseInt(rawArgs[1] || rawArgs[0], 10) || config.BACKTEST_DAYS;
 
   const { fetchHistory } = dataClient;
-  const { backtestSymbol, generateReport, WARMUP_BUFFER_DAYS } = createBacktestEngine({ config, core, version, botLabel });
+  const plan = buildPlan(config);
+  const SWEEP = process.env.GWP_SWEEP === '1' || process.env.GWP_SWEEP === 'true';
+  const { backtestSymbol, generateReport, WARMUP_BUFFER_DAYS } = createBacktestEngine({ config, core, version, botLabel, plan });
 
-  console.log(`\n🔬 ${botLabel} v${version} Backtest — ${symbols.length} symbol(s), ${days} days\n`);
+  console.log(`\n🔬 ${botLabel} v${version} Backtest — ${symbols.length} symbol(s), ${days} days${SWEEP ? '  [ROLE SWEEP]' : ''}`);
+  console.log(`   Timeframes: ${plan.describe()}\n`);
 
   const allTrades = [];
   const funnelsBySymbol = {};
@@ -62,32 +66,92 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
 
   const evalWindowStartTime = Math.floor(Date.now() / 1000) - days * 86400;
 
-  for (const symbol of symbols) {
-    const dataD1  = await fetchHistory(symbol, config.DAILY_TIMEFRAME,  dailyFetchDays);
-    const data2h  = await fetchHistory(symbol, config.BIAS_TIMEFRAME,   fetchDays);
-    const data30m = await fetchHistory(symbol, config.STRUCT_TIMEFRAME, fetchDays);
-    const data15m = await fetchHistory(symbol, config.TRIGGER_TIMEFRAME, fetchDays);
+  // Sweep mode also needs D1 (for the LEGACY baseline row) — fetched once, reused by every variant.
+  const baseMinAgree = config.MIN_TF_AGREE;
+  const sweepRows = [];
+  const sweepVariants = [];
+  const legacyPlan = SWEEP ? (() => { const prev = process.env.GWP_TF_PROFILE; process.env.GWP_TF_PROFILE = 'LEGACY'; const p = buildPlan(config); if (prev === undefined) delete process.env.GWP_TF_PROFILE; else process.env.GWP_TF_PROFILE = prev; return p; })() : null;
+  if (SWEEP) {
+    sweepVariants.push({ name: 'LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed)', plan: legacyPlan, legacy: true });
+    for (const minAgree of [3, 4]) for (const m15Timing of [false, true]) for (const h1Gate of [false, true]) for (const h3Gate of [false, true]) for (const gateMin of ['cfg', 'all']) {
+      if (gateMin === 'all' && !h1Gate && !h3Gate) continue; // 'all' of a single gate member == the default — duplicate row
+      const vp = buildPlan(config, { m15Timing, h1Gate, h3Gate, gateMin });
+      sweepVariants.push({ minAgree, name: `H6 vote>=${minAgree}  M15:${m15Timing ? 'vote+timing' : 'vote'}  H1:${h1Gate ? 'vote+gate' : 'vote'}  H3:${h3Gate ? 'vote+gate' : 'vote'}  gate-min:${gateMin === 'all' ? 'ALL' : 'ANY-1'}`, plan: vp, variant: { m15Timing, h1Gate, h3Gate, gateMin } });
+    }
+    for (const v of sweepVariants) v.trades = [];
+  }
 
-    // D1 and 30M (BIAS_TIMEFRAME) are treated as optional/best-effort,
-    // same tolerance engine.js gives them live. 2H (STRUCT_TIMEFRAME) and
-    // 15M remain the two REQUIRED timeframes, since 2H supplies the
-    // structural zone and 15M the trigger (RE-ROLE, see config-base.js —
-    // variable names below still say data30m/data2h for continuity,
-    // data30m now physically holds STRUCT_TIMEFRAME=2H candles).
-    if (data30m.length < 50 || data15m.length < 50) {
-      console.log(`  ⚠️ ${symbol}: insufficient 2H/15M data (2H=${data30m.length} bars, 15M=${data15m.length} bars), skipping.`);
+  for (const symbol of symbols) {
+    // Fetch only the provider-native ("base") series the plan needs; H1/H3/H4 are built from them.
+    const needBases = new Set(Object.keys(plan.baseNeeds));
+    if (SWEEP) needBases.add('D1');
+    const baseBars = {};
+    for (const b of needBases) {
+      const tf = plan.baseName[b];
+      baseBars[b] = await fetchHistory(symbol, tf, b === 'D1' ? dailyFetchDays : fetchDays);
+    }
+
+    const planBars = derivePlanBars(plan, baseBars);
+    const sBars = planBars[plan.struct.label] || [], cBars = planBars[plan.clock.label] || [], tBars = planBars[plan.trigger.label] || [];
+    // Structure and the clock/trigger timeframes are REQUIRED; the other voters are best-effort
+    // (they abstain until they have enough history, same as live).
+    if (sBars.length < 50 || cBars.length < 50 || tBars.length < 50) {
+      console.log(`  ⚠️ ${symbol}: insufficient ${plan.struct.label}/${plan.clock.label}/${plan.trigger.label} data (${sBars.length}/${cBars.length}/${tBars.length} bars), skipping.`);
       funnelsBySymbol[symbol] = null;
       dataFetchFailures.push(symbol);
       continue;
     }
 
-    const result = await backtestSymbol(symbol, data15m, data30m, data2h, dataD1, evalWindowStartTime);
+    if (SWEEP) {
+      for (const v of sweepVariants) {
+        const pb = v.legacy ? derivePlanBars(v.plan, baseBars) : derivePlanBars(v.plan, baseBars);
+        config.MIN_TF_AGREE = v.minAgree || baseMinAgree;
+        const r = await backtestSymbol(symbol, pb, evalWindowStartTime, v.plan);
+        v.trades.push(...r.trades);
+      }
+      continue;
+    }
+
+    const result = await backtestSymbol(symbol, planBars, evalWindowStartTime, plan);
     allTrades.push(...result.trades);
     funnelsBySymbol[symbol] = result.funnel;
     if (result.warmupFailed) warmupFailures.push({ symbol, reason: result.warmupFailReason });
   }
 
-  const { lines } = generateReport(allTrades, days, funnelsBySymbol);
+  if (SWEEP) {
+    const wilson = (w, n) => { if (!n) return [0, 0]; const z = 1.96, p = w / n, d = 1 + z * z / n, c = p + z * z / (2 * n), m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)); return [Math.max(0, (c - m) / d), Math.min(1, (c + m) / d)]; };
+    config.MIN_TF_AGREE = baseMinAgree;
+    const rows = sweepVariants.map(v => {
+      const closed = v.trades.filter(t => t.result !== 'OPEN');
+      const wins = closed.filter(t => t.rr > 0), losses = closed.filter(t => t.rr <= 0);
+      const totalR = closed.reduce((a, t) => a + t.rr, 0);
+      const gw = wins.reduce((a, t) => a + t.rr, 0), gl = Math.abs(losses.reduce((a, t) => a + t.rr, 0));
+      const [lo, hi] = wilson(wins.length, closed.length);
+      return { name: v.name, n: closed.length, wr: closed.length ? wins.length / closed.length * 100 : 0, lo: lo * 100, hi: hi * 100, pf: gl > 0 ? gw / gl : (gw > 0 ? Infinity : 0), totalR, avgR: closed.length ? totalR / closed.length : 0, sl: closed.filter(t => t.result === 'SL').length };
+    });
+    const out = [];
+    out.push('═══════════════════════════════════════════════════════════════════');
+    out.push(` ${botLabel} v${version} — TIMEFRAME-ROLE SWEEP  (${days} days, ${symbols.length} symbols)`);
+    out.push(' Same data, same gates, same exits — only the roles of M15 / H1 / H3 and the vote strictness (3 vs 4 of 6) change.');
+    out.push(' WR 95% = Wilson confidence interval: if two rows overlap, the difference is NOISE.');
+    out.push('═══════════════════════════════════════════════════════════════════');
+    out.push('');
+    out.push('trades  WR%   (95% range)   PF     totalR  avgR   SL   variant');
+    for (const r of rows.sort((a, b) => b.totalR - a.totalR)) {
+      out.push(`${String(r.n).padStart(5)}  ${r.wr.toFixed(1).padStart(5)}  (${r.lo.toFixed(0)}–${r.hi.toFixed(0)})`.padEnd(30) + `${(r.pf === Infinity ? '∞' : r.pf.toFixed(2)).padStart(5)}  ${r.totalR.toFixed(1).padStart(7)}  ${r.avgR.toFixed(2).padStart(5)}  ${String(r.sl).padStart(3)}  ${r.name}`);
+    }
+    out.push('');
+    out.push('How to read: prefer the row with the best totalR/PF whose trade count is large enough that its');
+    out.push('WR range is narrow. A row that wins by a few trades inside overlapping ranges is not a real winner.');
+    const txt = out.join('\n');
+    console.log('\n' + txt);
+    fs.writeFileSync(path.join(dir, 'backtest-sweep.txt'), txt);
+    fs.writeFileSync(path.join(dir, 'backtest-sweep.json'), JSON.stringify(rows, null, 2));
+    console.log('\n📄 Saved backtest-sweep.txt and backtest-sweep.json');
+    return;
+  }
+
+  const { lines } = generateReport(allTrades, days, funnelsBySymbol, plan);
 
   // If EVERY symbol failed to fetch data, this isn't "0 signals found" —
   // it's a broken data connection (missing/invalid API key, exhausted
