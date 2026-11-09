@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP STOCKS — config.js  v1.0.0
+ *  GWP STOCKS — config.js  v1.3.0
  *  Twelve Data API. Large-cap US equities — real traded volume, so no
  *  synthetic-volume fallback is expected to trigger for this bot (see
  *  shared/twelvedata.js) except possibly on thin pre/post-market prints.
@@ -58,6 +58,14 @@ module.exports = {
   // the QUALITY of the live structure itself — 2H structure recomputed
   // live each scan still uses config-base.js's normal 50-bar minimum.
   STRUCT_VP_LOOKBACK:  120,
+
+  // ── v1.3.0 H6 timeframes (H1/H3/H4 are built from M30/H2 candles) ──────
+  // Equities have only ~13 M30 bars/day, so the crypto-sized look-backs
+  // (200 bars of H3 = 1,200 M30 bars ≈ 95 trading days) are beyond what
+  // Twelve Data serves. Trimmed the same way STRUCT_VP_LOOKBACK was above.
+  // Session-anchored buckets: H1/H3/H4 start at the 09:30 ET open (DST-proof).
+  TF_BUCKET_ORIGIN: 'session',
+  TF_LOOKBACKS: { H1: [150, 60], H3: [60, 40], H4: [100, 55] },
   STRUCT_FIB_LOOKBACK:  55,
 
   // v1.1.3 FIX — Twelve Data's own documentation confirms equities'
