@@ -8,6 +8,10 @@ on:
         description: 'Comma-separated symbols (blank = all configured symbols)'
         required: false
         default: ''
+      sweep:
+        description: 'true = TIMEFRAME-ROLE SWEEP (tests every M15/H1/H3 role + 3-vs-4-of-6 vote on the same data, writes backtest-sweep.txt). Blank = normal backtest'
+        required: false
+        default: ''
       days:
         description: 'Days of history to backtest'
         required: false
@@ -19,7 +23,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -32,6 +36,7 @@ jobs:
           CRYPTO_TG_TOKEN: ${{ secrets.CRYPTO_TG_TOKEN }}
           CRYPTO_CHAT_ID: ${{ secrets.CRYPTO_CHAT_ID }}
           BACKTEST_NOTIFY: 'true'
+          GWP_SWEEP: ${{ github.event.inputs.sweep == 'true' && '1' || '' }}
       - name: Commit backtest report (race-safe)
         run: |
           git config user.name "gwp-bot"
