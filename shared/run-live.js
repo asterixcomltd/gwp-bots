@@ -15,11 +15,13 @@ const createTelegram = require('./telegram');
 const createPersistence = require('./persistence');
 const createEngine = require('./engine');
 const createPositionTracker = require('./position-tracker');
+const { buildPlan } = require('./tf-plan');
 
 const DUPLICATE_RUN_GUARD_MS = 5 * 60 * 1000; // 5 min — well under the 15 min cadence
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 module.exports = async function runLive({ config, dataClient, botLabel, version, dir }) {
+  const plan = buildPlan(config);
   const telegram = createTelegram(config);
   const persistence = createPersistence(dir);
   const engine = createEngine({ config, core, dataClient, telegram, persistence, botLabel, version });
@@ -31,16 +33,16 @@ module.exports = async function runLive({ config, dataClient, botLabel, version,
   {
     const interiorWidth = [...boxBorder].length - 2;
     const line1 = `${botLabel} v${version}`;
-    const line2 = 'D1+2H+30M+15M — 3-of-4 vote (2H zone, 15M trigger)';
+    const line2 = `${plan.entries.map(e => e.label).join('+')} — ${config.MIN_TF_AGREE}-of-${plan.entries.length} vote (${plan.struct.label} zone, ${plan.trigger.label} trigger)`;
     const pad = (s) => '   ' + s + ' '.repeat(Math.max(0, interiorWidth - 3 - [...s].length));
     console.log(`║${pad(line1)}║`);
     console.log(`║${pad(line2)}║`);
   }
   console.log('╚══════════════════════════════════════════════════════════════╝');
   console.log(`   Assets  : ${config.SYMBOLS.join(', ')}`);
-  console.log(`   TFs     : D1(${config.DAILY_VP_LOOKBACK}) / 30M(${config.BIAS_VP_LOOKBACK}) / 2H(${config.STRUCT_VP_LOOKBACK}) / 15M(${config.TRIGGER_VP_LOOKBACK})`);
+  console.log(`   TFs     : ${plan.describe()}`);
   console.log(`   Trigger : ${config.REJECTION_MIN_PATTERNS}-of-5 patterns min | solo=${config.ALLOW_SOLO_TRIGGER}`);
-  console.log(`   Cooldown: ${config.SIGNAL_COOLDOWN_BARS} × 2H bars`);
+  console.log(`   Cooldown: ${config.SIGNAL_COOLDOWN_BARS} × ${plan.struct.label} bars`);
   console.log('');
 
   if (persistence.isDuplicateRun(DUPLICATE_RUN_GUARD_MS)) {
