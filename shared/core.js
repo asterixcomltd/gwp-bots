@@ -339,16 +339,16 @@ const confluenceScore = (fibLevel, pivot, atr, atrMult) => {
 //  the old version read a `direction` that didn't exist in scope and
 //  threw a ReferenceError on every call once a setup got this far)
 // ─────────────────────────────────────────────────────────────────────────
-const checkHTFZoneAlignment = (entryPrice, htfBias, atr, direction, atrMult) => {
+const checkHTFZoneAlignment = (entryPrice, htfBias, atr, direction, atrMult, tfLabel = '2H') => {
   if (!htfBias) return { aligned: true, nearestLevel: 'N/A', nearestPrice: null, distance: 0 };
 
   const tol = atr * atrMult; // symmetric — no per-direction boost multiplier
 
   const levels = [
-    { name: '2H POC',    price: htfBias.poc },
-    { name: '2H VAH',    price: htfBias.vah },
-    { name: '2H VAL',    price: htfBias.val },
-    { name: '2H Fib50%', price: htfBias.fibMid },
+    { name: `${tfLabel} POC`,    price: htfBias.poc },
+    { name: `${tfLabel} VAH`,    price: htfBias.vah },
+    { name: `${tfLabel} VAL`,    price: htfBias.val },
+    { name: `${tfLabel} Fib50%`, price: htfBias.fibMid },
   ];
 
   let nearest = null, minDist = Infinity;

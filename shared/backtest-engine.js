@@ -36,12 +36,38 @@
 // close again.
 const WARMUP_BUFFER_DAYS = 75; // covers the 2H structure warmup with margin
 
-module.exports = function createBacktestEngine({ config, core, version, botLabel }) {
+const createSetupEvaluator = require('./setup-eval');
+const { buildPlan } = require('./tf-plan');
+
+module.exports = function createBacktestEngine({ config, core, version, botLabel, plan: defaultPlanIn }) {
+  const defaultPlan = defaultPlanIn || buildPlan(config);
 
   // ─────────────────────────────────────────────────────────────────────
-  //  REPLAY ENGINE — walks the 15M clock, two-pointer sync on 30M/2H
+  //  REPLAY ENGINE — walks the CLOCK timeframe (M15) tick by tick.
+  //
+  //  planBars = { [label]: closed bars } for every timeframe in the plan
+  //  (see tf-plan.js derivePlanBars). Decisions come from the SAME
+  //  evaluator the live engine uses (setup-eval.js).
+  //
+  //  NO LOOK-AHEAD (v1.3.0 FIX): at the close of clock bar i (evalTime =
+  //  open + clock seconds) a higher-timeframe candle is visible only if it
+  //  had already CLOSED (avail <= evalTime). The old loops advanced while
+  //  `next.time <= bar.time` — i.e. as soon as a candle OPENED — so every
+  //  H2/30M/D1 vote and the structure price used a candle whose high/low/
+  //  close were still in the future (up to 24h ahead for D1). Live can't
+  //  see that, so the old backtest numbers were optimistic.
+  //  opts.legacyPointers=true reproduces the old (look-ahead) pointers and
+  //  exists ONLY for the regression test that proves the refactor itself
+  //  changed nothing.
   // ─────────────────────────────────────────────────────────────────────
-  const backtestSymbol = async (symbol, data15m, data30m, data2h, dataD1, evalWindowStartTime = 0) => {
+  const backtestSymbol = async (symbol, planBars, evalWindowStartTime = 0, planIn = null, opts = {}) => {
+    const plan = planIn || defaultPlan;
+    const { evaluate, tfState } = createSetupEvaluator({ config, core, plan });
+    const clock = plan.clock;
+    const clockBars = planBars[clock.label] || [];
+    const trigBars = planBars[plan.trigger.label] || [];
+    const legacyPointers = !!opts.legacyPointers;
+
     const trades = [];
     const cooldownMap = {};
     let openTrade = null;
@@ -49,43 +75,51 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
     const funnel = {
       scanned: 0, voteOk: 0, bullVote: 0, bearVote: 0, volatilityOk: 0, structureOk: 0, notOverExtended: 0,
       nearZone: 0, prominenceOk: 0, confluenceOk: 0, htf2hAligned: 0, dualMultiTFOk: 0, notInvalidated: 0,
-      cooldownOk: 0, triggerOk: 0, driftOk: 0, tp2RangeOk: 0, opened: 0,
+      cooldownOk: 0, triggerOk: 0, timingOk: 0, driftOk: 0, tp2RangeOk: 0, opened: 0,
     };
 
-    const warmupStruct = config.STRUCT_VP_LOOKBACK + config.ATR_PERIOD + 5;
-    const warmupBias    = config.BIAS_VP_LOOKBACK + 5;
-    const warmupDaily    = config.DAILY_VP_LOOKBACK + 5;
-    const warmupTrigger = config.TRIGGER_VP_LOOKBACK + 5;
+    const others = plan.entries.filter(e => e !== clock);          // every timeframe the clock does not own
+    const warmupOf = (e) => e.vp + (e.roles.includes('struct') ? config.ATR_PERIOD + 5 : 5);
+    const warmupClock = clock.vp + 5;
 
-    let ptrStruct = 0, ptrBias = 0, ptrDaily = 0;
-    while (ptrStruct < data30m.length - 1 && data30m[ptrStruct + 1].time <= data15m[0].time) ptrStruct++;
-    while (ptrBias   < data2h.length  - 1 && data2h[ptrBias + 1].time  <= data15m[0].time) ptrBias++;
-    while (ptrDaily  < dataD1.length  - 1 && dataD1[ptrDaily + 1].time <= data15m[0].time) ptrDaily++;
+    // A bar is visible at `evalTime` once it has closed.
+    const availOf = (b, e) => (b.avail !== undefined ? b.avail : b.time + e.seconds);
+    const visible = (b, e, evalTime, barTime) => (legacyPointers ? b.time <= barTime : availOf(b, e) <= evalTime);
+    const evalTimeOf = (bar) => bar.time + clock.seconds;
 
-    let startIdx = warmupTrigger;
-    while (startIdx < data15m.length) {
-      const t = data15m[startIdx].time;
-      let pS = 0, pB = 0, pD = 0;
-      while (pS < data30m.length - 1 && data30m[pS + 1].time <= t) pS++;
-      while (pB < data2h.length  - 1 && data2h[pB + 1].time  <= t) pB++;
-      while (pD < dataD1.length  - 1 && dataD1[pD + 1].time  <= t) pD++;
-      if (pS >= warmupStruct && pB >= warmupBias && pD >= warmupDaily && t >= evalWindowStartTime) break;
+    const ptr = {};
+    for (const e of others) ptr[e.label] = 0;
+    const advance = (e, bar) => {
+      const arr = planBars[e.label] || [];
+      const et = evalTimeOf(bar);
+      let moved = false;
+      while (ptr[e.label] < arr.length - 1 && visible(arr[ptr[e.label] + 1], e, et, bar.time)) { ptr[e.label]++; moved = true; }
+      return moved;
+    };
+    // A timeframe is "ready" only if its first bar is itself visible (otherwise ptr 0 would mean "nothing yet").
+    const hasAny = (e, bar) => { const arr = planBars[e.label] || []; return arr.length > 0 && visible(arr[0], e, evalTimeOf(bar), bar.time); };
+
+    // Position the pointers at the start of the clock series.
+    if (clockBars.length) for (const e of others) advance(e, clockBars[0]);
+
+    let startIdx = warmupClock;
+    while (startIdx < clockBars.length) {
+      const bar = clockBars[startIdx];
+      let ready = bar.time >= evalWindowStartTime;
+      for (const e of others) {
+        if (!ready) break;
+        advance(e, bar);
+        if (!(hasAny(e, bar) && ptr[e.label] >= warmupOf(e))) ready = false;
+      }
+      if (ready) break;
       startIdx++;
     }
-    if (startIdx >= data15m.length) {
-      // v1.1.5 FIX: this used to fail completely silently — a symbol
-      // could sit at scanned=0 in the funnel with zero explanation, which
-      // is exactly what made the stocks-backtest-returning-0 bug so hard
-      // to track down (twice). Report which timeframe(s) actually fell
-      // short and by how much, so a data-depth shortfall like that one is
-      // obvious from the report itself, not another investigation.
-      const maxPS = data30m.length ? data30m.length - 1 : 0;
-      const maxPB = data2h.length  ? data2h.length  - 1 : 0;
-      const maxPD = dataD1.length  ? dataD1.length  - 1 : 0;
+    if (startIdx >= clockBars.length) {
       const shortfalls = [];
-      if (maxPS < warmupStruct) shortfalls.push(`STRUCT(2H) has ${maxPS}/${warmupStruct} bars needed`);
-      if (maxPB < warmupBias)   shortfalls.push(`BIAS(30M) has ${maxPB}/${warmupBias} bars needed`);
-      if (maxPD < warmupDaily)  shortfalls.push(`DAILY(D1) has ${maxPD}/${warmupDaily} bars needed`);
+      for (const e of others) {
+        const mx = (planBars[e.label] || []).length ? planBars[e.label].length - 1 : 0;
+        if (mx < warmupOf(e)) shortfalls.push(`${e.label}${e.roles.includes('struct') ? '(structure)' : ''} has ${mx}/${warmupOf(e)} bars needed`);
+      }
       const reason = shortfalls.length
         ? `insufficient history for warmup — ${shortfalls.join(', ')} (likely a vendor intraday-history depth limit, not a code bug — see bots/*/config.js for the affected timeframe's lookback)`
         : `insufficient history for warmup (evalWindowStartTime never reached — check BACKTEST_DAYS/WARMUP_BUFFER_DAYS)`;
@@ -93,20 +127,26 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       return { trades: [], funnel, warmupFailed: true, warmupFailReason: reason };
     }
 
-    console.log(`\n  Replaying ${data15m.length - startIdx} × 15M bars for ${symbol}...`);
+    console.log(`\n  Replaying ${clockBars.length - startIdx} × ${clock.label} bars for ${symbol}...`);
 
-    ptrStruct = 0; ptrBias = 0; ptrDaily = 0;
-    let cachedStruct = null, cachedBias = null, cachedDaily = null, cachedAtr2h = null, cachedAtrD1 = null;
+    for (const e of others) ptr[e.label] = 0;
+    if (clockBars.length) for (const e of others) advance(e, clockBars[0]);
+    const states = {};
+    // BUG FIXED (v1.3.0): the old loop only recomputed a timeframe's bias/ATR when it advanced
+    // on THIS tick — but ticks spent inside an open trade `continue` before the recompute, so a
+    // bar that closed during a trade was never picked up and the next scan ran on a stale
+    // swing/bias (up to a full 2H / 24h) until that timeframe advanced again. `dirty` persists
+    // until the recompute actually happens. (legacyPointers reproduces the old behaviour for the
+    // regression test only.)
+    const dirty = {};
 
-    for (let i = startIdx; i < data15m.length; i++) {
-      const bar = data15m[i];
+    for (let i = startIdx; i < clockBars.length; i++) {
+      const bar = clockBars[i];
 
-      let advancedStruct = false, advancedBias = false, advancedDaily = false;
-      while (ptrStruct < data30m.length - 1 && data30m[ptrStruct + 1].time <= bar.time) { ptrStruct++; advancedStruct = true; }
-      while (ptrBias   < data2h.length  - 1 && data2h[ptrBias + 1].time  <= bar.time) { ptrBias++;   advancedBias   = true; }
-      while (ptrDaily  < dataD1.length  - 1 && dataD1[ptrDaily + 1].time <= bar.time) { ptrDaily++;  advancedDaily  = true; }
+      const advanced = {};
+      for (const e of others) { advanced[e.label] = advance(e, bar); if (advanced[e.label]) dirty[e.label] = true; }
 
-      // ── OPEN TRADE MANAGEMENT (every 15M tick, tighter fills) ─────────
+      // ── OPEN TRADE MANAGEMENT (every clock tick) ──────────────────────
       if (openTrade) {
         const { closed, trade, outcome } = core.evaluateOpenTrade(openTrade, bar, config);
         openTrade = trade;
@@ -119,212 +159,65 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
       funnel.scanned++;
 
-      // ── Recompute 2H structure only when a new 2H bar closed ──────────
-      if (advancedStruct || !cachedStruct) {
-        const wStart = Math.max(0, ptrStruct + 1 - (config.STRUCT_VP_LOOKBACK + config.ATR_PERIOD + 5));
-        const windowStruct = data30m.slice(wStart, ptrStruct + 1);
-        const biasStruct = core.tfBiasVote(windowStruct, config.STRUCT_VP_LOOKBACK, config.STRUCT_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT);
-        const atrStruct = core.calcATR(windowStruct, config.ATR_PERIOD);
-        const atrSeriesStruct = config.VOLATILITY_REGIME_ENABLED ? core.calcATRSeries(windowStruct, config.ATR_PERIOD) : [];
-
-        let pocWideWindowStruct = windowStruct;
-        if (config.NAKED_POC_ENABLED || config.POC_MIGRATION_ENABLED) {
-          let requiredBars = config.STRUCT_VP_LOOKBACK;
-          if (config.NAKED_POC_ENABLED) requiredBars = Math.max(requiredBars, config.STRUCT_VP_LOOKBACK * 2);
-          if (config.POC_MIGRATION_ENABLED) requiredBars = Math.max(requiredBars, config.STRUCT_VP_LOOKBACK + config.POC_MIGRATION_OFFSET_BARS);
-          const wWideStart = Math.max(0, ptrStruct + 1 - requiredBars);
-          pocWideWindowStruct = data30m.slice(wWideStart, ptrStruct + 1);
+      // Recompute a timeframe's bias/ATR only when a new bar of it became visible.
+      for (const e of others) {
+        const needs = legacyPointers ? advanced[e.label] : dirty[e.label];
+        if (needs || !states[e.label]) {
+          dirty[e.label] = false;
+          const arr = planBars[e.label] || [];
+          const cap = Math.max(e.vp * 2, e.vp + config.POC_MIGRATION_OFFSET_BARS, e.fib) + config.ATR_PERIOD + 10;
+          const upto = ptr[e.label] + 1;
+          states[e.label] = tfState(e, arr.slice(Math.max(0, upto - cap), upto));
         }
-        cachedStruct = biasStruct && atrStruct ? { biasStruct, atrStruct, atrSeriesStruct, windowStruct, pocWideWindowStruct } : null;
       }
-      // ── Recompute 30M bias only when a new 30M bar closed ─────────────
-      if (advancedBias || !cachedBias) {
-        const wBStart = Math.max(0, ptrBias + 1 - (config.BIAS_VP_LOOKBACK + 5));
-        const windowBias = data2h.slice(wBStart, ptrBias + 1);
-        cachedBias = data2h.length ? core.tfBiasVote(windowBias, config.BIAS_VP_LOOKBACK, config.BIAS_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT) : null;
-        cachedAtr2h = windowBias.length >= config.ATR_PERIOD + 5 ? core.calcATR(windowBias, config.ATR_PERIOD) : null;
+      // The clock timeframe's window slides every tick.
+      {
+        const cap = Math.max(clock.vp, clock.fib) + config.ATR_PERIOD + 10;
+        states[clock.label] = tfState(clock, clockBars.slice(Math.max(0, i + 1 - cap), i + 1));
       }
-      // ── Recompute D1 bias only when a new daily bar closed ────────────
-      if (advancedDaily || !cachedDaily) {
-        const wDStart = Math.max(0, ptrDaily + 1 - (config.DAILY_VP_LOOKBACK + 5));
-        const windowDaily = dataD1.slice(wDStart, ptrDaily + 1);
-        cachedDaily = dataD1.length ? core.tfBiasVote(windowDaily, config.DAILY_VP_LOOKBACK, config.DAILY_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT) : null;
-        cachedAtrD1 = windowDaily.length >= config.ATR_PERIOD + 5 ? core.calcATR(windowDaily, config.ATR_PERIOD) : null;
+      if (legacyPointers) { const sa = planBars[plan.struct.label]; if (states[plan.struct.label]) states[plan.struct.label].last = sa[ptr[plan.struct.label]]; } // old engine read the live pointer's bar even when its swing was stale
+      if (!states[plan.struct.label] || !states[plan.struct.label].bias || !states[plan.struct.label].atr) continue;
+
+      // Trigger-timeframe window (closed bars only). For LEGACY the trigger IS the clock.
+      let trigWin;
+      if (plan.trigger === clock) trigWin = clockBars.slice(Math.max(0, i + 1 - (plan.trigger.vp + 5)), i + 1);
+      else {
+        const upto = ptr[plan.trigger.label] + 1;
+        trigWin = trigBars.slice(Math.max(0, upto - (plan.trigger.vp + 5)), upto);
       }
-      if (!cachedStruct) continue;
+      const clockWin = clockBars.slice(Math.max(0, i - 4), i + 1);
 
-      // ── 15M bias recomputed every tick (its window slides every bar) ──
-      const win15mStart = Math.max(0, i + 1 - (config.TRIGGER_VP_LOOKBACK + 5));
-      const window15m = data15m.slice(win15mStart, i + 1);
-      const bias15m = core.tfBiasVote(window15m, config.TRIGGER_VP_LOOKBACK, config.TRIGGER_FIB_LOOKBACK, config.VP_ROWS, config.VALUE_AREA_PCT);
-
-      const resolved = core.resolveDirection([
-        { tf: 'D1',  result: cachedDaily },
-        { tf: '30M', result: cachedBias },
-        { tf: '2H',  result: cachedStruct.biasStruct },
-        { tf: '15M', result: bias15m },
-      ], config.MIN_TF_AGREE);
-      if (!resolved) continue;
-      funnel.voteOk++;
-      if (resolved.direction === 'BUY') funnel.bullVote++; else funnel.bearVote++;
-
-      const direction = resolved.direction;
-      const { biasStruct, atrStruct, atrSeriesStruct, windowStruct, pocWideWindowStruct } = cachedStruct;
-      const swingStruct = biasStruct.swing;
-      const priceStruct = data30m[ptrStruct].close;
-
-      if (config.VOLATILITY_REGIME_ENABLED) {
-        const atrPctl = core.calcATRPercentile(atrSeriesStruct, config.VOLATILITY_LOOKBACK_BARS);
-        if (atrPctl !== null && (atrPctl < config.VOLATILITY_MIN_PCTL || atrPctl > config.VOLATILITY_MAX_PCTL)) continue;
-      }
-      funnel.volatilityOk++;
-
-      if (priceStruct > swingStruct.high || priceStruct < swingStruct.low) continue; // remap
-      funnel.structureOk++;
-
-      const fib = core.calcFib(swingStruct.high, swingStruct.low, direction, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH);
-
-      if ((direction === 'BUY' && priceStruct < fib.level886) || (direction === 'SELL' && priceStruct > fib.level886)) continue;
-      funnel.notOverExtended++;
-
-      const nearZonePass = config.NEAR_ZONE_USE_WICK
-        ? core.isNearZoneWick(data30m[ptrStruct].high, data30m[ptrStruct].low, fib, atrStruct, config.NEAR_ZONE_ATR_MULT)
-        : core.isNearZone(priceStruct, fib, atrStruct, config.NEAR_ZONE_ATR_MULT);
-      if (!nearZonePass) continue;
-      funnel.nearZone++;
-
-      const vpStruct = biasStruct.vp;
-      const fibMid = (fib.zoneHigh + fib.zoneLow) / 2;
-      const checkLevels = [fib.level618, fib.level786, fibMid];
-      const checkPivots = [{ name: 'POC', price: vpStruct.pocPrice }, { name: 'VAH', price: vpStruct.vahPrice }, { name: 'VAL', price: vpStruct.valPrice }];
-      // v1.1.9 (frequency) — mirrors engine.js: anchored VWAP as a 4th
-      // pivot, same swing window (windowStruct.slice(-STRUCT_FIB_LOOKBACK))
-      // that produced swingStruct via tfBiasVote() above.
-      if (config.VWAP_CONFLUENCE_ENABLED) {
-        const vwapAnchor = core.calcAnchoredVWAP(windowStruct.slice(-config.STRUCT_FIB_LOOKBACK), direction);
-        if (vwapAnchor != null) checkPivots.push({ name: 'VWAP', price: vwapAnchor });
-      }
-      let bestScore = 0, bestFibLevel = null, bestPivot = null;
-      for (const lvl of checkLevels) for (const pivot of checkPivots) {
-        const sc = core.confluenceScore(lvl, pivot.price, atrStruct, config.CONFLUENCE_ATR_MULT);
-        if (sc > bestScore) { bestScore = sc; bestFibLevel = lvl; bestPivot = pivot; }
-      }
-      if (bestScore < 1) continue;
-      if (bestPivot.name === 'POC' && bestScore < config.MIN_CONFLUENCE_POC) continue;
-      if (bestPivot.name === 'POC' && config.POC_REQUIRE_STRUCT_CONFIRM && !resolved.agreeing.includes('2H')) continue;
-
-      const prominenceForGate = core.computePOCProminence(vpStruct);
-      if (!core.isPOCProminenceTrusted(bestPivot.name, prominenceForGate, config)) continue;
-      // Ported from MVS-bot — mirrors the live gate in shared/engine.js.
-      if (bestFibLevel === fibMid && config.MID_POCKET_EXCLUDE) continue;
-      // v1.1.8 ADDITION — mirrors the live gate in shared/engine.js (see
-      // config-base.js FIB_618_EXCLUDE for the cross-bot evidence).
-      if (bestFibLevel === fib.level618 && config.FIB_618_EXCLUDE) continue;
-      funnel.prominenceOk++;
-      funnel.confluenceOk++;
-
-      const htfCheck = core.checkHTFZoneAlignment(bestFibLevel, cachedBias, atrStruct, direction, config.HTFZONE_ATR_MULT);
-      if (!htfCheck.aligned) continue;
-      funnel.htf2hAligned++;
-
-      // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────
-      // Hard gate: BOTH 30M and D1 must independently confirm on BOTH the
-      // POC check and the Fib check, all in the trade's direction — not
-      // just "any" agreement. Each macro TF's tolerance is measured
-      // against ITS OWN ATR (cachedAtr2h/cachedAtrD1, computed once per
-      // 30M/D1 bar close alongside the bias vote itself — see above), not
-      // 2H's — see core.js computeMultiTFPOCAlignment()/
-      // computeMultiTFFibAlignment() v1.1.1 fix notes for why that matters.
-      // (variable names still say "2h" for historical continuity — see
-      // shared/config-base.js RE-ROLE note: cachedBias/cachedAtr2h now
-      // actually hold 30M-sourced data post v1.1.4.)
-      const multiTFPOC = core.computeMultiTFPOCAlignment(
-        vpStruct.pocPrice,
-        [{ label: '30M', poc: cachedBias?.poc, atr: cachedAtr2h }, { label: 'D1', poc: cachedDaily?.poc, atr: cachedAtrD1 }],
-        config.MULTI_TF_POC_TOLERANCE_ATR
-      );
-      const multiTFFib = core.computeMultiTFFibAlignment(
-        bestFibLevel, direction,
-        [{ label: '30M', swing: cachedBias?.swing, atr: cachedAtr2h }, { label: 'D1', swing: cachedDaily?.swing, atr: cachedAtrD1 }],
-        config.MULTI_TF_FIB_TOLERANCE_ATR, config.FIB_ZONE_LOW, config.FIB_ZONE_HIGH
-      );
-      if (config.DUAL_MULTI_TF_GATE_ENABLED) {
-        const pocFull = multiTFPOC.alignedLabels.length >= config.DUAL_MULTI_TF_POC_MIN_ALIGNED;
-        const fibFull = multiTFFib.alignedLabels.length >= config.DUAL_MULTI_TF_FIB_MIN_ALIGNED;
-        if (!pocFull || !fibFull) continue;
-      }
-      funnel.dualMultiTFOk++;
-
-      if (core.isZoneInvalidated(priceStruct, bestFibLevel, atrStruct, direction, config.ZONE_INVALIDATION_ATR_MULT)) continue;
-      funnel.notInvalidated++;
-
-      const lastSignalBar = cooldownMap[direction] || 0;
-      const barsSince = Math.round((bar.time - lastSignalBar) / config.STRUCT_BAR_SECONDS);
-      if (barsSince < config.SIGNAL_COOLDOWN_BARS) continue;
-      funnel.cooldownOk++;
-
-      const entryZoneLow  = fib.zoneLow  - atrStruct * 0.1;
-      const entryZoneHigh = fib.zoneHigh + atrStruct * 0.1;
-      const rejection = core.detectRejection(window15m, entryZoneLow, entryZoneHigh, direction,
-        { poc: vpStruct.pocPrice, vah: vpStruct.vahPrice, val: vpStruct.valPrice },
-        config.ABSORPTION_BODY_RATIO, config.REJECTION_MIN_PATTERNS, config.ALLOW_SOLO_TRIGGER,
-        config.SOLO_ELIGIBLE_PATTERNS, config.TRIGGER_LOOKBACK_BARS,
-        config.LIQUIDITY_SWEEP_ENABLED, config.LIQUIDITY_SWEEP_LOOKBACK_BARS);
-      if (!rejection.valid) continue;
-      funnel.triggerOk++;
-
-      // ── ENTRY DRIFT / STALENESS GUARD (v1.1.4 FIX, mirrors engine.js) ──
-      // In a real backtest tick there's no cron delay — bar.close IS
-      // "now" — so this is mostly a no-op here and exists to keep
-      // backtest and live using the exact same gate list. It only bites
-      // in the (rare, already-anomalous) case where the struct-TF close
-      // used above has already drifted from the live 15M tick beyond
-      // tolerance within the same bar.
-      if (core.isZoneInvalidated(bar.close, bestFibLevel, atrStruct, direction, config.ENTRY_DRIFT_MAX_ATR)) continue;
-      funnel.driftOk++;
-
-      const slAtrMult = config.SL_ATR_MULT_MATRIX_ENABLED && config.SL_ATR_MULT_MATRIX[bestPivot.name] != null
-        ? config.SL_ATR_MULT_MATRIX[bestPivot.name]
-        : config.SL_ATR_MULT;
-      const levels = core.computeTradeLevels({
-        direction, entryPrice: bestFibLevel, swing: swingStruct, atr: atrStruct, vp: vpStruct,
-        slAtrMult, tp1RrFloor: config.TP1_RR_FLOOR, fibLevel500: fib.level500,
-        tp2MinExtensionRR: config.TP2_MIN_EXTENSION_RR,
+      const res = evaluate({
+        states, trigBars: trigWin, clockBars: clockWin,
+        cooldownBlocked: (direction) => {
+          const lastSignalBar = cooldownMap[direction] || 0;
+          const barsSince = Math.round((bar.time - lastSignalBar) / config.STRUCT_BAR_SECONDS);
+          return barsSince < config.SIGNAL_COOLDOWN_BARS;
+        },
       });
-      if (!levels) continue;
-      funnel.tp2RangeOk++;
+
+      for (const s of res.stages) funnel[s] = (funnel[s] || 0) + 1;
+      if (res.stages.includes('voteOk')) { if (res.ctx.direction === 'BUY') funnel.bullVote++; else funnel.bearVote++; }
+      if (!res.pass) continue;
       funnel.opened++;
 
-      const td9 = config.TD9_ENABLED ? core.computeTDSequential(windowStruct) : { buy9: false, sell9: false };
-      const td9Confirms = (direction === 'BUY' && td9.buy9) || (direction === 'SELL' && td9.sell9);
-
-      const prominence = prominenceForGate;
-      const migration = core.computePOCMigration(
-        pocWideWindowStruct, config.STRUCT_VP_LOOKBACK, config.VP_ROWS,
-        config.POC_MIGRATION_OFFSET_BARS, atrStruct, config.POC_MIGRATION_MIN_ATR
-      );
-      const nakedPOC = core.computeNakedPOC(
-        pocWideWindowStruct, config.STRUCT_VP_LOOKBACK, config.VP_ROWS,
-        atrStruct, vpStruct.pocPrice, config.NAKED_POC_TOLERANCE_ATR
-      );
-      const fibPct = bestFibLevel === fib.level618 ? '61.8%' : bestFibLevel === fib.level786 ? '78.6%' : '70%-mid';
-
-      cooldownMap[direction] = bar.time;
+      const sg = res.signal;
+      cooldownMap[sg.direction] = bar.time;
       openTrade = {
-        symbol, direction,
+        symbol, direction: sg.direction,
         entryTime: bar.time,
-        entryPrice: bestFibLevel, slPrice: levels.slPrice, tp1Price: levels.tp1Price, tp2Price: levels.tp2Price,
-        origSlPrice: levels.slPrice,
-        rr1: parseFloat(levels.rr1.toFixed(2)), rr2: parseFloat(levels.rr2.toFixed(2)),
-        patterns: rejection.patterns, pivot: bestPivot.name, fibPct,
-        voteTally: resolved.tally, agreeing: resolved.agreeing,
-        confluenceScore: bestScore, td9Confirms, slAtrMult,
-        prominence, migration, nakedPOC, multiTFPOC, multiTFFib,
+        entryPrice: sg.bestFibLevel, slPrice: sg.levels.slPrice, tp1Price: sg.levels.tp1Price, tp2Price: sg.levels.tp2Price,
+        origSlPrice: sg.levels.slPrice,
+        rr1: parseFloat(sg.levels.rr1.toFixed(2)), rr2: parseFloat(sg.levels.rr2.toFixed(2)),
+        patterns: sg.rejection.patterns, pivot: sg.bestPivot.name, fibPct: sg.fibPct === '70% mid-pocket' ? '70%-mid' : sg.fibPct,
+        voteTally: sg.resolved.tally, agreeing: sg.resolved.agreeing, voteTotal: plan.entries.length, structLabel: plan.struct.label,
+        confluenceScore: sg.bestScore, td9Confirms: sg.td9Confirms, slAtrMult: sg.slAtrMult,
+        prominence: sg.prominence, migration: sg.migration, nakedPOC: sg.nakedPOC, multiTFPOC: sg.multiTFPOC, multiTFFib: sg.multiTFFib,
       };
     }
 
     if (openTrade) {
-      const lastBar = data15m[data15m.length - 1];
+      const lastBar = clockBars[clockBars.length - 1];
       const liveLegRR = (lastBar.close - openTrade.entryPrice) / Math.abs(openTrade.entryPrice - openTrade.origSlPrice) * (openTrade.direction === 'BUY' ? 1 : -1);
       const openRR = openTrade.tp1Hit ? (openTrade.halfR * config.PARTIAL_EXIT_PCT + liveLegRR * (1 - config.PARTIAL_EXIT_PCT)) : liveLegRR;
       trades.push({ ...openTrade, exitTime: lastBar.time, exitPrice: lastBar.close, result: 'OPEN',
@@ -339,7 +232,10 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
   // ─────────────────────────────────────────────────────────────────────
   //  REPORT GENERATOR
   // ─────────────────────────────────────────────────────────────────────
-  const generateReport = (allTrades, requestedDays, funnelsBySymbol) => {
+  const generateReport = (allTrades, requestedDays, funnelsBySymbol, planIn = null) => {
+    const plan = planIn || defaultPlan;
+    // Risk tiers are keyed on the physical 2H structure TF ('2H'); the H6 plan calls it 'H2'.
+    const normAgree = (t) => (t.agreeing || []).map(l => (l === (t.structLabel || '2H') ? '2H' : l));
     const closed = allTrades.filter(t => t.result !== 'OPEN');
     const wins   = closed.filter(t => t.rr > 0);
     const losses = closed.filter(t => t.rr <= 0);
@@ -363,7 +259,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
     let capital = config.STARTING_CAPITAL, peak = capital, maxDD = 0;
     for (const t of closed) {
-      let riskMult = core.computeRiskMultiplier(t.pivot, t.agreeing, t.patterns, config.RISK_TIER_MATRIX, config.PATTERN_RISK_MATRIX, config.RISK_TIER_DEFAULT, t.td9Confirms, config.TD9_BOOST_MULT, t.slAtrMult, config.SL_ATR_MULT, '2H');
+      let riskMult = core.computeRiskMultiplier(t.pivot, normAgree(t), t.patterns, config.RISK_TIER_MATRIX, config.PATTERN_RISK_MATRIX, config.RISK_TIER_DEFAULT, t.td9Confirms, config.TD9_BOOST_MULT, t.slAtrMult, config.SL_ATR_MULT, '2H');
       riskMult *= core.computePOCQualityMultiplier(t.pivot, t.direction, t.prominence, t.migration, t.nakedPOC, t.multiTFPOC, config);
       riskMult *= core.computeVoteStrengthMultiplier(t.agreeing.length, config);
       riskMult = Math.max(0.1, Math.min(1.0, riskMult));
@@ -404,7 +300,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
     // computeRiskMultiplier() for why this split exists.
     const byTier = {};
     for (const t of closed) {
-      const tier = (t.agreeing || []).includes('2H') ? '2H-confirmed' : 'no-2H-confirm';
+      const tier = normAgree(t).includes('2H') ? '2H-confirmed' : 'no-2H-confirm';
       if (!byTier[tier]) byTier[tier] = { trades: 0, wins: 0, sl: 0, totalRR: 0 };
       byTier[tier].trades++;
       if (t.rr > 0) byTier[tier].wins++;
@@ -433,7 +329,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
 
     const byVoteTally = {};
     for (const t of closed) {
-      const key = (t.agreeing || []).length ? `${t.agreeing.length}-of-4` : 'N/A';
+      const key = (t.agreeing || []).length ? `${t.agreeing.length}-of-${t.voteTotal || 4}` : 'N/A';
       if (!byVoteTally[key]) byVoteTally[key] = { trades: 0, wins: 0, sl: 0, totalRR: 0 };
       byVoteTally[key].trades++;
       if (t.rr > 0) byVoteTally[key].wins++;
@@ -472,7 +368,8 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       '═══════════════════════════════════════════════════════════════════',
       ` ${botLabel} v${version} — BACKTEST REPORT`,
       ` Period: Last ${requestedDays} days  |  Symbols: ${requestedSymbols.join(', ')}`,
-      ' D1+2H+30M+15M — 3-of-4 timeframe vote (D1 bias, 2H zone, 30M+15M trigger)',
+      ` ${plan.describe()} — ${config.MIN_TF_AGREE}-of-${plan.entries.length} timeframe vote`,
+      ` Timeframe profile: ${plan.profile}${plan.variant ? ' | roles: ' + JSON.stringify(plan.variant) : ''}  (* = built from lower-timeframe candles)`,
       '═══════════════════════════════════════════════════════════════════',
       '',
       '⚠️  This is a backtest, not a live-performance guarantee. No setting',
@@ -544,7 +441,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
         `  ${k.padEnd(20)} ${v.trades} trades | ${(v.wins/v.trades*100).toFixed(1)}% WR | ${v.sl} SL | ${v.totalRR.toFixed(2)}R total`)
         : ['  No closed trades yet on a run new enough to track this.']),
       '',
-      '── FUNNEL DIAGNOSTICS (15M ticks surviving each gate, per symbol) ───',
+      `── FUNNEL DIAGNOSTICS (${plan.clock.label} ticks surviving each gate, per symbol) ───`,
       ...requestedSymbols.flatMap(sym => {
         const f = funnelsBySymbol[sym];
         if (!f) return [`  ${sym}: no funnel data`];
@@ -552,7 +449,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
           `  ${sym}:`,
           `    scanned=${f.scanned}  voteOk=${f.voteOk}(bull=${f.bullVote}/bear=${f.bearVote})  volatilityOk=${f.volatilityOk}  structureOk=${f.structureOk}`,
           `    notOverExtended=${f.notOverExtended}  nearZone=${f.nearZone}  prominenceOk=${f.prominenceOk}  confluenceOk=${f.confluenceOk}  htf2hAligned=${f.htf2hAligned}  dualMultiTFOk=${f.dualMultiTFOk}`,
-          `    notInvalidated=${f.notInvalidated}  cooldownOk=${f.cooldownOk}  triggerOk=${f.triggerOk}  driftOk=${f.driftOk}  tp2RangeOk=${f.tp2RangeOk}  opened=${f.opened}`,
+          `    notInvalidated=${f.notInvalidated}  cooldownOk=${f.cooldownOk}  triggerOk=${f.triggerOk}  timingOk=${f.timingOk || 0}  driftOk=${f.driftOk}  tp2RangeOk=${f.tp2RangeOk}  opened=${f.opened}`,
         ];
       }),
       '',
