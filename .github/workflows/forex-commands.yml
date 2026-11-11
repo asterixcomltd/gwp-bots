@@ -43,7 +43,7 @@ jobs:
           fi
           git commit -m "GWP Forex: command offset update [skip ci]"
           for i in 1 2 3 4 5; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && break
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && break
             echo "Push attempt $i failed (likely a race with another bot's commit) — retrying..."
             sleep $(( (RANDOM % 5) + 1 ))
           done

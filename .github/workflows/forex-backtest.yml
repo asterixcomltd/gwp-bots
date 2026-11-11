@@ -9,7 +9,7 @@ on:
         required: false
         default: ''
       sweep:
-        description: 'true = TIMEFRAME-ROLE SWEEP (tests every M15/H1/H3 role + 3-vs-4-of-6 vote on the same data, writes backtest-sweep.txt). Blank = normal backtest'
+        description: 'true = PROFILE SWEEP (compares GROUPS variants, the H6 3-vs-4-of-6 vote and LEGACY on the same data, writes backtest-sweep.txt). Blank = normal backtest'
         required: false
         default: ''
       days:
@@ -51,7 +51,7 @@ jobs:
           fi
           git commit -m "GWP Forex: weekly backtest report [skip ci]"
           for i in 1 2 3 4 5; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && break
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && break
             echo "Push attempt $i failed (likely a race with another bot's commit) — retrying..."
             sleep $(( (RANDOM % 5) + 1 ))
           done
