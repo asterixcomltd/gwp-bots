@@ -353,6 +353,8 @@ module.exports = {
   // network access in the environment this was written in) — re-run and
   // compare against the pre-change reports before trusting it live.
   FIB_618_EXCLUDE: process.env.FIB_618_EXCLUDE === 'false' ? false : true,
+  // v1.3.1: apply the two exclusions above BEFORE picking the best Fib level (see setup-eval.js). DEFAULT OFF (the tested behaviour); GWP_FIB_PREFILTER=true turns it on. The backtest sweep has an A/B row for it.
+  FIB_EXCLUDE_BEFORE_SCORING: process.env.GWP_FIB_PREFILTER === 'true' ? true : false,
 
   // #2 POC MIGRATION — v10.13 direction fix ported as-is: migration
   // CONFIRMING trade direction gets the penalty (a POC that's already
@@ -389,28 +391,29 @@ module.exports = {
   MULTI_TF_FIB_TOLERANCE_ATR: 2.0,
 
   // ── DUAL MULTI-TF GATE (requested addition) ─────────────────────────────
-  // A hard GATE, not just a size multiplier: requires BOTH systems above
-  // to show FULL agreement (30M **and** D1 both aligned, not just one) —
-  // in the SAME direction as the trade — before the bot even looks at
-  // the 15M trigger candle. This sits on top of, not instead of, the
-  // 15M rejection-candle requirement in REJECTION_MIN_PATTERNS below.
-  // This is a genuine extra confluence filter, not a claim of any
-  // specific win rate — no gate combination guarantees one. It WILL cut
-  // signal frequency substantially versus the 3-TF version; that
-  // trade-off (fewer, more corroborated signals) is exactly what was
-  // asked for. Verify the actual effect with backtest.js, same as any
-  // other setting here.
+  // A hard GATE, not just a size multiplier. Two independent checks — the
+  // POC check and the Fibonacci check above — must EACH be confirmed, in the
+  // SAME direction as the trade, by the gate timeframes (H3 + H4 in the
+  // default profile; D1 + 30M in LEGACY) before the bot looks at the trigger
+  // candle. "Confirmed" means at least DUAL_MULTI_TF_*_MIN_ALIGNED gate
+  // timeframes line up (default 1 = any ONE of them; 2 = ALL of them).
+  // v1.3.1 WORDING FIX: this comment, core.js and the log line used to say
+  // "BOTH timeframes" while the shipped default has always been "any one" —
+  // the behaviour is unchanged (it was tuned on real data, see below); only
+  // the text was wrong. Sits on top of, not instead of, the trigger-pattern
+  // requirement (REJECTION_MIN_PATTERNS). It is an extra confluence filter,
+  // not a claim of any specific win rate — verify with the backtest.
   DUAL_MULTI_TF_GATE_ENABLED: process.env.DUAL_MULTI_TF_GATE_ENABLED === 'false' ? false : true,
-  // v1.1.2 FIX: was hardcoded to require BOTH 2H AND D1 (length>=2) on — now 30M+D1 post v1.1.4 RE-ROLE, same idea
+  // v1.1.2 FIX: this used to be hardcoded to require EVERY gate timeframe to confirm
   // BOTH the POC and Fib systems — confirmed too strict against REAL
   // data: crypto's signal count dropped from 62 (360 days, pre-D1) to 2
   // with this gate at full strictness, far below the "at least 1
   // trade/week" target. These are now tunable minimums instead of a
-  // hardcoded "both" requirement. Default of 1 means "at least one of
-  // {30M, D1} confirms" for each system (POC and Fib independently still
+  // hardcoded "all" requirement. Default of 1 means "at least one of
+  // the gate timeframes confirms" for each system (POC and Fib independently still
   // both required) — a real filter, just not a near-impossible one. Set
   // back to 2 for the original, much stricter "both timeframes must
-  // agree" behavior if backtest results support it for your symbols.
+  // agree" (all gate timeframes) behavior if backtest results support it for your symbols.
   DUAL_MULTI_TF_POC_MIN_ALIGNED: parseInt(process.env.DUAL_MULTI_TF_POC_MIN_ALIGNED, 10) || 1,
   DUAL_MULTI_TF_FIB_MIN_ALIGNED: parseInt(process.env.DUAL_MULTI_TF_FIB_MIN_ALIGNED, 10) || 1,
 

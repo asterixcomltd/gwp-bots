@@ -1,21 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.1.4
+ *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.3.1
  *
- *  Ported directly from MVS-bot's backtest.js (v10.15.5): walks the 15M
- *  clock tick-by-tick (no lookahead — every check only sees bars up to
- *  "now"), two-pointer synced against the 30M/2H arrays. Uses core.js —
- *  the EXACT same decision logic every sub-bot's engine.js (live) uses,
- *  so a backtest report actually means something about live behavior.
+ *  Walks the CLOCK timeframe (M15) tick by tick. At each tick it hands the
+ *  CLOSED candles of every timeframe in the plan (shared/tf-plan.js) to the
+ *  SAME evaluator the live engine uses (shared/setup-eval.js) — so a
+ *  backtest report means something about live behaviour and the two can
+ *  never drift on WHAT is tested, only on which window it is tested on.
  *
- *  Adapted from MVS's 5-timeframe/3-of-5 vote down to GWP's 4-timeframe/
- *  3-of-4 vote (D1 bias / 2H structure / 30M+15M trigger layer, see
- *  shared/config-base.js's RE-ROLE note for the v1.1.4 physical-TF
- *  swap), plus a dual multi-TF POC+Fib confirmation gate — see shared/
- *  engine.js header for the full architecture rationale. Every gate
- *  below fires in the same order engine.js uses, so backtest and live
- *  can never drift on WHAT is being tested, only on which historical
- *  window it's tested against.
+ *  v1.3.0: no look-ahead (a higher-timeframe candle is visible only after
+ *  it has closed), stale-state bug after open trades fixed, plan-driven
+ *  (H6: M15/M30/H1/H2/H3/H4 3-of-6, or LEGACY D1/30M/2H/15M 3-of-4).
  * ═══════════════════════════════════════════════════════════════════════
  */
 // v1.1.4: bumped 40→60 to safely cover the new 2H STRUCT warmup, which
@@ -368,7 +363,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       '═══════════════════════════════════════════════════════════════════',
       ` ${botLabel} v${version} — BACKTEST REPORT`,
       ` Period: Last ${requestedDays} days  |  Symbols: ${requestedSymbols.join(', ')}`,
-      ` ${plan.describe()} — ${config.MIN_TF_AGREE}-of-${plan.entries.length} timeframe vote`,
+      ` ${plan.describe()} — ${plan.groups ? 'enforced timeframe groups' : config.MIN_TF_AGREE + '-of-' + plan.entries.length + ' timeframe vote'}`,
       ` Timeframe profile: ${plan.profile}${plan.variant ? ' | roles: ' + JSON.stringify(plan.variant) : ''}  (* = built from lower-timeframe candles)`,
       '═══════════════════════════════════════════════════════════════════',
       '',

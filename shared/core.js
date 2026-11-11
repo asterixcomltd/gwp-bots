@@ -34,8 +34,9 @@
  *  │  generic, unchanged from MVS.                                        │
  *  │                                                                     │
  *  │  ON TOP of the vote, a DUAL MULTI-TF GATE (added in v1.1) requires  │
- *  │  BOTH 2H and D1 to independently confirm the 30M structure's        │
- *  │  confluence level on BOTH systems — the POC check                   │
+ *  │  the gate timeframes (default: any ONE of them; configurable up to  │
+ *  │  all) to confirm the structure's confluence level on BOTH systems — │
+ *  │  the POC check                                                      │
  *  │  (computeMultiTFPOCAlignment) AND the Fibonacci check               │
  *  │  (computeMultiTFFibAlignment) — before the bot even looks at the    │
  *  │  15M trigger candle. This is a genuine extra confluence filter, on  │
@@ -319,6 +320,36 @@ const resolveDirection = (votes, minAgree) => {
   if (bulls.length >= need) return { direction: 'BUY',  agreeing: bulls, tally: `${bulls.length}/${total}` };
   if (bears.length >= need) return { direction: 'SELL', agreeing: bears, tally: `${bears.length}/${total}` };
   return null;
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+//  GROUP VOTE (GROUPS profile, v1.3.1) — enforced groups, not a head-count.
+//  groups = [{ name, labels:[tf,...], min }]; every group must be positive.
+//  A group is positive for a direction when >= min members agree and, if the
+//  group's noOppose flag is set, no member points the opposite way (NEUTRAL / no data is fine).
+//  Returns { direction, agreeing, tally, groups } or null (also null if both
+//  directions would qualify — ambiguous).
+// ─────────────────────────────────────────────────────────────────────────
+const resolveGroupDirection = (votes, groups, noOppose) => {
+  const biasOf = (label) => { const v = votes.find(x => x.tf === label); return v && v.result ? v.result.bias : null; };
+  const evalDir = (want, other) => {
+    const agreeing = []; const detail = {};
+    for (const g of groups) {
+      const yes = g.labels.filter(l => biasOf(l) === want);
+      const no  = g.labels.filter(l => biasOf(l) === other);
+      detail[g.name] = yes;
+      if (yes.length < (g.min || 1)) return null;
+      if ((g.noOppose !== undefined ? g.noOppose : noOppose) && no.length) return null;
+      agreeing.push(...yes);
+    }
+    return { agreeing, detail };
+  };
+  const total = votes.length;
+  const buy = evalDir('BULLISH', 'BEARISH'), sell = evalDir('BEARISH', 'BULLISH');
+  if (buy && sell) return null;
+  const r = buy ? { direction: 'BUY', ...buy } : sell ? { direction: 'SELL', ...sell } : null;
+  if (!r) return null;
+  return { direction: r.direction, agreeing: r.agreeing, tally: `${r.agreeing.length}/${total}`, groups: r.detail };
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -743,8 +774,8 @@ const computeMultiTFPOCAlignment = (structPOC, macroTFs, toleranceAtrMult) => {
 // Fibonacci retracements agreeing on the same price, on top of the POC
 // agreement above, is a materially stronger claim than either alone —
 // this is the basis for the dual multi-TF gate in engine.js/
-// backtest-engine.js (fires only when BOTH systems get 2-of-2 agreement
-// from 2H AND D1, not just "any"). macroSwings = [{ label, swing:
+// backtest-engine.js (fires only when BOTH systems (POC and Fib) are confirmed
+// by at least DUAL_MULTI_TF_*_MIN_ALIGNED gate timeframes — default 1, i.e. any one). macroSwings = [{ label, swing:
 // {high, low}, atr }] — swing comes from that TF's own tfBiasVote()
 // result; atr is measured on that SAME timeframe's own data (see the
 // v1.1.1 fix note on computeMultiTFPOCAlignment above — same tolerance-
@@ -1036,6 +1067,7 @@ const evaluateOpenTrade = (openTrade, bar, config) => {
 };
 
 module.exports = {
+  resolveGroupDirection,
   calcATR, calcFib, calcVolumeProfile, tfBiasVote, isNearZone, isNearZoneWick, resolveDirection,
   confluenceScore, checkHTFZoneAlignment, isZoneInvalidated,
   detectRejection, computeTradeLevels, computeRiskMultiplier, computeTDSequential,
