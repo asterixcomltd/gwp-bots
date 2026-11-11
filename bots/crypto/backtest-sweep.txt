@@ -1,0 +1,24 @@
+═══════════════════════════════════════════════════════════════════
+ GWP Crypto v1.3.1 — TIMEFRAME-ROLE SWEEP  (360 days, 20 symbols)
+ Same data, same gates, same exits — only the roles of M15 / H1 / H3 and the vote strictness (3 vs 4 of 6) change.
+ WR 95% = Wilson confidence interval: if two rows overlap, the difference is NOISE.
+═══════════════════════════════════════════════════════════════════
+
+trades  WR%   (95% range)   PF     totalR  avgR   SL   variant
+   74   64.9  (54–75)         35.63     49.5   0.67    1  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none
+   74   59.5  (48–70)         40.98     48.0   0.65    1  GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter ON
+   53   60.4  (47–72)         28.49     33.0   0.62    1  H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1
+   53   60.4  (47–72)         28.49     33.0   0.62    1  H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1
+   53   60.4  (47–72)         28.49     33.0   0.62    1  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias
+   53   60.4  (47–72)         28.49     33.0   0.62    1  GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter OFF
+   49   63.3  (49–75)         27.88     32.3   0.66    1  H6 vote>=3  M15:vote  H1:vote  H3:vote  gate-min:ANY-1
+   49   63.3  (49–75)         27.88     32.3   0.66    1  H6 vote>=4  M15:vote  H1:vote  H3:vote  gate-min:ANY-1
+   42   59.5  (44–73)         22.38     25.7   0.61    1  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias
+   42   59.5  (44–73)         22.38     25.7   0.61    1  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:all
+   36   61.1  (45–75)         18.16     20.6   0.57    1  H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL
+   36   61.1  (45–75)         18.16     20.6   0.57    1  H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL
+   13   84.6  (58–96)             ∞     11.1   0.85    0  GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias
+   17   52.9  (31–74)          8.37      9.6   0.56    1  LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed)
+
+How to read: prefer the row with the best totalR/PF whose trade count is large enough that its
+WR range is narrow. A row that wins by a few trades inside overlapping ranges is not a real winner.
