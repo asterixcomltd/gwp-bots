@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — TIMEFRAME PLAN (shared/tf-plan.js)   v1.3.0
+ *  GWP — TIMEFRAME PLAN (shared/tf-plan.js)   v1.3.1
  *
  *  ONE description of "which timeframes exist, which vote, and what job
  *  each one does", read by BOTH the live engine and the backtest engine so
@@ -36,7 +36,7 @@ const ROLE_DEFAULTS = { m15Timing: false, h1Gate: false, h3Gate: true, gateMin: 
 
 const envBool = (v, d) => (v === undefined || v === '' ? d : v === 'true' || v === '1');
 
-const profileName = (config) => String(process.env.GWP_TF_PROFILE || config.TF_PROFILE || 'H6').toUpperCase();
+const profileName = (config, variantIn = {}) => String(variantIn.profile || process.env.GWP_TF_PROFILE || config.TF_PROFILE || 'GROUPS').toUpperCase();
 
 const resolveVariant = (config, variant = {}) => {
   const d = { ...ROLE_DEFAULTS, ...(config.TF_ROLES || {}) };
@@ -51,7 +51,7 @@ const resolveVariant = (config, variant = {}) => {
 const buildPlan = (config, variantIn = {}) => {
   // Optional vote-strictness switch (3-of-6 is the delivered default; 4-of-6 trades fewer, cleaner setups).
   if (process.env.GWP_MIN_TF_AGREE) config.MIN_TF_AGREE = Math.max(2, parseInt(process.env.GWP_MIN_TF_AGREE, 10) || config.MIN_TF_AGREE);
-  const profile = profileName(config);
+  const profile = profileName(config, variantIn);
   const baseName = { M15: config.TRIGGER_TIMEFRAME, M30: config.BIAS_TIMEFRAME, H2: config.STRUCT_TIMEFRAME, D1: config.DAILY_TIMEFRAME };
   const origin = config.TF_BUCKET_ORIGIN || 'utc';
   const lbOverride = config.TF_LOOKBACKS || {};
@@ -80,6 +80,30 @@ const buildPlan = (config, variantIn = {}) => {
       { label: 'H3',  base: 'M30', n: 6, seconds: SEC.H3,  vp: h3.vp,  fib: h3.fib,  roles: variant.h3Gate ? ['gate'] : [], optional: true },
       { label: 'H4',  base: 'H2',  n: 2, seconds: SEC.H4,  vp: h4.vp,  fib: h4.fib,  roles: ['gate', 'htfzone'], optional: true },
     ];
+  }
+
+  // GROUPS profile (v1.3.1): same six timeframes as H6, but the vote is replaced by three ENFORCED
+  // groups — triggers (M15, M30), structures (H1, H2), bias (H3, H4). Direction needs every group
+  // positive; a group is positive when at least `min` of its members agree (default 1) and, for the
+  // guarded groups (default: bias), none of its members points the other way. One member per group
+  // means at least 3 timeframes agree, so a separate "3-of-6" rule is redundant and is not applied.
+  let groups = null;
+  if (profile === 'GROUPS') {
+    const envNum = (v, d) => (v === undefined || v === '' ? d : parseInt(v, 10));
+    const biasMin = variantIn.biasMin ?? envNum(process.env.GWP_GROUP_BIAS_MIN, (config.GROUPS && config.GROUPS.biasMin) || 1);
+    // Which groups must ALSO have no member pointing the other way. Default: the BIAS group only — a
+    // macro conflict (H3 bullish vs H4 bearish) is a real contradiction, while M15 vs M30 (or H1 vs H2)
+    // disagreeing is routine. 'none' | 'bias' | 'structure,bias' | 'all' (env GWP_GROUP_NO_OPPOSE).
+    const noOpp = String(variantIn.noOppose ?? process.env.GWP_GROUP_NO_OPPOSE ?? (config.GROUPS && config.GROUPS.noOppose) ?? 'bias').toLowerCase();
+    const guarded = (name) => noOpp === 'all' || noOpp.split(',').map(x => x.trim()).includes(name);
+    groups = {
+      noOppose: noOpp,
+      list: [
+        { name: 'trigger',   labels: ['M15', 'M30'], min: 1, noOppose: guarded('trigger') },
+        { name: 'structure', labels: ['H1', 'H2'],   min: 1, noOppose: guarded('structure') },
+        { name: 'bias',      labels: ['H3', 'H4'],   min: biasMin, noOppose: guarded('bias') },
+      ],
+    };
   }
 
   for (const e of entries) e.derived = e.n > 1;
@@ -116,13 +140,14 @@ const buildPlan = (config, variantIn = {}) => {
   }
 
   return {
-    profile, variant, entries, struct, trigger, clock, gate, htfzone, timing, origin,
+    profile, variant, groups, entries, struct, trigger, clock, gate, htfzone, timing, origin,
     gateMinPoc, gateMinFib, triggerLookbackBars, sweepLookbackBars,
     baseNeeds, baseName, structLimit,
     // key used by RISK_TIER_MATRIX ("POC_2H" / "POC_NO2H") — always the physical 2H structure TF
     structMatrixLabel: '2H',
     voteLabel: entries.map(e => e.label),
     describe() {
+      if (groups) return 'GROUPS ' + groups.list.map(g => `${g.name}[${g.labels.join('/')}]>=${g.min}`).join(' ') + ` no-oppose:${groups.noOppose}` + `  [struct=${struct.label} trigger=${trigger.label} gate=${gate.map(g => g.label).join('+') || '-'}]`;
       return entries.map(e => `${e.label}${e.derived ? '*' : ''}(${e.vp})`).join(' / ') +
         `  [struct=${struct.label} trigger=${trigger.label} gate=${gate.map(g => g.label).join('+') || '-'}${timing ? ' timing=' + timing.label : ''}]`;
     },

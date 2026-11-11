@@ -33,7 +33,9 @@ module.exports = async function runLive({ config, dataClient, botLabel, version,
   {
     const interiorWidth = [...boxBorder].length - 2;
     const line1 = `${botLabel} v${version}`;
-    const line2 = `${plan.entries.map(e => e.label).join('+')} — ${config.MIN_TF_AGREE}-of-${plan.entries.length} vote (${plan.struct.label} zone, ${plan.trigger.label} trigger)`;
+    const line2 = plan.groups
+      ? `${plan.entries.map(e => e.label).join('+')} — groups (${plan.struct.label} zone, ${plan.trigger.label} trigger)`
+      : `${plan.entries.map(e => e.label).join('+')} — ${config.MIN_TF_AGREE}-of-${plan.entries.length} vote (${plan.struct.label} zone, ${plan.trigger.label} trigger)`;
     const pad = (s) => '   ' + s + ' '.repeat(Math.max(0, interiorWidth - 3 - [...s].length));
     console.log(`║${pad(line1)}║`);
     console.log(`║${pad(line2)}║`);

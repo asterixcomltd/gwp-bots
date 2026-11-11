@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.0
+ *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.1
  *
  *  The ONE place the signal decision pipeline lives. engine.js (live) and
  *  backtest-engine.js (replay) both call evaluate(); they only differ in
@@ -66,9 +66,15 @@ module.exports = function createSetupEvaluator({ config, core, plan }) {
 
     // ── VOTE ─────────────────────────────────────────────────────────
     const votes = plan.entries.map(e => ({ tf: e.label, result: states[e.label] ? states[e.label].bias : null }));
-    const resolved = core.resolveDirection(votes, config.MIN_TF_AGREE);
+    const resolved = plan.groups
+      ? core.resolveGroupDirection(votes, plan.groups.list, plan.groups.noOppose)
+      : core.resolveDirection(votes, config.MIN_TF_AGREE);
     ctx.votes = votes; ctx.resolved = resolved;
-    if (!resolved) return fail(`NO_${config.MIN_TF_AGREE}OF${plan.entries.length}_AGREEMENT`);
+    const noAgreeReason = plan.groups ? 'GROUPS_NOT_ALIGNED' : `NO_${config.MIN_TF_AGREE}OF${plan.entries.length}_AGREEMENT`;
+    log(`  📡 VOTE: ${votes.map(v => `${v.tf}=${v.result ? v.result.bias : 'N/A'}`).join(' | ')}` +
+      (resolved ? ` → ${resolved.direction} (${resolved.tally}: ${resolved.agreeing.join('+')})`
+        : plan.groups ? ' → GROUPS NOT ALIGNED (need trigger + structure + bias)' : ` → NO ${config.MIN_TF_AGREE}-OF-${plan.entries.length} AGREEMENT`));
+    if (!resolved) return fail(noAgreeReason);
     stages.push('voteOk');
     const direction = resolved.direction;
     ctx.direction = direction;
@@ -129,11 +135,29 @@ module.exports = function createSetupEvaluator({ config, core, plan }) {
       const vwapAnchor = core.calcAnchoredVWAP(structBars.slice(-config.STRUCT_FIB_LOOKBACK), direction);
       if (vwapAnchor != null) checkPivots.push({ name: 'VWAP', price: vwapAnchor });
     }
-    let bestScore = 0, bestFibLevel = null, bestPivot = null;
-    for (const lvl of checkLevels) {
-      for (const pivot of checkPivots) {
+    // v1.3.1 TIE-BREAK FIX: the 61.8% / mid-pocket exclusions used to run AFTER the best level was
+    // picked (first-best wins, 61.8% is checked first), so a setup whose 61.8% scored the same as a
+    // perfectly good 78.6% was thrown away although an eligible level existed. Excluded levels are now
+    // removed BEFORE scoring, so the best ELIGIBLE level wins; a setup is rejected for an exclusion only
+    // when no eligible level has confluence. OFF by default until the real-data sweep proves it (GWP_FIB_PREFILTER=true).
+    const prefilter = config.FIB_EXCLUDE_BEFORE_SCORING === true;
+    const excludedLevel = (lvl) => (lvl === fibMid && config.MID_POCKET_EXCLUDE) || (lvl === fib.level618 && config.FIB_618_EXCLUDE);
+    const scoreLevels = (levels) => {
+      let bs = 0, bl = null, bp = null;
+      for (const lvl of levels) for (const pivot of checkPivots) {
         const sc = core.confluenceScore(lvl, pivot.price, atrStruct, config.CONFLUENCE_ATR_MULT);
-        if (sc > bestScore) { bestScore = sc; bestFibLevel = lvl; bestPivot = pivot; }
+        if (sc > bs) { bs = sc; bl = lvl; bp = pivot; }
+      }
+      return { bs, bl, bp };
+    };
+    let { bs: bestScore, bl: bestFibLevel, bp: bestPivot } = scoreLevels(prefilter ? checkLevels.filter(l => !excludedLevel(l)) : checkLevels);
+    if (prefilter && bestScore < 1) {
+      const ex = scoreLevels(checkLevels.filter(excludedLevel));
+      if (ex.bs >= 1) {
+        const mid = ex.bl === fibMid;
+        log(mid ? '  ⚠️ Only the mid-pocket Fib has confluence — historically the weakest Fib segment. Skipping.'
+                : '  ⚠️ Only the 61.8% Fib pocket has confluence — historically the weaker Fib segment on GWP\'s own data. Skipping.');
+        return fail(mid ? 'MID_POCKET_EXCLUDED' : 'FIB_618_EXCLUDED');
       }
     }
     if (bestScore < 1) {
