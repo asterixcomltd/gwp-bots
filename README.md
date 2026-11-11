@@ -8,7 +8,29 @@ indicators), same shared-core discipline, same trade-management mechanics
 sizing boost). The **only** structural change from MVS is the timeframe
 architecture itself.
 
-## Timeframe architecture — v1.3.0 "H6" (current)
+## Timeframe architecture — v1.3.1 "GROUPS" (current default)
+
+Six timeframes in **three enforced groups of two**. A setup needs **every group positive**; a group is positive when at
+least one of its two timeframes agrees with the trade direction. One member per group means at least 3 timeframes
+agree, so the old separate "3-of-6" count is **cancelled** (it is implied, and it could be met with no bias timeframe
+at all — which is exactly what the weakest 3/6 trades looked like).
+
+| Group | Timeframes | Job |
+|---|---|---|
+| **Triggers** | M15, M30 | M30 reads the rejection-candle patterns (the trigger); M15 is the engine's clock, its drift guard and the fast confirmation |
+| **Structures** | H1, H2 | **H2 owns the zone** (swing, Fib pocket, POC/VAH/VAL, ATR, stop anchor); H1 (built from 2 × M30) is the finer second structure |
+| **Bias** | H3, H4 | slow direction: H3 (6 × M30) and H4 (2 × H2); also the dual-gate members and the HTF zone cross-check (H4) |
+
+* **Bias group guard (default on):** at least one bias timeframe must agree **and none may point the other way** (H3
+  bullish + H4 bearish = no trade). Trigger and structure groups need only "at least one agrees" — M15 vs M30 or H1 vs H2
+  disagreeing is routine. `GWP_GROUP_NO_OPPOSE` = `none` | `bias` (default) | `structure,bias` | `all`;
+  `GWP_GROUP_BIAS_MIN=2` makes both bias timeframes mandatory.
+* **Rollback:** `GWP_TF_PROFILE=H6` = the v1.3.0 six-way 3-of-6 vote; `GWP_TF_PROFILE=LEGACY` = the original D1/30M/2H/15M design.
+  Per bot, set `TF_PROFILE: 'H6'` in `bots/<name>/config.js`.
+* **Expect fewer trades than v1.3.0.** This is deliberate (accuracy over frequency). The real-data effect has NOT been
+  measured yet — run the sweep (below) before trusting it.
+
+## Previous profile — v1.3.0 "H6" (still available: `GWP_TF_PROFILE=H6`)
 
 Six timeframes vote; **3 of 6** must agree on direction (`MIN_TF_AGREE`).
 
@@ -27,6 +49,33 @@ Six timeframes vote; **3 of 6** must agree on direction (`MIN_TF_AGREE`).
 * The **decision pipeline now exists once** (`shared/setup-eval.js`) and is called by BOTH the live engine and the
   backtest — live and backtest can no longer drift apart.
 * `GWP_TF_PROFILE=LEGACY` restores the old D1/30M/2H/15M 3-of-4 design as a one-line rollback.
+* **Dual multi-TF gate (H6):** the H2 zone's POC and Fib level must line up with the same thing computed on the *gate
+  members* (H4, plus H3 by default, plus H1 if enabled). As before, `DUAL_MULTI_TF_POC_MIN_ALIGNED` /
+  `DUAL_MULTI_TF_FIB_MIN_ALIGNED` (default `1`) mean "at least one gate member", not all — set a role-variant
+  `gateMin: 'all'` (env `GWP_GATE_MIN=all`) to require all of them. The HTF zone cross-check uses H4.
+* **Entry drift guard, cooldown, SL/TP, risk tiers, POC-quality factors and TD9 are unchanged.** Cooldown is still counted
+  in H2 bars; the drift guard still compares the freshest closed **M15** close against the entry.
+* **Closed candles only.** Every timeframe is evaluated on candles that have fully closed. Because the scan runs every
+  15 minutes but the trigger is M30, the same M30 pattern can be seen on two consecutive scans; the open-position
+  check and the cooldown stop it from firing twice.
+* **Config comments:** the long comment blocks in `shared/config-base.js` describe the LEGACY 4-timeframe design (they
+  are still accurate for `GWP_TF_PROFILE=LEGACY`). The H6 roles live in `shared/tf-plan.js`; per-bot overrides are
+  `TF_LOOKBACKS`, `TF_BUCKET_ORIGIN` and `TF_ROLES` in `bots/*/config.js`.
+
+### Switches (environment variables, all optional)
+
+| Variable | Default | Effect |
+|---|---|---|
+| `GWP_TF_PROFILE` | `GROUPS` | `H6` = v1.3.0 3-of-6 vote; `LEGACY` = original D1/30M/2H/15M 3-of-4 design |
+| `GWP_GROUP_NO_OPPOSE` | `bias` | GROUPS only: which groups must also have no opposing member (`none`/`bias`/`structure,bias`/`all`) |
+| `GWP_GROUP_BIAS_MIN` | `1` | GROUPS only: `2` = both H3 and H4 must agree |
+| `GWP_FIB_PREFILTER` | `false` | `true` = apply the 61.8% / mid-pocket exclusions before the best Fib level is chosen (see v1.3.1 notes) |
+| `GWP_MIN_TF_AGREE` | `3` | H6/LEGACY only: votes needed (try `4` for fewer, cleaner setups). Not used by GROUPS |
+| `GWP_M15_TIMING` | `false` | require the last closed M15 candle to close in the trade direction |
+| `GWP_H1_GATE` | `false` | make H1 a dual-gate member |
+| `GWP_H3_GATE` | `true` | make H3 a dual-gate member |
+| `GWP_GATE_MIN` | config (`1`) | `all` = every gate member must align |
+| `GWP_SWEEP` | off | backtest only: run the role sweep (set by the workflow's `sweep` input) |
 
 ### Timeframe roles — what was found and what was NOT
 
@@ -119,8 +168,11 @@ gwp-bots/
 │   ├── core.js             ← pure decision logic (POC/VAH/VAL/Fib, votes,
 │   │                          rejection patterns, TP/SL math, risk sizing)
 │   ├── config-base.js      ← every TF-agnostic strategy setting
-│   ├── engine.js           ← the full 10-step live scan pipeline
-│   ├── backtest-engine.js  ← tick-by-tick replay + report generator
+│   ├── engine.js           ← live scan: fetch closed candles → evaluate → log/persist/alert
+│   ├── setup-eval.js       ← v1.3.0: THE decision pipeline (shared by live AND backtest)
+│   ├── tf-plan.js          ← v1.3.0/1: timeframe roles (GROUPS / H6 / LEGACY), data needs, role variants
+│   ├── resample.js         ← v1.3.0: builds H1/H3/H4 candles from M30/H2 (closed buckets only)
+│   ├── backtest-engine.js  ← tick-by-tick replay (no look-ahead) + report generator
 │   ├── position-tracker.js ← replays real candles against open trades
 │   ├── run-live.js         ← live-runner bootstrap (used by strategy.js)
 │   ├── run-backtest.js     ← backtest CLI bootstrap
@@ -136,15 +188,15 @@ gwp-bots/
 │   ├── forex/    config.js + thin entrypoints + its own state/log JSON
 │   └── stocks/   config.js + thin entrypoints + its own state/log JSON
 ├── .github/workflows/      ← scan (15min) / commands (5min) / weekly / backtest (weekly) / setup, ×3, + one repo-wide keepalive
-└── tests/                  ← synthetic-data smoke tests (no network needed)
+└── tests/                  ← synthetic-data smoke tests + unit tests (resample, no-look-ahead, closed-candle cache) — no network needed
 ```
 
 ## Workflows (16 total)
 
 Per bot (×3 — crypto/forex/stocks): `*-scan.yml` (every 15min), `*-commands.yml`
 (every 5min), `*-weekly.yml` (Mondays 07:00 UTC), `*-backtest.yml` (Sundays
-06:00 UTC + manual dispatch with optional symbol/day overrides — posts a
-summary to Telegram and commits the full report to the repo), `*-setup.yml`
+06:00 UTC + manual dispatch with optional symbol/day overrides and the v1.3.0
+`sweep` option — posts a summary to Telegram and commits the full report to the repo), `*-setup.yml`
 (manual, run once). Plus one repo-wide `keepalive.yml` (Mondays) that makes a
 trivial commit regardless of bot health, so GitHub never auto-disables the
 scheduled workflows after 60 days of apparent inactivity — belt-and-braces on
@@ -274,29 +326,62 @@ untestable locally and briefly hid a real bug.
 
 Edit `SYMBOLS` in each bot's `bots/<name>/config.js` to change this list.
 
-## Backtest Results (most recent committed reports)
+## Backtest Results
 
-⚠️ These are backtests, not live-performance guarantees — no setting was chosen to hit a target win rate. Sample sizes below are small (8–29 trades), especially Stocks — treat as an early read, not a proven track record. Regenerate anytime with each bot's `*-backtest.yml` workflow.
+⚠️ Backtests, not live-performance guarantees — no setting was chosen to hit a target win rate.
+**The committed `backtest-report.txt` files in the repo may still be the v1.0.0 ones**: every report push failed
+between v1.3.0 and v1.3.1 (see the changelog). Run each bot's backtest workflow again after installing v1.3.1.
+
+Real-data run of the **v1.3.0 H6 profile (3-of-6 vote, look-ahead fixed)** — NOT the v1.3.1 default:
 
 | | Crypto | Forex | Stocks |
 |---|---|---|---|
-| Period | 360 days | 360 days | **60 days only** |
-| Signals fired | 23 (~0.45/wk) | 29 (~0.56/wk) | 8 (~0.93/wk) |
-| Win rate | 69.6% (16W/7L) | 82.8% (24W/5L) | 87.5% (7W/1L) |
-| No-real-loss rate | 95.7% | 96.6% | 87.5% |
-| Profit factor | 65.46 | 278.27 | 29.85 |
-| Total R | 16.76R | 30.50R | 7.50R |
-| Avg win / avg loss | +1.06R / -0.04R | +1.28R / -0.02R | +1.11R / -0.26R |
-| Avg hours held | 53h | 55h | 78h |
-| SL hits | 0 | 0 | 1 |
+| Period | 360 days | 360 days | **60 days only** (Twelve Data intraday depth) |
+| Trades | 230 | 216 | 12 |
+| Win rate | 63.0% | 58.8% | 83.3% |
+| Total R | +122.6R | +124.4R | +9.6R |
+| Profit factor | 9.80 | 12.13 | ∞ (no losing trade) |
+| Max drawdown | 3.3% | 2.2% | 0.2% |
 
-Stocks in particular: 8 trades is too thin to draw real conclusions from yet — it's here for transparency, not as a claim. Re-run that one specifically once more history accumulates.
+Read these with care: profit factor is inflated because many trades end at break-even or time out near 0R; Stocks has
+only 12 trades. Vote strictness mattered most: crypto 3/6 = 61.9% win rate / 97.6R, 4-or-more/6 ≈ 69% / ≈25R; forex 3/6 =
+54.1% / 87.9R, 4/6 = 80.6% / 33.4R with zero stop-outs. Fewer trades, higher win rate — the GROUPS profile is built on that
+finding, but its own numbers need the sweep.
 
 ## Changelog / mistakes learned
 
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.3.1** — *fixes for two regressions found in the real v1.3.0 logs, plus the GROUPS timeframe design.*
+  1. **Every workflow push failed (my regression).** v1.3.0 raised `package.json` to 1.3.0 but `package-lock.json`
+     stayed at 1.0.0; `npm install` then rewrote the lock file, leaving an unstaged change, and
+     `git pull --rebase` refused with "cannot pull with rebase: You have unstaged changes" — five times, every run.
+     Nothing (state, caches, reports) was saved. Fixed: lock file synced to 1.3.1 **and** every commit step now uses
+     `git pull --rebase --autostash` so a stray change can never block a push again.
+  2. **Live crypto scan: H1, H3 and H4 voted "N/A".** KuCoin's un-ranged candle call returns only a short window (~100
+     candles; `limit` is not part of its API). v1.0.0 hid this because the cache was seeded once and then *grew* for
+     weeks (2,500 bars by Nov); v1.3.0 correctly discarded those caches (they held half-formed candles) and reseeded
+     with the short window, so the built timeframes had too little history and abstained — the live vote ran on three
+     timeframes. Fixed: seeding pages backwards with ranged requests (≤1500 per page) until enough closed candles exist.
+     Forex/Stocks (Twelve Data honours `outputsize`) were not affected. Scans now log `📦 bars:` per timeframe so
+     depth is visible. New test `tests/test-kucoin-seed.js` emulates the short default window.
+  3. **GROUPS profile** (default): triggers M15+M30, structures H1+H2, bias H3+H4, every group enforced (see top). The
+     v1.3.0 vote stays available as `GWP_TF_PROFILE=H6`; `LEGACY` regression-tested identical to v1.0.0 on all three bots.
+  4. **Decisions on the three open items from v1.3.0:**
+     * *Dual-gate wording* — comment, `core.js` header and docs said "BOTH timeframes" but the shipped (and
+       real-data-tuned) default has always been "any one gate member". Behaviour unchanged; wording corrected.
+     * *Fib tie-break* — confirmed real: the 61.8% / mid-pocket exclusions ran after the best level was picked, so a
+       setup could be rejected although an eligible 78.6% level also had confluence. A fix exists (`GWP_FIB_PREFILTER`)
+       but is **off by default**: it adds trades, and the only evidence available (a tiny offline sample) did not show
+       them winning more. The sweep now contains an A/B row — enable it only if real data shows it helps.
+     * *Stocks look-backs* — kept trimmed. The 10 Nov stocks scan shows all six timeframes voting with the shortened
+       H1/H3/H4 look-backs; the full-size ones would exceed Twelve Data's intraday depth.
+  5. Checked from the logs: Gist PAT, Telegram tokens and both Twelve Data keys all worked on 9–10 Nov. The Twelve Data
+     "out of API credits for the current minute" lines are the 8-per-minute free limit; the client waits/rotates and the
+     histories still arrived complete (forex 39,667 M15 bars).
+  6. Backtest sweep trimmed (≈15 rows) and extended with the GROUPS variants and the Fib A/B row. Crypto scan timeout 10→20 min
+     (the first scan after deploy deep-seeds the caches). New tests: `test-groups.js`, `test-kucoin-seed.js`.
 - **v1.3.0** — *accuracy release. Two real data bugs fixed, one real backtest bug fixed, timeframes re-architected.*
   1. **Candle cache saved half-formed candles forever (live data corruption).** KuCoin/Twelve Data return the
      still-forming candle as the newest bar; the cache stored it, then only fetched bars *newer* than it and kept the
