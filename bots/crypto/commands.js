@@ -19,7 +19,7 @@ runCommands({
   telegram: createTelegram(config),
   healthCheck,
   botLabel: 'GWP Crypto',
-  version: '1.3.0',
+  version: '1.3.1',
   exchangeName: 'KuCoin',
   sourceUrl: '',
   dir: __dirname,
