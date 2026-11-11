@@ -18,7 +18,7 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20  # v1.3.1: first scan after deploy deep-seeds every candle cache
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -46,7 +46,7 @@ jobs:
           fi
           git commit -m "GWP Crypto: scan update [skip ci]"
           for i in 1 2 3 4 5; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && break
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && break
             echo "Push attempt $i failed (likely a race with another bot's commit) — retrying..."
             sleep $(( (RANDOM % 5) + 1 ))
           done
