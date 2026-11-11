@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.1
+ *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.2
  *
  *  The ONE place the signal decision pipeline lives. engine.js (live) and
  *  backtest-engine.js (replay) both call evaluate(); they only differ in
@@ -139,8 +139,8 @@ module.exports = function createSetupEvaluator({ config, core, plan }) {
     // picked (first-best wins, 61.8% is checked first), so a setup whose 61.8% scored the same as a
     // perfectly good 78.6% was thrown away although an eligible level existed. Excluded levels are now
     // removed BEFORE scoring, so the best ELIGIBLE level wins; a setup is rejected for an exclusion only
-    // when no eligible level has confluence. OFF by default until the real-data sweep proves it (GWP_FIB_PREFILTER=true).
-    const prefilter = config.FIB_EXCLUDE_BEFORE_SCORING === true;
+    // when no eligible level has confluence. ON by default since v1.3.2 — the real-data sweep showed more trades and more total R at an equal win rate (GWP_FIB_PREFILTER=false reverts).
+    const prefilter = config.FIB_EXCLUDE_BEFORE_SCORING !== false;
     const excludedLevel = (lvl) => (lvl === fibMid && config.MID_POCKET_EXCLUDE) || (lvl === fib.level618 && config.FIB_618_EXCLUDE);
     const scoreLevels = (levels) => {
       let bs = 0, bl = null, bp = null;

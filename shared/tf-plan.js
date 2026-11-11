@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — TIMEFRAME PLAN (shared/tf-plan.js)   v1.3.1
+ *  GWP — TIMEFRAME PLAN (shared/tf-plan.js)   v1.3.2
  *
  *  ONE description of "which timeframes exist, which vote, and what job
  *  each one does", read by BOTH the live engine and the backtest engine so

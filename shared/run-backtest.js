@@ -73,20 +73,18 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   const sweepVariants = [];
   const legacyPlan = SWEEP ? (() => { const prev = process.env.GWP_TF_PROFILE; process.env.GWP_TF_PROFILE = 'LEGACY'; const p = buildPlan(config); if (prev === undefined) delete process.env.GWP_TF_PROFILE; else process.env.GWP_TF_PROFILE = prev; return p; })() : null;
   if (SWEEP) {
-    sweepVariants.push({ name: 'LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed)', plan: legacyPlan, legacy: true });
-    for (const minAgree of [3, 4]) for (const m15Timing of [false]) for (const h1Gate of [false]) for (const h3Gate of [false, true]) for (const gateMin of ['cfg', 'all']) {
-      if (gateMin === 'all' && !h1Gate && !h3Gate) continue; // 'all' of a single gate member == the default — duplicate row
-      const vp = buildPlan(config, { m15Timing, h1Gate, h3Gate, gateMin });
-      sweepVariants.push({ minAgree, name: `H6 vote>=${minAgree}  M15:${m15Timing ? 'vote+timing' : 'vote'}  H1:${h1Gate ? 'vote+gate' : 'vote'}  H3:${h3Gate ? 'vote+gate' : 'vote'}  gate-min:${gateMin === 'all' ? 'ALL' : 'ANY-1'}`, plan: vp, variant: { m15Timing, h1Gate, h3Gate, gateMin } });
-    }
-    // v1.3.1 — GROUPS profile: triggers (M15,M30) + structures (H1,H2) + bias (H3,H4), one positive member per group.
-    for (const [biasMin, noOppose] of [[1, 'bias'], [1, 'none'], [1, 'structure,bias'], [1, 'all'], [2, 'bias']]) {
+    sweepVariants.push({ name: 'LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed, Fib prefilter OFF)', plan: legacyPlan, legacy: true, fibPrefilter: false });
+    // v1.3.2 — every row is labelled with the profile it REALLY runs (v1.3.1's "H6" rows silently ran the GROUPS
+    // plan once GROUPS became the default, so 3-vs-4-of-6 looked identical). Explicit profile on every row.
+    const h6 = buildPlan(config, { profile: 'H6' });
+    for (const minAgree of [3, 4]) sweepVariants.push({ minAgree, name: `H6 six-way vote>=${minAgree}  (v1.3.0 design, Fib prefilter ON)`, plan: h6, fibPrefilter: true });
+    sweepVariants.push({ minAgree: 3, name: 'H6 six-way vote>=3  (v1.3.0 design, Fib prefilter OFF = what v1.3.0 ran)', plan: h6, fibPrefilter: false });
+    // GROUPS profile: triggers (M15,M30) + structures (H1,H2) + bias (H3,H4), one positive member per group.
+    for (const [biasMin, noOppose] of [[1, 'bias'], [1, 'none'], [1, 'structure,bias'], [2, 'bias'], [2, 'none']]) {
       const gp = buildPlan(config, { profile: 'GROUPS', biasMin, noOppose });
-      sweepVariants.push({ minAgree: baseMinAgree, name: `GROUPS trig>=1 struct>=1 bias>=${biasMin}  no-oppose:${noOppose}`, plan: gp });
+      sweepVariants.push({ minAgree: baseMinAgree, name: `GROUPS trig>=1 struct>=1 bias>=${biasMin}  no-oppose:${noOppose}  (Fib prefilter ON)`, plan: gp, fibPrefilter: true });
     }
-    // A/B for the v1.3.1 Fib tie-break fix (exclusions applied before the best Fib level is picked)
-    sweepVariants.push({ minAgree: baseMinAgree, name: 'GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter ON', plan: buildPlan(config, { profile: 'GROUPS' }), fibPrefilter: true });
-    sweepVariants.push({ minAgree: baseMinAgree, name: 'GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter OFF', plan: buildPlan(config, { profile: 'GROUPS' }), fibPrefilter: false });
+    sweepVariants.push({ minAgree: baseMinAgree, name: 'GROUPS bias>=1 no-oppose:bias  (Fib prefilter OFF)', plan: buildPlan(config, { profile: 'GROUPS' }), fibPrefilter: false });
     for (const v of sweepVariants) v.trades = [];
   }
 
