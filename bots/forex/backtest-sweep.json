@@ -1,6 +1,50 @@
 [
   {
-    "name": "GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter ON",
+    "name": "H6 six-way vote>=3  (v1.3.0 design, Fib prefilter ON)",
+    "n": 342,
+    "wr": 64.61988304093568,
+    "lo": 59.41545421078457,
+    "hi": 69.49951726748756,
+    "pf": 16.972862957937572,
+    "totalR": 235.43999999999977,
+    "avgR": 0.6884210526315783,
+    "sl": 12
+  },
+  {
+    "name": "H6 six-way vote>=3  (v1.3.0 design, Fib prefilter OFF = what v1.3.0 ran)",
+    "n": 216,
+    "wr": 58.79629629629629,
+    "lo": 52.134318675452775,
+    "hi": 65.15085392154432,
+    "pf": 12.13339301700984,
+    "totalR": 124.3599999999999,
+    "avgR": 0.5757407407407403,
+    "sl": 9
+  },
+  {
+    "name": "H6 six-way vote>=4  (v1.3.0 design, Fib prefilter ON)",
+    "n": 124,
+    "wr": 78.2258064516129,
+    "lo": 70.17324571463031,
+    "hi": 84.5820139191665,
+    "pf": 68.2065217391304,
+    "totalR": 123.65999999999991,
+    "avgR": 0.9972580645161283,
+    "sl": 1
+  },
+  {
+    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none  (Fib prefilter ON)",
+    "n": 129,
+    "wr": 75.1937984496124,
+    "lo": 67.08471408475243,
+    "hi": 81.84574143520517,
+    "pf": 32.780487804878014,
+    "totalR": 117.26999999999988,
+    "avgR": 0.9090697674418595,
+    "sl": 2
+  },
+  {
+    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias  (Fib prefilter ON)",
     "n": 80,
     "wr": 80,
     "lo": 69.95355220341885,
@@ -11,18 +55,18 @@
     "sl": 1
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none",
-    "n": 67,
-    "wr": 70.1492537313433,
-    "lo": 58.34456017927899,
-    "hi": 79.7686388450231,
-    "pf": 32.65868263473054,
-    "totalR": 52.87000000000001,
-    "avgR": 0.7891044776119405,
-    "sl": 0
+    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias  (Fib prefilter ON)",
+    "n": 63,
+    "wr": 80.95238095238095,
+    "lo": 69.5929795848279,
+    "hi": 88.75391815550148,
+    "pf": 36.85945945945945,
+    "totalR": 66.34,
+    "avgR": 1.053015873015873,
+    "sl": 1
   },
   {
-    "name": "H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1",
+    "name": "GROUPS bias>=1 no-oppose:bias  (Fib prefilter OFF)",
     "n": 37,
     "wr": 81.08108108108108,
     "lo": 65.79498842904441,
@@ -33,106 +77,29 @@
     "sl": 0
   },
   {
-    "name": "H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1",
-    "n": 37,
-    "wr": 81.08108108108108,
-    "lo": 65.79498842904441,
-    "hi": 90.52014124266287,
-    "pf": 43.18823529411766,
-    "totalR": 35.86000000000001,
-    "avgR": 0.9691891891891894,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias",
-    "n": 37,
-    "wr": 81.08108108108108,
-    "lo": 65.79498842904441,
-    "hi": 90.52014124266287,
-    "pf": 43.18823529411766,
-    "totalR": 35.86000000000001,
-    "avgR": 0.9691891891891894,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter OFF",
-    "n": 37,
-    "wr": 81.08108108108108,
-    "lo": 65.79498842904441,
-    "hi": 90.52014124266287,
-    "pf": 43.18823529411766,
-    "totalR": 35.86000000000001,
-    "avgR": 0.9691891891891894,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=3  M15:vote  H1:vote  H3:vote  gate-min:ANY-1",
-    "n": 31,
-    "wr": 80.64516129032258,
-    "lo": 63.71939644454012,
-    "hi": 90.81311641365237,
+    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias  (Fib prefilter ON)",
+    "n": 25,
+    "wr": 84,
+    "lo": 65.34598601976184,
+    "hi": 93.59665239142201,
     "pf": null,
-    "totalR": 31.070000000000007,
-    "avgR": 1.0022580645161292,
+    "totalR": 29.950000000000003,
+    "avgR": 1.1980000000000002,
     "sl": 0
   },
   {
-    "name": "H6 vote>=4  M15:vote  H1:vote  H3:vote  gate-min:ANY-1",
-    "n": 31,
-    "wr": 80.64516129032258,
-    "lo": 63.71939644454012,
-    "hi": 90.81311641365237,
+    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:none  (Fib prefilter ON)",
+    "n": 25,
+    "wr": 84,
+    "lo": 65.34598601976184,
+    "hi": 93.59665239142201,
     "pf": null,
-    "totalR": 31.070000000000007,
-    "avgR": 1.0022580645161292,
+    "totalR": 29.950000000000003,
+    "avgR": 1.1980000000000002,
     "sl": 0
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias",
-    "n": 27,
-    "wr": 77.77777777777779,
-    "lo": 59.24270453692919,
-    "hi": 89.39290451059105,
-    "pf": 33.400000000000006,
-    "totalR": 27.540000000000006,
-    "avgR": 1.0200000000000002,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:all",
-    "n": 26,
-    "wr": 76.92307692307693,
-    "lo": 57.94807424804321,
-    "hi": 88.96630031632333,
-    "pf": 32.694117647058825,
-    "totalR": 26.940000000000005,
-    "avgR": 1.0361538461538464,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL",
-    "n": 24,
-    "wr": 75,
-    "lo": 55.10017468789356,
-    "hi": 88.00079652065767,
-    "pf": null,
-    "totalR": 23.750000000000004,
-    "avgR": 0.9895833333333335,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL",
-    "n": 24,
-    "wr": 75,
-    "lo": 55.10017468789356,
-    "hi": 88.00079652065767,
-    "pf": null,
-    "totalR": 23.750000000000004,
-    "avgR": 0.9895833333333335,
-    "sl": 0
-  },
-  {
-    "name": "LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed)",
+    "name": "LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed, Fib prefilter OFF)",
     "n": 20,
     "wr": 75,
     "lo": 53.12949900419365,
@@ -140,17 +107,6 @@
     "pf": null,
     "totalR": 17.740000000000002,
     "avgR": 0.8870000000000001,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias",
-    "n": 9,
-    "wr": 100,
-    "lo": 70.08472464490406,
-    "hi": 100,
-    "pf": null,
-    "totalR": 12.62,
-    "avgR": 1.402222222222222,
     "sl": 0
   }
 ]
