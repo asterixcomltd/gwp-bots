@@ -1,6 +1,39 @@
 [
   {
-    "name": "GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter ON",
+    "name": "H6 six-way vote>=3  (v1.3.0 design, Fib prefilter ON)",
+    "n": 27,
+    "wr": 77.77777777777779,
+    "lo": 59.24270453692919,
+    "hi": 89.39290451059105,
+    "pf": null,
+    "totalR": 25.110000000000003,
+    "avgR": 0.9300000000000002,
+    "sl": 0
+  },
+  {
+    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none  (Fib prefilter ON)",
+    "n": 12,
+    "wr": 91.66666666666666,
+    "lo": 64.61140782014047,
+    "hi": 98.51352905492264,
+    "pf": null,
+    "totalR": 12.479999999999997,
+    "avgR": 1.0399999999999998,
+    "sl": 0
+  },
+  {
+    "name": "H6 six-way vote>=3  (v1.3.0 design, Fib prefilter OFF = what v1.3.0 ran)",
+    "n": 13,
+    "wr": 84.61538461538461,
+    "lo": 57.764829491368985,
+    "hi": 95.6742736817262,
+    "pf": null,
+    "totalR": 11.5,
+    "avgR": 0.8846153846153846,
+    "sl": 0
+  },
+  {
+    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias  (Fib prefilter ON)",
     "n": 9,
     "wr": 88.88888888888889,
     "lo": 56.499378523193975,
@@ -11,7 +44,29 @@
     "sl": 0
   },
   {
-    "name": "LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed)",
+    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias  (Fib prefilter ON)",
+    "n": 9,
+    "wr": 88.88888888888889,
+    "lo": 56.499378523193975,
+    "hi": 98.01096286728695,
+    "pf": null,
+    "totalR": 10.679999999999998,
+    "avgR": 1.1866666666666665,
+    "sl": 0
+  },
+  {
+    "name": "H6 six-way vote>=4  (v1.3.0 design, Fib prefilter ON)",
+    "n": 11,
+    "wr": 90.9090909090909,
+    "lo": 62.26353745137963,
+    "hi": 98.3768247737174,
+    "pf": 11.099999999999998,
+    "totalR": 10.1,
+    "avgR": 0.9181818181818181,
+    "sl": 1
+  },
+  {
+    "name": "LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed, Fib prefilter OFF)",
     "n": 3,
     "wr": 100,
     "lo": 43.84939195509822,
@@ -22,18 +77,29 @@
     "sl": 0
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none",
-    "n": 3,
+    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias  (Fib prefilter ON)",
+    "n": 2,
     "wr": 100,
-    "lo": 43.84939195509822,
+    "lo": 34.23719528896193,
     "hi": 100,
     "pf": null,
-    "totalR": 2.59,
-    "avgR": 0.8633333333333333,
+    "totalR": 2.54,
+    "avgR": 1.27,
     "sl": 0
   },
   {
-    "name": "H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1",
+    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:none  (Fib prefilter ON)",
+    "n": 2,
+    "wr": 100,
+    "lo": 34.23719528896193,
+    "hi": 100,
+    "pf": null,
+    "totalR": 2.54,
+    "avgR": 1.27,
+    "sl": 0
+  },
+  {
+    "name": "GROUPS bias>=1 no-oppose:bias  (Fib prefilter OFF)",
     "n": 1,
     "wr": 100,
     "lo": 20.654329147389294,
@@ -41,116 +107,6 @@
     "pf": null,
     "totalR": 1.39,
     "avgR": 1.39,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1",
-    "n": 1,
-    "wr": 100,
-    "lo": 20.654329147389294,
-    "hi": 100,
-    "pf": null,
-    "totalR": 1.39,
-    "avgR": 1.39,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias",
-    "n": 1,
-    "wr": 100,
-    "lo": 20.654329147389294,
-    "hi": 100,
-    "pf": null,
-    "totalR": 1.39,
-    "avgR": 1.39,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias",
-    "n": 1,
-    "wr": 100,
-    "lo": 20.654329147389294,
-    "hi": 100,
-    "pf": null,
-    "totalR": 1.39,
-    "avgR": 1.39,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:all",
-    "n": 1,
-    "wr": 100,
-    "lo": 20.654329147389294,
-    "hi": 100,
-    "pf": null,
-    "totalR": 1.39,
-    "avgR": 1.39,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter OFF",
-    "n": 1,
-    "wr": 100,
-    "lo": 20.654329147389294,
-    "hi": 100,
-    "pf": null,
-    "totalR": 1.39,
-    "avgR": 1.39,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=3  M15:vote  H1:vote  H3:vote  gate-min:ANY-1",
-    "n": 0,
-    "wr": 0,
-    "lo": 0,
-    "hi": 0,
-    "pf": 0,
-    "totalR": 0,
-    "avgR": 0,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL",
-    "n": 0,
-    "wr": 0,
-    "lo": 0,
-    "hi": 0,
-    "pf": 0,
-    "totalR": 0,
-    "avgR": 0,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=4  M15:vote  H1:vote  H3:vote  gate-min:ANY-1",
-    "n": 0,
-    "wr": 0,
-    "lo": 0,
-    "hi": 0,
-    "pf": 0,
-    "totalR": 0,
-    "avgR": 0,
-    "sl": 0
-  },
-  {
-    "name": "H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL",
-    "n": 0,
-    "wr": 0,
-    "lo": 0,
-    "hi": 0,
-    "pf": 0,
-    "totalR": 0,
-    "avgR": 0,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias",
-    "n": 0,
-    "wr": 0,
-    "lo": 0,
-    "hi": 0,
-    "pf": 0,
-    "totalR": 0,
-    "avgR": 0,
     "sl": 0
   }
 ]
