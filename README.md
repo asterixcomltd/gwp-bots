@@ -27,8 +27,9 @@ at all — which is exactly what the weakest 3/6 trades looked like).
   `GWP_GROUP_BIAS_MIN=2` makes both bias timeframes mandatory.
 * **Rollback:** `GWP_TF_PROFILE=H6` = the v1.3.0 six-way 3-of-6 vote; `GWP_TF_PROFILE=LEGACY` = the original D1/30M/2H/15M design.
   Per bot, set `TF_PROFILE: 'H6'` in `bots/<name>/config.js`.
-* **Expect fewer trades than v1.3.0.** This is deliberate (accuracy over frequency). The real-data effect has NOT been
-  measured yet — run the sweep (below) before trusting it.
+* **Real-data result (v1.3.1 sweep, 360 days; table under "Backtest Results"):** on Forex it lifts the win rate from
+  58.8% to ≈80%; on Crypto it does **not** beat the v1.3.0 six-way vote (≈60% vs 63% win rate, far fewer trades and
+  less total R). If you prefer the Crypto numbers of v1.3.0, set `TF_PROFILE: 'H6'` in `bots/crypto/config.js`.
 
 ## Previous profile — v1.3.0 "H6" (still available: `GWP_TF_PROFILE=H6`)
 
@@ -69,7 +70,7 @@ Six timeframes vote; **3 of 6** must agree on direction (`MIN_TF_AGREE`).
 | `GWP_TF_PROFILE` | `GROUPS` | `H6` = v1.3.0 3-of-6 vote; `LEGACY` = original D1/30M/2H/15M 3-of-4 design |
 | `GWP_GROUP_NO_OPPOSE` | `bias` | GROUPS only: which groups must also have no opposing member (`none`/`bias`/`structure,bias`/`all`) |
 | `GWP_GROUP_BIAS_MIN` | `1` | GROUPS only: `2` = both H3 and H4 must agree |
-| `GWP_FIB_PREFILTER` | `false` | `true` = apply the 61.8% / mid-pocket exclusions before the best Fib level is chosen (see v1.3.1 notes) |
+| `GWP_FIB_PREFILTER` | `true` | apply the 61.8% / mid-pocket exclusions BEFORE the best Fib level is chosen; `false` = the v1.0–v1.3.0 order (see v1.3.2 notes) |
 | `GWP_MIN_TF_AGREE` | `3` | H6/LEGACY only: votes needed (try `4` for fewer, cleaner setups). Not used by GROUPS |
 | `GWP_M15_TIMING` | `false` | require the last closed M15 candle to close in the trade direction |
 | `GWP_H1_GATE` | `false` | make H1 a dual-gate member |
@@ -332,27 +333,43 @@ Edit `SYMBOLS` in each bot's `bots/<name>/config.js` to change this list.
 **The committed `backtest-report.txt` files in the repo may still be the v1.0.0 ones**: every report push failed
 between v1.3.0 and v1.3.1 (see the changelog). Run each bot's backtest workflow again after installing v1.3.1.
 
-Real-data run of the **v1.3.0 H6 profile (3-of-6 vote, look-ahead fixed)** — NOT the v1.3.1 default:
+**v1.3.1 sweep on real data (profile comparison; same data, same gates, same exits).** Wilson 95% win-rate range in
+brackets — overlapping ranges mean the difference is noise.
 
-| | Crypto | Forex | Stocks |
+| Profile | Crypto (360d, 20 sym) | Forex (360d, 14 sym) | Stocks (60d, 18 sym) |
 |---|---|---|---|
-| Period | 360 days | 360 days | **60 days only** (Twelve Data intraday depth) |
-| Trades | 230 | 216 | 12 |
-| Win rate | 63.0% | 58.8% | 83.3% |
-| Total R | +122.6R | +124.4R | +9.6R |
-| Profit factor | 9.80 | 12.13 | ∞ (no losing trade) |
-| Max drawdown | 3.3% | 2.2% | 0.2% |
+| **GROUPS, Fib prefilter OFF** | 53 trades · 60.4% (47–72) · +33.0R | 37 · 81.1% (66–91) · +35.9R | 1 · 100% · +1.4R |
+| **GROUPS, Fib prefilter ON (v1.3.2 default)** | 74 · 59.5% (48–70) · +48.0R | 80 · 80.0% (70–87) · +80.3R | 9 · 88.9% (56–98) · +10.7R |
+| GROUPS, bias must agree on both H3+H4 | 13 · 84.6% (58–96) · +11.1R | 9 · 100% (70–100) · +12.6R | 0 |
+| GROUPS, no opposition check at all | 74 · 64.9% (54–75) · +49.5R | 67 · 70.1% (58–80) · +52.9R | 3 · 100% · +2.6R |
+| LEGACY (original D1/30M/2H/15M) | 17 · 52.9% (31–74) · +9.6R | 20 · 75.0% (53–89) · +17.7R | 3 · 100% · +2.6R |
+| v1.3.0 six-way 3-of-6 vote *(separate earlier run)* | 230 · 63.0% · +122.6R | 216 · 58.8% · +124.4R | 12 · 83.3% · +9.6R |
 
-Read these with care: profit factor is inflated because many trades end at break-even or time out near 0R; Stocks has
-only 12 trades. Vote strictness mattered most: crypto 3/6 = 61.9% win rate / 97.6R, 4-or-more/6 ≈ 69% / ≈25R; forex 3/6 =
-54.1% / 87.9R, 4/6 = 80.6% / 33.4R with zero stop-outs. Fewer trades, higher win rate — the GROUPS profile is built on that
-finding, but its own numbers need the sweep.
+How to read it honestly:
+* **The Fib tie-break fix is the clear winner:** more trades *and* more total R at an equal win rate on all three bots
+  (crypto 33→48R, forex 36→80R). That is why it is ON by default from v1.3.2.
+* **Forex:** GROUPS+prefilter gives ≈80% win rate with +80R — much more accurate than the six-way vote (58.8%), with less
+  total R (80 vs 124). **Crypto:** GROUPS does *not* improve accuracy (60–65%, ranges overlap 63%) and gives up most of
+  the R — the six-way vote made more money there. Stocks: too few trades to say anything.
+* **Maximum accuracy, fewest trades:** requiring both bias timeframes (H3+H4) gives 84–100% win rate on 9–13 trades a
+  year. Real, but rare: with ranges this wide (58–96%) it is not yet proof.
+* **Rows labelled "H6" in the v1.3.1 sweep were wrong** (they silently ran the GROUPS plan); fixed in v1.3.2 — the next
+  sweep contains true H6 rows. The committed `backtest-report.txt` files may be stale; re-run the normal backtests.
 
 ## Changelog / mistakes learned
 
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.3.2** — *decisions from the first real GROUPS sweep.*
+  1. **Fib tie-break fix is now ON by default** (`GWP_FIB_PREFILTER=false` reverts). Real sweep: crypto 53→74 trades,
+     +33→+48R; forex 37→80 trades, +36→+80R at the same ≈80% win rate; stocks 1→9 trades. No bot lost win rate beyond noise.
+  2. **Sweep bug fixed (mine):** since GROUPS became the default, the sweep's "H6" rows were silently GROUPS plans, so
+     3-of-6 and 4-of-6 printed identical numbers. Every sweep row now names its real profile and Fib setting; the next
+     sweep also reruns the true six-way vote for an apples-to-apples comparison.
+  3. **Confirmed fixed from the 11 Nov logs:** pushes succeed (state/caches/reports commit), live crypto bars are
+     `M15=519 M30=1320 H1=660 H2=1000 H3=220 H4=500` with no "N/A" votes, forex and stocks scans fully voting.
+  4. **Honest crypto note:** GROUPS did not beat the v1.3.0 six-way vote on Crypto. Both stay available — see the table.
 - **v1.3.1** — *fixes for two regressions found in the real v1.3.0 logs, plus the GROUPS timeframe design.*
   1. **Every workflow push failed (my regression).** v1.3.0 raised `package.json` to 1.3.0 but `package-lock.json`
      stayed at 1.0.0; `npm install` then rewrote the lock file, leaving an unstaged change, and
