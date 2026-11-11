@@ -1,5 +1,5 @@
 /**
- * GWP STOCKS — strategy.js (LIVE RUNNER)  v1.3.0
+ * GWP STOCKS — strategy.js (LIVE RUNNER)  v1.3.1
  * All decision logic lives in ../../shared/core.js and ../../shared/engine.js
  * (shared with the Crypto and Forex sub-bots — see those files' headers).
  * This file only wires up the Twelve Data client and hands off to the
@@ -15,7 +15,7 @@ runLive({
   config,
   dataClient: createTwelveDataClient(config),
   botLabel: 'GWP Stocks',
-  version: '1.3.0',
+  version: '1.3.1',
   dir: __dirname,
 }).catch(err => {
   console.error('❌ Fatal error in GWP Stocks strategy.js:', err);
