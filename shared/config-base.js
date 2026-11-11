@@ -353,8 +353,8 @@ module.exports = {
   // network access in the environment this was written in) — re-run and
   // compare against the pre-change reports before trusting it live.
   FIB_618_EXCLUDE: process.env.FIB_618_EXCLUDE === 'false' ? false : true,
-  // v1.3.1: apply the two exclusions above BEFORE picking the best Fib level (see setup-eval.js). DEFAULT OFF (the tested behaviour); GWP_FIB_PREFILTER=true turns it on. The backtest sweep has an A/B row for it.
-  FIB_EXCLUDE_BEFORE_SCORING: process.env.GWP_FIB_PREFILTER === 'true' ? true : false,
+  // v1.3.1: apply the two exclusions above BEFORE picking the best Fib level (see setup-eval.js). DEFAULT ON since v1.3.2 (real 360-day sweep: crypto 53→74 trades / 33→48R, forex 37→80 trades / 36→80R at the same win rate, stocks 1→9 trades). GWP_FIB_PREFILTER=false restores the old order.
+  FIB_EXCLUDE_BEFORE_SCORING: process.env.GWP_FIB_PREFILTER === 'false' ? false : true,
 
   // #2 POC MIGRATION — v10.13 direction fix ported as-is: migration
   // CONFIRMING trade direction gets the penalty (a POC that's already

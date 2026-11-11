@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.3.1
+ *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.3.2
  *
  *  Walks the CLOCK timeframe (M15) tick by tick. At each tick it hands the
  *  CLOSED candles of every timeframe in the plan (shared/tf-plan.js) to the
