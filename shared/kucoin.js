@@ -157,11 +157,39 @@ module.exports = function createKucoinClient(config) {
   const closedOnly = (bars, barSeconds, nowSec) => bars.filter(b => b.time + barSeconds <= nowSec);
   const CACHE_VERSION = 2;
 
+
+  // ── DEEP SEED FETCH (v1.3.1) ───────────────────────────────────────────
+  // BUG FIXED: KuCoin's un-ranged candle call returns only a SHORT default
+  // window (~100 candles; the `limit` parameter is not part of its API and
+  // is ignored). The v1.0.0 cache hid that — it was seeded with ~100 bars
+  // once and then grew by deltas for weeks. v1.3.0 discarded the old caches
+  // (to drop corrupted half-candles) and re-seeded with that short window,
+  // so the derived H1/H3/H4 series had too little history and abstained.
+  // Seeding now pages BACKWARDS with ranged requests (<=1500 bars each,
+  // the documented maximum) until `limit` CLOSED bars are collected.
+  const fetchDeep = async (symbol, interval, limit, maxRetries, barSeconds, nowSec) => {
+    let all = [];
+    let chunkEnd = nowSec;
+    for (let page = 0; page < 6; page++) {
+      const chunkStart = chunkEnd - 1500 * barSeconds;
+      const { ok, bars } = await fetchKlinesRange(symbol, interval, chunkStart, chunkEnd, maxRetries);
+      if (!ok || !bars.length) break;
+      all = [...bars, ...all];
+      const seen = new Set();
+      all = all.filter(b => (seen.has(b.time) ? false : (seen.add(b.time), true))).sort((a, b) => a.time - b.time);
+      if (closedOnly(all, barSeconds, nowSec).length >= limit) break;
+      chunkEnd = bars[0].time - 1;
+      await sleep(150);
+    }
+    if (!all.length) all = await fetchRecent(symbol, interval, limit + 1, maxRetries); // last resort
+    return closedOnly(all, barSeconds, nowSec);
+  };
+
   // ── Live fetch — most recent N CLOSED candles, cache-aware ──────────────
   const getKlines = async (symbol, interval, limit, maxRetries = 2) => {
     const barSeconds = BAR_SECONDS[interval] || 3600;
     const nowSec = Math.floor(Date.now() / 1000);
-    if (!CACHE_DIR) return closedOnly(await fetchRecent(symbol, interval, limit + 1, maxRetries), barSeconds, nowSec).slice(-limit); // no cacheDir — no cache, closed bars only
+    if (!CACHE_DIR) return (await fetchDeep(symbol, interval, limit, maxRetries, barSeconds, nowSec)).slice(-limit); // no cacheDir — no cache, closed bars only
 
     const key = `${symbol}|${interval}`;
     const cached = loadCacheEntry(key);
@@ -195,7 +223,7 @@ module.exports = function createKucoinClient(config) {
 
     // No usable cache (missing, old pre-v2 format, or seeded for a smaller
     // limit) — full fetch of CLOSED bars, then seed the cache.
-    const bars = closedOnly(await fetchRecent(symbol, interval, limit + 1, maxRetries), barSeconds, nowSec);
+    const bars = await fetchDeep(symbol, interval, limit, maxRetries, barSeconds, nowSec);
     if (bars.length) saveCacheEntry(key, { v: CACHE_VERSION, seededLimit: limit, bars: bars.slice(-MAX_CACHED_BARS) });
     return bars.slice(-limit);
   };

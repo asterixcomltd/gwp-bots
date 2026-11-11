@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED STRATEGY ENGINE (shared/engine.js)  v1.3.0
+ *  GWP — SHARED STRATEGY ENGINE (shared/engine.js)  v1.3.1
  *
  *  This is a faithful, line-for-line port of MVS-bot's strategy.js
  *  runStrategy() pipeline (v10.15.5), generalized into a factory so all
@@ -8,24 +8,13 @@
  *  pipeline against their own config + data source. Every gate, in the
  *  same order, with the same reasoning MVS-bot's own comments document.
  *
- *  v1.1.4 RE-ROLE — 4 timeframes, each with ONE job (per config-base.js
- *  RE-ROLE note): live evidence showed 30M structure remapping/
- *  invalidating too often (shallow, whipsawed zones), while 2H holds and
- *  respects its structure far better. So:
- *    D1  (DAILY_TIMEFRAME)   → BIAS ONLY   — slow macro POC/VAH/VAL/Fib50 vote
- *    2H  (STRUCT_TIMEFRAME)  → STRUCTURE ONLY — swing, Fib golden pocket,
- *                               POC/VAH/VAL zone, ATR, SL anchor
- *    30M (BIAS_TIMEFRAME)    → BIAS ONLY   — fast tactical confirming vote,
- *                               sits alongside the 15M trigger
- *    15M (TRIGGER_TIMEFRAME) → ENTRY ONLY  — the actual rejection candle
- *  Direction requires MIN_TF_AGREE (3) of these 4 to agree — see
- *  core.js resolveDirection(). Nothing below hardcodes which physical
- *  candle interval plays which role — this file reads config.STRUCT_x /
- *  config.BIAS_x /etc, and swaps automatically with config-base.js. The
- *  'D1'/'2H'/'30M'/'15M' strings that DO appear below are just the
- *  human-readable labels attached to each role for logs/Telegram — they
- *  were flipped ('2H'↔'30M') to match the RE-ROLE, not left over from
- *  the old assignment.
+ *  v1.3.0 — the decision pipeline itself moved to shared/setup-eval.js
+ *  (shared with the backtest). This file fetches closed candles, logs,
+ *  persists state and sends the alert. Timeframe roles come from
+ *  shared/tf-plan.js: H6 (default) = M15 clock/vote, M30 trigger, H1 vote,
+ *  H2 structure, H3 + H4 bias, 3-of-6; or GWP_TF_PROFILE=LEGACY for the
+ *  v1.1.4 D1/30M/2H/15M 3-of-4 design. Nothing here hardcodes which
+ *  physical candle plays which role.
  *
  *  Every other gate below — near-zone, confluence, POC-quality factors,
  *  TD Sequential, risk tiering, TP1/TP2 structure, cooldown, structural
@@ -84,7 +73,6 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
       biasD1: g('D1'), bias30m: g('30M') ?? g('M30'), bias2h: g('2H') ?? g('H2'), bias15m: g('15M') ?? g('M15'),
     };
   };
-  const voteStr = (states) => plan.entries.map(e => `${e.label}=${states[e.label] && states[e.label].bias ? states[e.label].bias.bias : 'N/A'}`).join(' | ');
   const normAgree = (agreeing) => agreeing.map(l => (l === S.label ? plan.structMatrixLabel : l));
 
   const runStrategy = async (symbol) => {
@@ -95,6 +83,7 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
     try {
       // ── STEP 1: FETCH (closed candles only) ─────────────────────────────
       const { bars } = await loadPlanBars(plan, getKlines, symbol);
+      console.log(`  📦 bars: ${plan.entries.map(e => `${e.label}=${(bars[e.label] || []).length}`).join(' ')}`);
       const structBars = bars[S.label] || [];
       const clockBars = bars[CK.label] || [];
       const trigBars = bars[T.label] || [];
@@ -134,11 +123,6 @@ module.exports = function createEngine({ config, core, dataClient, telegram, per
         log: (m) => console.log(m),
       });
       const resolved = res.ctx.resolved;
-      console.log(
-        `  📡 VOTE: ${voteStr(states)}` +
-        (resolved ? ` → ${resolved.direction} (${resolved.tally}: ${resolved.agreeing.join('+')})` : ` → NO ${config.MIN_TF_AGREE}-OF-${plan.entries.length} AGREEMENT`)
-      );
-
       // state.json — always kept fresh so /status is never more than one scan stale
       if (!resolved) {
         saveState(symbol, { signal: 'NO_AGREEMENT', direction: null, price, ...bf });
