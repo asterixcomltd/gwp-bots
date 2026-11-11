@@ -1,0 +1,24 @@
+═══════════════════════════════════════════════════════════════════
+ GWP Stocks v1.3.1 — TIMEFRAME-ROLE SWEEP  (60 days, 18 symbols)
+ Same data, same gates, same exits — only the roles of M15 / H1 / H3 and the vote strictness (3 vs 4 of 6) change.
+ WR 95% = Wilson confidence interval: if two rows overlap, the difference is NOISE.
+═══════════════════════════════════════════════════════════════════
+
+trades  WR%   (95% range)   PF     totalR  avgR   SL   variant
+    9   88.9  (56–98)             ∞     10.7   1.19    0  GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter ON
+    3  100.0  (44–100)            ∞      2.6   0.87    0  LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed)
+    3  100.0  (44–100)            ∞      2.6   0.86    0  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none
+    1  100.0  (21–100)            ∞      1.4   1.39    0  H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1
+    1  100.0  (21–100)            ∞      1.4   1.39    0  H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ANY-1
+    1  100.0  (21–100)            ∞      1.4   1.39    0  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias
+    1  100.0  (21–100)            ∞      1.4   1.39    0  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias
+    1  100.0  (21–100)            ∞      1.4   1.39    0  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:all
+    1  100.0  (21–100)            ∞      1.4   1.39    0  GROUPS default (bias>=1, no-oppose:bias) + Fib prefilter OFF
+    0    0.0  (0–0)            0.00      0.0   0.00    0  H6 vote>=3  M15:vote  H1:vote  H3:vote  gate-min:ANY-1
+    0    0.0  (0–0)            0.00      0.0   0.00    0  H6 vote>=3  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL
+    0    0.0  (0–0)            0.00      0.0   0.00    0  H6 vote>=4  M15:vote  H1:vote  H3:vote  gate-min:ANY-1
+    0    0.0  (0–0)            0.00      0.0   0.00    0  H6 vote>=4  M15:vote  H1:vote  H3:vote+gate  gate-min:ALL
+    0    0.0  (0–0)            0.00      0.0   0.00    0  GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias
+
+How to read: prefer the row with the best totalR/PF whose trade count is large enough that its
+WR range is narrow. A row that wins by a few trades inside overlapping ranges is not a real winner.
