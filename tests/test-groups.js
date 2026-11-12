@@ -35,5 +35,10 @@ r = core.resolveGroupDirection(all(B, S, B, B, B, B), Gbias); assert.strictEqual
 assert.strictEqual(core.resolveGroupDirection(all(B, B, B, B, B, S), Gbias), null);
 assert.strictEqual(p.struct.label, 'H2'); assert.deepStrictEqual(p.gate.map(g => g.label), ['H3', 'H4']);
 assert.strictEqual(buildPlan(cfg, { profile: 'GROUPS', biasMin: 2 }).groups.list[2].min, 2);
-assert.strictEqual(buildPlan(cfg, { profile: 'H6' }).groups, null); assert.ok(buildPlan(cfg).groups); // GROUPS is the default; H6 stays available
+assert.strictEqual(buildPlan(cfg).groups, null); assert.ok(buildPlan(cfg, { profile: 'GROUPS' }).groups); // H6 is the default; GROUPS stays available
+// v1.3.3 vote thresholds: H6 default 4-of-6, LEGACY keeps 3-of-4, per-plan (no shared mutable state)
+assert.strictEqual(buildPlan(cfg).minAgree, 4);
+assert.strictEqual(buildPlan(cfg, { profile: 'H6', minAgree: 3 }).minAgree, 3);
+assert.strictEqual(buildPlan(cfg, { profile: 'LEGACY' }).minAgree, 3);
+assert.strictEqual(buildPlan(cfg, { profile: 'GROUPS', minTotal: 4 }).groups.minTotal, 4);
 console.log('✅ test-groups passed');
