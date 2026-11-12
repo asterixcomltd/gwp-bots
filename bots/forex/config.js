@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP FOREX — config.js  v1.3.2
+ *  GWP FOREX — config.js  v1.3.3
  *  Twelve Data API. Majors + Gold — same pairs the earlier GWP forex bot
  *  shipped with, ported onto the MVS-derived 4-TF engine (D1/2H/30M/15M).
  *
