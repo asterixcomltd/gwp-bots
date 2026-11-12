@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — TIMEFRAME PLAN (shared/tf-plan.js)   v1.3.2
+ *  GWP — TIMEFRAME PLAN (shared/tf-plan.js)   v1.3.3
  *
  *  ONE description of "which timeframes exist, which vote, and what job
  *  each one does", read by BOTH the live engine and the backtest engine so
@@ -36,7 +36,7 @@ const ROLE_DEFAULTS = { m15Timing: false, h1Gate: false, h3Gate: true, gateMin: 
 
 const envBool = (v, d) => (v === undefined || v === '' ? d : v === 'true' || v === '1');
 
-const profileName = (config, variantIn = {}) => String(variantIn.profile || process.env.GWP_TF_PROFILE || config.TF_PROFILE || 'GROUPS').toUpperCase();
+const profileName = (config, variantIn = {}) => String(variantIn.profile || process.env.GWP_TF_PROFILE || config.TF_PROFILE || 'H6').toUpperCase();
 
 const resolveVariant = (config, variant = {}) => {
   const d = { ...ROLE_DEFAULTS, ...(config.TF_ROLES || {}) };
@@ -49,9 +49,13 @@ const resolveVariant = (config, variant = {}) => {
 };
 
 const buildPlan = (config, variantIn = {}) => {
-  // Optional vote-strictness switch (3-of-6 is the delivered default; 4-of-6 trades fewer, cleaner setups).
-  if (process.env.GWP_MIN_TF_AGREE) config.MIN_TF_AGREE = Math.max(2, parseInt(process.env.GWP_MIN_TF_AGREE, 10) || config.MIN_TF_AGREE);
   const profile = profileName(config, variantIn);
+  // Votes needed (H6 / LEGACY profiles). v1.3.3: the six-way vote defaults to 4-of-6 — the real 360-day sweep showed
+  // 4-of-6 keeps the win rate high (crypto 66%, forex 78%, stocks 91%) with ~1 stop-out per bot, where 3-of-6 let in
+  // 5–18 stop-outs. LEGACY keeps its own 3-of-4. Env GWP_MIN_TF_AGREE overrides; config.H6_MIN_TF_AGREE sets the default.
+  if (config.__baseMinAgree === undefined) config.__baseMinAgree = config.MIN_TF_AGREE;
+  const envMin = process.env.GWP_MIN_TF_AGREE ? Math.max(2, parseInt(process.env.GWP_MIN_TF_AGREE, 10) || 0) : 0;
+  const minAgree = variantIn.minAgree || envMin || (profile === 'H6' ? (config.H6_MIN_TF_AGREE || 4) : config.__baseMinAgree);
   const baseName = { M15: config.TRIGGER_TIMEFRAME, M30: config.BIAS_TIMEFRAME, H2: config.STRUCT_TIMEFRAME, D1: config.DAILY_TIMEFRAME };
   const origin = config.TF_BUCKET_ORIGIN || 'utc';
   const lbOverride = config.TF_LOOKBACKS || {};
@@ -96,8 +100,10 @@ const buildPlan = (config, variantIn = {}) => {
     // disagreeing is routine. 'none' | 'bias' | 'structure,bias' | 'all' (env GWP_GROUP_NO_OPPOSE).
     const noOpp = String(variantIn.noOppose ?? process.env.GWP_GROUP_NO_OPPOSE ?? (config.GROUPS && config.GROUPS.noOppose) ?? 'bias').toLowerCase();
     const guarded = (name) => noOpp === 'all' || noOpp.split(',').map(x => x.trim()).includes(name);
+    const minTotal = variantIn.minTotal ?? (process.env.GWP_GROUP_MIN_TOTAL ? parseInt(process.env.GWP_GROUP_MIN_TOTAL, 10) : ((config.GROUPS && config.GROUPS.minTotal) || 0));
     groups = {
       noOppose: noOpp,
+      minTotal,
       list: [
         { name: 'trigger',   labels: ['M15', 'M30'], min: 1, noOppose: guarded('trigger') },
         { name: 'structure', labels: ['H1', 'H2'],   min: 1, noOppose: guarded('structure') },
@@ -140,7 +146,7 @@ const buildPlan = (config, variantIn = {}) => {
   }
 
   return {
-    profile, variant, groups, entries, struct, trigger, clock, gate, htfzone, timing, origin,
+    profile, variant, groups, minAgree, entries, struct, trigger, clock, gate, htfzone, timing, origin,
     gateMinPoc, gateMinFib, triggerLookbackBars, sweepLookbackBars,
     baseNeeds, baseName, structLimit,
     // key used by RISK_TIER_MATRIX ("POC_2H" / "POC_NO2H") — always the physical 2H structure TF

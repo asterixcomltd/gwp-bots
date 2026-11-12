@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.2
+ *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.3
  *
  *  The ONE place the signal decision pipeline lives. engine.js (live) and
  *  backtest-engine.js (replay) both call evaluate(); they only differ in
@@ -66,14 +66,17 @@ module.exports = function createSetupEvaluator({ config, core, plan }) {
 
     // ── VOTE ─────────────────────────────────────────────────────────
     const votes = plan.entries.map(e => ({ tf: e.label, result: states[e.label] ? states[e.label].bias : null }));
-    const resolved = plan.groups
+    const minAgree = plan.minAgree || config.MIN_TF_AGREE;
+    let resolved = plan.groups
       ? core.resolveGroupDirection(votes, plan.groups.list, plan.groups.noOppose)
-      : core.resolveDirection(votes, config.MIN_TF_AGREE);
+      : core.resolveDirection(votes, minAgree);
+    // optional extra: total agreeing timeframes on top of the group rule (GROUPS + "at least N of 6")
+    if (resolved && plan.groups && plan.groups.minTotal && resolved.agreeing.length < plan.groups.minTotal) resolved = null;
     ctx.votes = votes; ctx.resolved = resolved;
-    const noAgreeReason = plan.groups ? 'GROUPS_NOT_ALIGNED' : `NO_${config.MIN_TF_AGREE}OF${plan.entries.length}_AGREEMENT`;
+    const noAgreeReason = plan.groups ? 'GROUPS_NOT_ALIGNED' : `NO_${minAgree}OF${plan.entries.length}_AGREEMENT`;
     log(`  📡 VOTE: ${votes.map(v => `${v.tf}=${v.result ? v.result.bias : 'N/A'}`).join(' | ')}` +
       (resolved ? ` → ${resolved.direction} (${resolved.tally}: ${resolved.agreeing.join('+')})`
-        : plan.groups ? ' → GROUPS NOT ALIGNED (need trigger + structure + bias)' : ` → NO ${config.MIN_TF_AGREE}-OF-${plan.entries.length} AGREEMENT`));
+        : plan.groups ? ' → GROUPS NOT ALIGNED (need trigger + structure + bias)' : ` → NO ${minAgree}-OF-${plan.entries.length} AGREEMENT`));
     if (!resolved) return fail(noAgreeReason);
     stages.push('voteOk');
     const direction = resolved.direction;
