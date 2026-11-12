@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP STOCKS — config.js  v1.3.2
+ *  GWP STOCKS — config.js  v1.3.3
  *  Twelve Data API. Large-cap US equities — real traded volume, so no
  *  synthetic-volume fallback is expected to trigger for this bot (see
  *  shared/twelvedata.js) except possibly on thin pre/post-market prints.
