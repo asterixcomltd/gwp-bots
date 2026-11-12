@@ -12,7 +12,7 @@ runBacktest({
   config,
   dataClient: createKucoinClient(config),
   botLabel: 'GWP Crypto',
-  version: '1.3.2',
+  version: '1.3.3',
   dir: __dirname,
 }).catch(err => {
   console.error('❌ Fatal error in GWP Crypto backtest.js:', err);
