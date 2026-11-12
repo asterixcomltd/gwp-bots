@@ -67,24 +67,22 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   const evalWindowStartTime = Math.floor(Date.now() / 1000) - days * 86400;
 
   // Sweep mode also needs D1 (for the LEGACY baseline row) — fetched once, reused by every variant.
-  const baseMinAgree = config.MIN_TF_AGREE;
   const basePrefilter = config.FIB_EXCLUDE_BEFORE_SCORING;
   const sweepRows = [];
   const sweepVariants = [];
   const legacyPlan = SWEEP ? (() => { const prev = process.env.GWP_TF_PROFILE; process.env.GWP_TF_PROFILE = 'LEGACY'; const p = buildPlan(config); if (prev === undefined) delete process.env.GWP_TF_PROFILE; else process.env.GWP_TF_PROFILE = prev; return p; })() : null;
   if (SWEEP) {
     sweepVariants.push({ name: 'LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed, Fib prefilter OFF)', plan: legacyPlan, legacy: true, fibPrefilter: false });
-    // v1.3.2 — every row is labelled with the profile it REALLY runs (v1.3.1's "H6" rows silently ran the GROUPS
-    // plan once GROUPS became the default, so 3-vs-4-of-6 looked identical). Explicit profile on every row.
-    const h6 = buildPlan(config, { profile: 'H6' });
-    for (const minAgree of [3, 4]) sweepVariants.push({ minAgree, name: `H6 six-way vote>=${minAgree}  (v1.3.0 design, Fib prefilter ON)`, plan: h6, fibPrefilter: true });
-    sweepVariants.push({ minAgree: 3, name: 'H6 six-way vote>=3  (v1.3.0 design, Fib prefilter OFF = what v1.3.0 ran)', plan: h6, fibPrefilter: false });
-    // GROUPS profile: triggers (M15,M30) + structures (H1,H2) + bias (H3,H4), one positive member per group.
-    for (const [biasMin, noOppose] of [[1, 'bias'], [1, 'none'], [1, 'structure,bias'], [2, 'bias'], [2, 'none']]) {
-      const gp = buildPlan(config, { profile: 'GROUPS', biasMin, noOppose });
-      sweepVariants.push({ minAgree: baseMinAgree, name: `GROUPS trig>=1 struct>=1 bias>=${biasMin}  no-oppose:${noOppose}  (Fib prefilter ON)`, plan: gp, fibPrefilter: true });
+    // Every row names the profile it REALLY runs. Plans carry their own vote threshold (plan.minAgree).
+    const h6 = (minAgree) => ({ ...buildPlan(config, { profile: 'H6' }), minAgree });
+    for (const m of [3, 4, 5]) sweepVariants.push({ name: `H6 six-way vote>=${m}  (Fib prefilter ON)`, plan: h6(m), fibPrefilter: true });
+    sweepVariants.push({ name: 'H6 six-way vote>=4  (Fib prefilter OFF)', plan: h6(4), fibPrefilter: false });
+    // GROUPS profile: triggers (M15,M30) + structures (H1,H2) + bias (H3,H4), one positive member per group,
+    // optionally ALSO requiring N of 6 timeframes in total.
+    for (const [biasMin, noOppose, minTotal] of [[1, 'bias', 0], [1, 'none', 0], [1, 'bias', 4], [1, 'none', 4], [1, 'none', 5], [2, 'none', 0]]) {
+      const gp = buildPlan(config, { profile: 'GROUPS', biasMin, noOppose, minTotal });
+      sweepVariants.push({ name: `GROUPS bias>=${biasMin} no-oppose:${noOppose}${minTotal ? ' + total>=' + minTotal + '/6' : ''}  (Fib prefilter ON)`, plan: gp, fibPrefilter: true });
     }
-    sweepVariants.push({ minAgree: baseMinAgree, name: 'GROUPS bias>=1 no-oppose:bias  (Fib prefilter OFF)', plan: buildPlan(config, { profile: 'GROUPS' }), fibPrefilter: false });
     for (const v of sweepVariants) v.trades = [];
   }
 
@@ -112,7 +110,6 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
     if (SWEEP) {
       for (const v of sweepVariants) {
         const pb = v.legacy ? derivePlanBars(v.plan, baseBars) : derivePlanBars(v.plan, baseBars);
-        config.MIN_TF_AGREE = v.minAgree || baseMinAgree;
         config.FIB_EXCLUDE_BEFORE_SCORING = v.fibPrefilter !== undefined ? v.fibPrefilter : basePrefilter;
         const r = await backtestSymbol(symbol, pb, evalWindowStartTime, v.plan);
         v.trades.push(...r.trades);
@@ -128,7 +125,6 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
 
   if (SWEEP) {
     const wilson = (w, n) => { if (!n) return [0, 0]; const z = 1.96, p = w / n, d = 1 + z * z / n, c = p + z * z / (2 * n), m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)); return [Math.max(0, (c - m) / d), Math.min(1, (c + m) / d)]; };
-    config.MIN_TF_AGREE = baseMinAgree;
     config.FIB_EXCLUDE_BEFORE_SCORING = basePrefilter;
     const rows = sweepVariants.map(v => {
       const closed = v.trades.filter(t => t.result !== 'OPEN');

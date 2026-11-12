@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.3.2
+ *  GWP — SHARED BACKTEST ENGINE (shared/backtest-engine.js)  v1.3.3
  *
  *  Walks the CLOCK timeframe (M15) tick by tick. At each tick it hands the
  *  CLOSED candles of every timeframe in the plan (shared/tf-plan.js) to the
@@ -363,7 +363,7 @@ module.exports = function createBacktestEngine({ config, core, version, botLabel
       '═══════════════════════════════════════════════════════════════════',
       ` ${botLabel} v${version} — BACKTEST REPORT`,
       ` Period: Last ${requestedDays} days  |  Symbols: ${requestedSymbols.join(', ')}`,
-      ` ${plan.describe()} — ${plan.groups ? 'enforced timeframe groups' : config.MIN_TF_AGREE + '-of-' + plan.entries.length + ' timeframe vote'}`,
+      ` ${plan.describe()} — ${plan.groups ? 'enforced timeframe groups' : plan.minAgree + '-of-' + plan.entries.length + ' timeframe vote'}`,
       ` Timeframe profile: ${plan.profile}${plan.variant ? ' | roles: ' + JSON.stringify(plan.variant) : ''}  (* = built from lower-timeframe candles)`,
       '═══════════════════════════════════════════════════════════════════',
       '',
