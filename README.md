@@ -8,32 +8,26 @@ indicators), same shared-core discipline, same trade-management mechanics
 sizing boost). The **only** structural change from MVS is the timeframe
 architecture itself.
 
-## Timeframe architecture — v1.3.1 "GROUPS" (current default)
+## Timeframe architecture — v1.3.3 "H6, 4-of-6" (current default)
 
-Six timeframes in **three enforced groups of two**. A setup needs **every group positive**; a group is positive when at
-least one of its two timeframes agrees with the trade direction. One member per group means at least 3 timeframes
-agree, so the old separate "3-of-6" count is **cancelled** (it is implied, and it could be met with no bias timeframe
-at all — which is exactly what the weakest 3/6 trades looked like).
+Six timeframes vote; **4 of 6** must agree on direction (`GWP_MIN_TF_AGREE`, default 4 for this profile).
+Why 4 and not 3: the real 360-day sweep (table under "Backtest Results") showed 3-of-6 earns the most raw R but lets in
+many stop-outs (crypto 18, forex 12); 4-of-6 keeps the win rate high — crypto 66%, forex 78%, stocks 91% — with a single
+stop-out per bot, and was equal-or-better than every other design we tried on both win rate and total R.
 
-| Group | Timeframes | Job |
-|---|---|---|
-| **Triggers** | M15, M30 | M30 reads the rejection-candle patterns (the trigger); M15 is the engine's clock, its drift guard and the fast confirmation |
-| **Structures** | H1, H2 | **H2 owns the zone** (swing, Fib pocket, POC/VAH/VAL, ATR, stop anchor); H1 (built from 2 × M30) is the finer second structure |
-| **Bias** | H3, H4 | slow direction: H3 (6 × M30) and H4 (2 × H2); also the dual-gate members and the HTF zone cross-check (H4) |
+## Alternative profile — v1.3.1 "GROUPS" (`GWP_TF_PROFILE=GROUPS`)
 
-* **Bias group guard (default on):** at least one bias timeframe must agree **and none may point the other way** (H3
-  bullish + H4 bearish = no trade). Trigger and structure groups need only "at least one agrees" — M15 vs M30 or H1 vs H2
-  disagreeing is routine. `GWP_GROUP_NO_OPPOSE` = `none` | `bias` (default) | `structure,bias` | `all`;
-  `GWP_GROUP_BIAS_MIN=2` makes both bias timeframes mandatory.
-* **Rollback:** `GWP_TF_PROFILE=H6` = the v1.3.0 six-way 3-of-6 vote; `GWP_TF_PROFILE=LEGACY` = the original D1/30M/2H/15M design.
-  Per bot, set `TF_PROFILE: 'H6'` in `bots/<name>/config.js`.
-* **Real-data result (v1.3.1 sweep, 360 days; table under "Backtest Results"):** on Forex it lifts the win rate from
-  58.8% to ≈80%; on Crypto it does **not** beat the v1.3.0 six-way vote (≈60% vs 63% win rate, far fewer trades and
-  less total R). If you prefer the Crypto numbers of v1.3.0, set `TF_PROFILE: 'H6'` in `bots/crypto/config.js`.
+Same six timeframes in **three enforced groups of two**: triggers (M15, M30), structures (H1, H2), bias (H3, H4).
+A setup needs every group positive; a group is positive when at least one member agrees (the bias group also may not
+contain an opposing timeframe by default). Optional `GWP_GROUP_MIN_TOTAL=4` adds "and at least 4 of 6 overall";
+`GWP_GROUP_NO_OPPOSE` = `none` | `bias` (default) | `structure,bias` | `all`; `GWP_GROUP_BIAS_MIN=2` = both H3 and H4 required.
+On real data GROUPS ties the six-way 4-of-6 vote on accuracy and trails it on total R (see table), so it is not the default.
 
-## Previous profile — v1.3.0 "H6" (still available: `GWP_TF_PROFILE=H6`)
+* **Rollback:** `GWP_TF_PROFILE=LEGACY` = the original D1/30M/2H/15M 3-of-4 design. Per bot: `TF_PROFILE` in `bots/<name>/config.js`.
 
-Six timeframes vote; **3 of 6** must agree on direction (`MIN_TF_AGREE`).
+## The six timeframes (used by H6 and GROUPS)
+
+In H6 the roles below vote; 4 of 6 must agree.
 
 | Timeframe | Role | Notes |
 |-----------|------|-------|
@@ -67,11 +61,12 @@ Six timeframes vote; **3 of 6** must agree on direction (`MIN_TF_AGREE`).
 
 | Variable | Default | Effect |
 |---|---|---|
-| `GWP_TF_PROFILE` | `GROUPS` | `H6` = v1.3.0 3-of-6 vote; `LEGACY` = original D1/30M/2H/15M 3-of-4 design |
+| `GWP_TF_PROFILE` | `H6` | `GROUPS` = enforced groups; `LEGACY` = original D1/30M/2H/15M 3-of-4 design |
+| `GWP_GROUP_MIN_TOTAL` | `0` | GROUPS only: also require N of 6 timeframes in total (try `4`) |
 | `GWP_GROUP_NO_OPPOSE` | `bias` | GROUPS only: which groups must also have no opposing member (`none`/`bias`/`structure,bias`/`all`) |
 | `GWP_GROUP_BIAS_MIN` | `1` | GROUPS only: `2` = both H3 and H4 must agree |
 | `GWP_FIB_PREFILTER` | `true` | apply the 61.8% / mid-pocket exclusions BEFORE the best Fib level is chosen; `false` = the v1.0–v1.3.0 order (see v1.3.2 notes) |
-| `GWP_MIN_TF_AGREE` | `3` | H6/LEGACY only: votes needed (try `4` for fewer, cleaner setups). Not used by GROUPS |
+| `GWP_MIN_TF_AGREE` | `4` (H6), `3` (LEGACY) | votes needed; `3` = more trades, more stop-outs; `5` = very few, very clean. Not used by GROUPS |
 | `GWP_M15_TIMING` | `false` | require the last closed M15 candle to close in the trade direction |
 | `GWP_H1_GATE` | `false` | make H1 a dual-gate member |
 | `GWP_H3_GATE` | `true` | make H3 a dual-gate member |
@@ -87,14 +82,12 @@ access**, so the only data available was the ~3 weeks of M15 candles committed i
 * M15 entry-timing: no consistent win-rate benefit → **off by default** (`GWP_M15_TIMING=true` to enable).
 * H1 as an extra gate member: no benefit → **vote only**.
 * H3 as a gate member: neutral-to-positive on stocks, neutral on crypto → **on by default**.
-* **Vote strictness was the only lever that moved win rate in both bots:** 4-of-6 instead of 3-of-6 lifted the win rate
-  (crypto ≈38%→60–75%, stocks ≈75%→83–86%) at roughly half the number of trades. Delivered default stays **3-of-6** as
-  specified; `GWP_MIN_TF_AGREE=4` switches it. This is a risk/frequency trade-off and is the owner's call.
+* **Vote strictness was the lever that moved win rate:** confirmed on the real 360-day data — 4-of-6 is now the default (v1.3.3).
 
 **To settle it properly, run the sweep:** Actions → *GWP … — Backtest* → Run workflow → `sweep = true`. It replays every
-role combination × (3 vs 4 of 6) × the LEGACY baseline on the *same* 360 days of real data and writes
+design (six-way vote at 3/4/5 of 6, GROUPS variants, Fib fix on/off) × the LEGACY baseline on the *same* 360 days of real data and writes
 `backtest-sweep.txt` (with Wilson 95% win-rate ranges — overlapping ranges mean the difference is noise). Set the
-winners as `TF_ROLES` in the bot's `config.js` (or the `GWP_*` env vars).
+winner via `TF_PROFILE` / `H6_MIN_TF_AGREE` / `TF_ROLES` in the bot's `config.js` (or the `GWP_*` env vars).
 
 ## Timeframe architecture (v1.1.2 mechanics, v1.1.4 RE-ROLE) — LEGACY profile
 
@@ -333,35 +326,42 @@ Edit `SYMBOLS` in each bot's `bots/<name>/config.js` to change this list.
 **The committed `backtest-report.txt` files in the repo may still be the v1.0.0 ones**: every report push failed
 between v1.3.0 and v1.3.1 (see the changelog). Run each bot's backtest workflow again after installing v1.3.1.
 
-**v1.3.1 sweep on real data (profile comparison; same data, same gates, same exits).** Wilson 95% win-rate range in
-brackets — overlapping ranges mean the difference is noise.
+**v1.3.2 sweep on real data** — same data, gates and exits for every row; Fib tie-break fix ON unless stated. Wilson 95%
+win-rate range in brackets (overlapping ranges = the difference is noise). SL = trades that ended at a full stop-loss.
 
 | Profile | Crypto (360d, 20 sym) | Forex (360d, 14 sym) | Stocks (60d, 18 sym) |
 |---|---|---|---|
-| **GROUPS, Fib prefilter OFF** | 53 trades · 60.4% (47–72) · +33.0R | 37 · 81.1% (66–91) · +35.9R | 1 · 100% · +1.4R |
-| **GROUPS, Fib prefilter ON (v1.3.2 default)** | 74 · 59.5% (48–70) · +48.0R | 80 · 80.0% (70–87) · +80.3R | 9 · 88.9% (56–98) · +10.7R |
-| GROUPS, bias must agree on both H3+H4 | 13 · 84.6% (58–96) · +11.1R | 9 · 100% (70–100) · +12.6R | 0 |
-| GROUPS, no opposition check at all | 74 · 64.9% (54–75) · +49.5R | 67 · 70.1% (58–80) · +52.9R | 3 · 100% · +2.6R |
-| LEGACY (original D1/30M/2H/15M) | 17 · 52.9% (31–74) · +9.6R | 20 · 75.0% (53–89) · +17.7R | 3 · 100% · +2.6R |
-| v1.3.0 six-way 3-of-6 vote *(separate earlier run)* | 230 · 63.0% · +122.6R | 216 · 58.8% · +124.4R | 12 · 83.3% · +9.6R |
+| **H6 six-way vote ≥4 (v1.3.3 default)** | **110 trades · 66.4% (57–75) · +75.5R · 1 SL** | **124 · 78.2% (70–85) · +123.7R · 1 SL** | **11 · 90.9% (62–98) · +10.1R · 1 SL** |
+| H6 six-way vote ≥3 (v1.3.0's setting) | 338 · 63.3% (58–68) · +194R · 18 SL | 342 · 64.6% (59–69) · +235R · 12 SL | 27 · 77.8% (59–89) · +25R · 0 SL |
+| GROUPS, no opposition check | 104 · 65.4% (56–74) · +71R | 129 · 75.2% (67–82) · +117R | 12 · 91.7% · +12.5R |
+| GROUPS, bias opposition check | 74 · 59.5% (48–70) · +48R | 80 · 80.0% (70–87) · +80R | 9 · 88.9% · +10.7R |
+| GROUPS, both H3 and H4 required | 17 · 76.5% (53–90) · +13R | 25 · 84.0% (65–94) · +30R | 2 trades |
+| v1.3.0 exactly (3-of-6, Fib fix off) | 230 · 63.0% · +122.6R · 11 SL | 216 · 58.8% · +124.4R · 9 SL | 13 · 84.6% · +11.5R |
+| LEGACY (original design) | 17 · 52.9% · +9.6R | 20 · 75.0% · +17.7R | 3 trades |
 
 How to read it honestly:
-* **The Fib tie-break fix is the clear winner:** more trades *and* more total R at an equal win rate on all three bots
-  (crypto 33→48R, forex 36→80R). That is why it is ON by default from v1.3.2.
-* **Forex:** GROUPS+prefilter gives ≈80% win rate with +80R — much more accurate than the six-way vote (58.8%), with less
-  total R (80 vs 124). **Crypto:** GROUPS does *not* improve accuracy (60–65%, ranges overlap 63%) and gives up most of
-  the R — the six-way vote made more money there. Stocks: too few trades to say anything.
-* **Maximum accuracy, fewest trades:** requiring both bias timeframes (H3+H4) gives 84–100% win rate on 9–13 trades a
-  year. Real, but rare: with ranges this wide (58–96%) it is not yet proof.
-* **Rows labelled "H6" in the v1.3.1 sweep were wrong** (they silently ran the GROUPS plan); fixed in v1.3.2 — the next
-  sweep contains true H6 rows. The committed `backtest-report.txt` files may be stale; re-run the normal backtests.
+* **The Fib tie-break fix is a pure gain:** v1.3.0 → same vote with the fix is 230→338 trades and +122.6→+194R on crypto,
+  216→342 and +124→+235R on forex, with an equal-or-better win rate.
+* **4-of-6 is the accuracy sweet spot:** about two-thirds of crypto and ~78% of forex trades win, with one stop-out per
+  bot over a year. 3-of-6 earns more raw R but at a 63–65% win rate and 12–18 stop-outs. GROUPS did not beat 4-of-6.
+* Backtest profit factor is inflated by break-even/timeout trades — judge by win rate, SL count and total R. Stocks has only
+  60 days (Twelve Data intraday depth), so its numbers are directional only.
+* The committed `backtest-report.txt` files are the old v1.0.0 ones until you re-run the normal (non-sweep) backtests.
 
 ## Changelog / mistakes learned
 
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
-- **v1.3.2** — *decisions from the first real GROUPS sweep.*
+- **v1.3.3** — *the real head-to-head sweep decides the default: six-way vote, 4-of-6.*
+  1. Sweep after the v1.3.2 fix compared every design on the same data (table under "Backtest Results"). The six-way vote at
+     4-of-6 (+Fib fix) was equal-or-better than my GROUPS design on win rate and clearly better on total R, so **H6 4-of-6 is
+     the default** and GROUPS is a selectable alternative (`GWP_TF_PROFILE=GROUPS`). I had recommended GROUPS before measuring;
+     the data says otherwise.
+  2. Vote threshold is now **per plan** (`plan.minAgree`) instead of a shared mutable config value; LEGACY keeps 3-of-4.
+  3. New optional `GWP_GROUP_MIN_TOTAL` (GROUPS + "N of 6 in total"). Sweep rows trimmed/renamed; the sweep also tries 5-of-6.
+  4. Checked from the 11–12 Nov logs: no push errors, no "N/A" votes, all three bots scanning, command polling working.
+- **v1.3.2** — *decisions from the first real GROUPS sweep (superseded in part by v1.3.3).*
   1. **Fib tie-break fix is now ON by default** (`GWP_FIB_PREFILTER=false` reverts). Real sweep: crypto 53→74 trades,
      +33→+48R; forex 37→80 trades, +36→+80R at the same ≈80% win rate; stocks 1→9 trades. No bot lost win rate beyond noise.
   2. **Sweep bug fixed (mine):** since GROUPS became the default, the sweep's "H6" rows were silently GROUPS plans, so
