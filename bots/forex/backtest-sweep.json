@@ -1,6 +1,6 @@
 [
   {
-    "name": "H6 six-way vote>=3  (v1.3.0 design, Fib prefilter ON)",
+    "name": "H6 six-way vote>=3  (Fib prefilter ON)",
     "n": 342,
     "wr": 64.61988304093568,
     "lo": 59.41545421078457,
@@ -11,18 +11,7 @@
     "sl": 12
   },
   {
-    "name": "H6 six-way vote>=3  (v1.3.0 design, Fib prefilter OFF = what v1.3.0 ran)",
-    "n": 216,
-    "wr": 58.79629629629629,
-    "lo": 52.134318675452775,
-    "hi": 65.15085392154432,
-    "pf": 12.13339301700984,
-    "totalR": 124.3599999999999,
-    "avgR": 0.5757407407407403,
-    "sl": 9
-  },
-  {
-    "name": "H6 six-way vote>=4  (v1.3.0 design, Fib prefilter ON)",
+    "name": "H6 six-way vote>=4  (Fib prefilter ON)",
     "n": 124,
     "wr": 78.2258064516129,
     "lo": 70.17324571463031,
@@ -33,7 +22,7 @@
     "sl": 1
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none  (Fib prefilter ON)",
+    "name": "GROUPS bias>=1 no-oppose:none  (Fib prefilter ON)",
     "n": 129,
     "wr": 75.1937984496124,
     "lo": 67.08471408475243,
@@ -44,7 +33,18 @@
     "sl": 2
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias  (Fib prefilter ON)",
+    "name": "GROUPS bias>=1 no-oppose:none + total>=4/6  (Fib prefilter ON)",
+    "n": 117,
+    "wr": 77.77777777777779,
+    "lo": 69.42971772183076,
+    "hi": 84.35970578795397,
+    "pf": 63.40217391304343,
+    "totalR": 114.8199999999999,
+    "avgR": 0.9813675213675205,
+    "sl": 1
+  },
+  {
+    "name": "GROUPS bias>=1 no-oppose:bias  (Fib prefilter ON)",
     "n": 80,
     "wr": 80,
     "lo": 69.95355220341885,
@@ -55,40 +55,51 @@
     "sl": 1
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias  (Fib prefilter ON)",
-    "n": 63,
-    "wr": 80.95238095238095,
-    "lo": 69.5929795848279,
-    "hi": 88.75391815550148,
-    "pf": 36.85945945945945,
-    "totalR": 66.34,
-    "avgR": 1.053015873015873,
+    "name": "GROUPS bias>=1 no-oppose:bias + total>=4/6  (Fib prefilter ON)",
+    "n": 70,
+    "wr": 82.85714285714286,
+    "lo": 72.38313393501764,
+    "hi": 89.91237428798946,
+    "pf": 77.58999999999997,
+    "totalR": 76.58999999999997,
+    "avgR": 1.0941428571428569,
     "sl": 1
   },
   {
-    "name": "GROUPS bias>=1 no-oppose:bias  (Fib prefilter OFF)",
-    "n": 37,
-    "wr": 81.08108108108108,
-    "lo": 65.79498842904441,
-    "hi": 90.52014124266287,
-    "pf": 43.18823529411766,
-    "totalR": 35.86000000000001,
-    "avgR": 0.9691891891891894,
+    "name": "H6 six-way vote>=4  (Fib prefilter OFF)",
+    "n": 61,
+    "wr": 75.40983606557377,
+    "lo": 63.315337094218116,
+    "hi": 84.49347700043715,
+    "pf": 69.10975609756098,
+    "totalR": 55.85,
+    "avgR": 0.9155737704918033,
     "sl": 0
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias  (Fib prefilter ON)",
-    "n": 25,
-    "wr": 84,
-    "lo": 65.34598601976184,
-    "hi": 93.59665239142201,
+    "name": "H6 six-way vote>=5  (Fib prefilter ON)",
+    "n": 33,
+    "wr": 90.9090909090909,
+    "lo": 76.42705646564896,
+    "hi": 96.8596628950737,
     "pf": null,
-    "totalR": 29.950000000000003,
-    "avgR": 1.1980000000000002,
+    "totalR": 40.12000000000002,
+    "avgR": 1.2157575757575763,
     "sl": 0
   },
   {
-    "name": "GROUPS trig>=1 struct>=1 bias>=2  no-oppose:none  (Fib prefilter ON)",
+    "name": "GROUPS bias>=1 no-oppose:none + total>=5/6  (Fib prefilter ON)",
+    "n": 33,
+    "wr": 90.9090909090909,
+    "lo": 76.42705646564896,
+    "hi": 96.8596628950737,
+    "pf": null,
+    "totalR": 40.12000000000002,
+    "avgR": 1.2157575757575763,
+    "sl": 0
+  },
+  {
+    "name": "GROUPS bias>=2 no-oppose:none  (Fib prefilter ON)",
     "n": 25,
     "wr": 84,
     "lo": 65.34598601976184,
