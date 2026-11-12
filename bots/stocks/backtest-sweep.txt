@@ -1,20 +1,21 @@
 ═══════════════════════════════════════════════════════════════════
- GWP Stocks v1.3.2 — TIMEFRAME-ROLE SWEEP  (60 days, 18 symbols)
+ GWP Stocks v1.3.3 — TIMEFRAME-ROLE SWEEP  (60 days, 18 symbols)
  Same data, same gates, same exits — only the roles of M15 / H1 / H3 and the vote strictness (3 vs 4 of 6) change.
  WR 95% = Wilson confidence interval: if two rows overlap, the difference is NOISE.
 ═══════════════════════════════════════════════════════════════════
 
 trades  WR%   (95% range)   PF     totalR  avgR   SL   variant
-   27   77.8  (59–89)             ∞     25.1   0.93    0  H6 six-way vote>=3  (v1.3.0 design, Fib prefilter ON)
-   12   91.7  (65–99)             ∞     12.5   1.04    0  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:none  (Fib prefilter ON)
-   13   84.6  (58–96)             ∞     11.5   0.88    0  H6 six-way vote>=3  (v1.3.0 design, Fib prefilter OFF = what v1.3.0 ran)
-    9   88.9  (56–98)             ∞     10.7   1.19    0  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:bias  (Fib prefilter ON)
-    9   88.9  (56–98)             ∞     10.7   1.19    0  GROUPS trig>=1 struct>=1 bias>=1  no-oppose:structure,bias  (Fib prefilter ON)
-   11   90.9  (62–98)         11.10     10.1   0.92    1  H6 six-way vote>=4  (v1.3.0 design, Fib prefilter ON)
+   27   77.8  (59–89)             ∞     25.1   0.93    0  H6 six-way vote>=3  (Fib prefilter ON)
+   12   91.7  (65–99)             ∞     12.5   1.04    0  GROUPS bias>=1 no-oppose:none  (Fib prefilter ON)
+    9   88.9  (56–98)             ∞     10.7   1.19    0  GROUPS bias>=1 no-oppose:bias  (Fib prefilter ON)
+   11   90.9  (62–98)         11.10     10.1   0.92    1  H6 six-way vote>=4  (Fib prefilter ON)
+   11   90.9  (62–98)         11.10     10.1   0.92    1  GROUPS bias>=1 no-oppose:none + total>=4/6  (Fib prefilter ON)
+    8   87.5  (53–98)          9.30      8.3   1.04    1  GROUPS bias>=1 no-oppose:bias + total>=4/6  (Fib prefilter ON)
+    4  100.0  (51–100)            ∞      5.0   1.25    0  H6 six-way vote>=5  (Fib prefilter ON)
+    4  100.0  (51–100)            ∞      5.0   1.25    0  GROUPS bias>=1 no-oppose:none + total>=5/6  (Fib prefilter ON)
     3  100.0  (44–100)            ∞      2.6   0.87    0  LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed, Fib prefilter OFF)
-    2  100.0  (34–100)            ∞      2.5   1.27    0  GROUPS trig>=1 struct>=1 bias>=2  no-oppose:bias  (Fib prefilter ON)
-    2  100.0  (34–100)            ∞      2.5   1.27    0  GROUPS trig>=1 struct>=1 bias>=2  no-oppose:none  (Fib prefilter ON)
-    1  100.0  (21–100)            ∞      1.4   1.39    0  GROUPS bias>=1 no-oppose:bias  (Fib prefilter OFF)
+    2  100.0  (34–100)            ∞      2.5   1.27    0  GROUPS bias>=2 no-oppose:none  (Fib prefilter ON)
+    2  100.0  (34–100)            ∞      2.0   0.99    0  H6 six-way vote>=4  (Fib prefilter OFF)
 
 How to read: prefer the row with the best totalR/PF whose trade count is large enough that its
 WR range is narrow. A row that wins by a few trades inside overlapping ranges is not a real winner.
