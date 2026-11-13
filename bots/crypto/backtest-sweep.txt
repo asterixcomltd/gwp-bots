@@ -1,20 +1,21 @@
 ═══════════════════════════════════════════════════════════════════
- GWP Crypto v1.3.3 — TIMEFRAME-ROLE SWEEP  (360 days, 20 symbols)
+ GWP Crypto v1.3.4 — TIMEFRAME-ROLE SWEEP  (360 days, 20 symbols)
  Same data, same gates, same exits — only the roles of M15 / H1 / H3 and the vote strictness (3 vs 4 of 6) change.
  WR 95% = Wilson confidence interval: if two rows overlap, the difference is NOISE.
 ═══════════════════════════════════════════════════════════════════
 
 trades  WR%   (95% range)   PF     totalR  avgR   SL   variant
-  339   63.1  (58–68)          9.92    194.2   0.57   18  H6 six-way vote>=3  (Fib prefilter ON)
-  110   66.4  (57–75)         53.80     75.5   0.69    1  H6 six-way vote>=4  (Fib prefilter ON)
-  104   65.4  (56–74)         50.69     71.1   0.68    1  GROUPS bias>=1 no-oppose:none  (Fib prefilter ON)
-  103   65.0  (55–74)         50.30     70.5   0.68    1  GROUPS bias>=1 no-oppose:none + total>=4/6  (Fib prefilter ON)
-   78   66.7  (56–76)         38.31     53.4   0.68    1  H6 six-way vote>=4  (Fib prefilter OFF)
-   74   59.5  (48–70)         40.98     48.0   0.65    1  GROUPS bias>=1 no-oppose:bias  (Fib prefilter ON)
-   72   59.7  (48–70)         40.48     47.4   0.66    1  GROUPS bias>=1 no-oppose:bias + total>=4/6  (Fib prefilter ON)
-   24   83.3  (64–93)             ∞     22.6   0.94    0  H6 six-way vote>=5  (Fib prefilter ON)
-   24   83.3  (64–93)             ∞     22.6   0.94    0  GROUPS bias>=1 no-oppose:none + total>=5/6  (Fib prefilter ON)
-   17   76.5  (53–90)             ∞     13.0   0.76    0  GROUPS bias>=2 no-oppose:none  (Fib prefilter ON)
+  340   63.2  (58–68)          9.95    194.8   0.57   18  H6 vote>=3
+  125   65.6  (57–73)         36.70     83.9   0.67    2  H6 vote>=3 + no VWAP pivot
+  110   66.4  (57–75)         53.80     75.5   0.69    1  H6 vote>=4  (v1.3.3 default)
+  104   65.4  (56–74)         50.69     71.1   0.68    1  GROUPS bias>=1 no-oppose:none
+   41   80.5  (66–90)         140.61     32.1   0.78    0  H6 vote>=4 + no VWAP pivot
+   26   96.2  (81–99)             ∞     28.1   1.08    0  H6 vote>=3 + H2 must vote with trade
+   24   83.3  (64–93)             ∞     22.6   0.94    0  H6 vote>=5
+   21   95.2  (77–99)             ∞     21.9   1.04    0  H6 vote>=4 + H2 must vote with trade
+   17  100.0  (82–100)            ∞     19.2   1.13    0  H6 vote>=3 + no VWAP + H2 must vote
+   13  100.0  (77–100)            ∞     13.5   1.04    0  H6 vote>=4 + no VWAP + H2 must vote
+   11   90.9  (62–98)             ∞     11.6   1.06    0  H6 vote>=5 + no VWAP pivot
    17   52.9  (31–74)          8.37      9.6   0.56    1  LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed, Fib prefilter OFF)
 
 How to read: prefer the row with the best totalR/PF whose trade count is large enough that its
