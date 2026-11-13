@@ -12,7 +12,7 @@ runBacktest({
   config,
   dataClient: createTwelveDataClient(config),
   botLabel: 'GWP Stocks',
-  version: '1.3.3',
+  version: '1.3.4',
   dir: __dirname,
 }).catch(err => {
   console.error('❌ Fatal error in GWP Stocks backtest.js:', err);

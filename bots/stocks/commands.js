@@ -20,7 +20,7 @@ runCommands({
   telegram: createTelegram(config),
   healthCheck,
   botLabel: 'GWP Stocks',
-  version: '1.3.3',
+  version: '1.3.4',
   exchangeName: 'Twelve Data',
   sourceUrl: '',
   dir: __dirname,
