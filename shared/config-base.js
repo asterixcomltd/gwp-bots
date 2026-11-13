@@ -437,6 +437,12 @@ module.exports = {
   // discounted. Set to false to fall back to the old size-only treatment.
   POC_REQUIRE_STRUCT_CONFIRM: process.env.POC_REQUIRE_STRUCT_CONFIRM === 'false' ? false : true,
 
+  // v1.3.4 — same idea for EVERY pivot (OFF by default; the sweep tests it). Real 360-day backtest (v1.3.3, 4-of-6):
+  // trades where the structure timeframe itself voted with the trade ("2H-confirmed") won 94% on crypto (17 trades,
+  // 0 SL) and 97% on forex (34 trades, 0 SL); the rest won 61% and 71%. Turning this on keeps ONLY the first group —
+  // far fewer, far cleaner trades. GWP_REQUIRE_H2_CONFIRM=true to enable. A frequency-for-accuracy trade: owner's call.
+  REQUIRE_STRUCT_CONFIRM_ALL: process.env.GWP_REQUIRE_H2_CONFIRM === 'true' ? true : false,
+
   // ── Pattern risk tiering ─────────────────────────────────────────────────
   PATTERN_RISK_MATRIX: {
     POC_RECLAIM: 0.65,
