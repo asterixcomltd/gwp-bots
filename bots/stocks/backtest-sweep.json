@@ -1,17 +1,17 @@
 [
   {
-    "name": "H6 six-way vote>=3  (Fib prefilter ON)",
-    "n": 27,
-    "wr": 77.77777777777779,
-    "lo": 59.24270453692919,
-    "hi": 89.39290451059105,
+    "name": "H6 vote>=3",
+    "n": 28,
+    "wr": 78.57142857142857,
+    "lo": 60.46105292072612,
+    "hi": 89.78767829881058,
     "pf": null,
-    "totalR": 25.110000000000003,
-    "avgR": 0.9300000000000002,
+    "totalR": 25.580000000000002,
+    "avgR": 0.9135714285714286,
     "sl": 0
   },
   {
-    "name": "GROUPS bias>=1 no-oppose:none  (Fib prefilter ON)",
+    "name": "GROUPS bias>=1 no-oppose:none",
     "n": 12,
     "wr": 91.66666666666666,
     "lo": 64.61140782014047,
@@ -22,51 +22,73 @@
     "sl": 0
   },
   {
-    "name": "GROUPS bias>=1 no-oppose:bias  (Fib prefilter ON)",
-    "n": 9,
-    "wr": 88.88888888888889,
-    "lo": 56.499378523193975,
-    "hi": 98.01096286728695,
+    "name": "H6 vote>=3 + no VWAP pivot",
+    "n": 12,
+    "wr": 91.66666666666666,
+    "lo": 64.61140782014047,
+    "hi": 98.51352905492264,
     "pf": null,
-    "totalR": 10.679999999999998,
-    "avgR": 1.1866666666666665,
+    "totalR": 11.989999999999998,
+    "avgR": 0.9991666666666665,
     "sl": 0
   },
   {
-    "name": "H6 six-way vote>=4  (Fib prefilter ON)",
-    "n": 11,
-    "wr": 90.9090909090909,
-    "lo": 62.26353745137963,
-    "hi": 98.3768247737174,
-    "pf": 11.099999999999998,
-    "totalR": 10.1,
-    "avgR": 0.9181818181818181,
-    "sl": 1
-  },
-  {
-    "name": "GROUPS bias>=1 no-oppose:none + total>=4/6  (Fib prefilter ON)",
-    "n": 11,
-    "wr": 90.9090909090909,
-    "lo": 62.26353745137963,
-    "hi": 98.3768247737174,
-    "pf": 11.099999999999998,
-    "totalR": 10.1,
-    "avgR": 0.9181818181818181,
-    "sl": 1
-  },
-  {
-    "name": "GROUPS bias>=1 no-oppose:bias + total>=4/6  (Fib prefilter ON)",
+    "name": "H6 vote>=3 + H2 must vote with trade",
     "n": 8,
-    "wr": 87.5,
-    "lo": 52.910519423013845,
-    "hi": 97.75830911367039,
-    "pf": 9.3,
-    "totalR": 8.3,
-    "avgR": 1.0375,
+    "wr": 100,
+    "lo": 67.55843804891231,
+    "hi": 100,
+    "pf": null,
+    "totalR": 11.5,
+    "avgR": 1.4375,
+    "sl": 0
+  },
+  {
+    "name": "H6 vote>=4  (v1.3.3 default)",
+    "n": 11,
+    "wr": 90.9090909090909,
+    "lo": 62.26353745137963,
+    "hi": 98.3768247737174,
+    "pf": 11.099999999999998,
+    "totalR": 10.1,
+    "avgR": 0.9181818181818181,
     "sl": 1
   },
   {
-    "name": "H6 six-way vote>=5  (Fib prefilter ON)",
+    "name": "H6 vote>=4 + H2 must vote with trade",
+    "n": 5,
+    "wr": 100,
+    "lo": 56.5508505247919,
+    "hi": 100,
+    "pf": null,
+    "totalR": 6.859999999999999,
+    "avgR": 1.3719999999999999,
+    "sl": 0
+  },
+  {
+    "name": "H6 vote>=4 + no VWAP pivot",
+    "n": 5,
+    "wr": 100,
+    "lo": 56.5508505247919,
+    "hi": 100,
+    "pf": null,
+    "totalR": 5.52,
+    "avgR": 1.1039999999999999,
+    "sl": 0
+  },
+  {
+    "name": "H6 vote>=3 + no VWAP + H2 must vote",
+    "n": 5,
+    "wr": 100,
+    "lo": 56.5508505247919,
+    "hi": 100,
+    "pf": null,
+    "totalR": 5.52,
+    "avgR": 1.1039999999999999,
+    "sl": 0
+  },
+  {
+    "name": "H6 vote>=5",
     "n": 4,
     "wr": 100,
     "lo": 51.009997959600085,
@@ -77,14 +99,25 @@
     "sl": 0
   },
   {
-    "name": "GROUPS bias>=1 no-oppose:none + total>=5/6  (Fib prefilter ON)",
+    "name": "H6 vote>=4 + no VWAP + H2 must vote",
     "n": 4,
     "wr": 100,
     "lo": 51.009997959600085,
     "hi": 100,
     "pf": null,
-    "totalR": 4.99,
-    "avgR": 1.2475,
+    "totalR": 4.92,
+    "avgR": 1.23,
+    "sl": 0
+  },
+  {
+    "name": "H6 vote>=5 + no VWAP pivot",
+    "n": 3,
+    "wr": 100,
+    "lo": 43.84939195509822,
+    "hi": 100,
+    "pf": null,
+    "totalR": 3.05,
+    "avgR": 1.0166666666666666,
     "sl": 0
   },
   {
@@ -96,28 +129,6 @@
     "pf": null,
     "totalR": 2.5999999999999996,
     "avgR": 0.8666666666666666,
-    "sl": 0
-  },
-  {
-    "name": "GROUPS bias>=2 no-oppose:none  (Fib prefilter ON)",
-    "n": 2,
-    "wr": 100,
-    "lo": 34.23719528896193,
-    "hi": 100,
-    "pf": null,
-    "totalR": 2.54,
-    "avgR": 1.27,
-    "sl": 0
-  },
-  {
-    "name": "H6 six-way vote>=4  (Fib prefilter OFF)",
-    "n": 2,
-    "wr": 100,
-    "lo": 34.23719528896193,
-    "hi": 100,
-    "pf": null,
-    "totalR": 1.9899999999999998,
-    "avgR": 0.9949999999999999,
     "sl": 0
   }
 ]
