@@ -370,6 +370,23 @@ non-win. Crypto's 110 trades contain only **3 real losses (1 full stop-loss)**; 
 The two weak segments are the VWAP pivot and trades where H2 itself didn't confirm. Both are switchable
 (`VWAP_CONFLUENCE_ENABLED=false`, `GWP_REQUIRE_H2_CONFIRM=true`) and the next sweep measures them head-to-head.
 
+## Auto-trading on Bybit — shadow logger first (lives in the MVS repo, not here)
+
+GWP only sends signals; it never places orders. To find out whether GWP trades could be executed on Bybit, a
+**read-only shadow logger** (`execution/shadow/gwp-shadow.js`, in the MVS repo) reads this repo's
+`bots/<bot>/signals.log.json`, maps each symbol to its Bybit perpetual (`EUR/USD` -> `EURUSDUSDT`, `TSLA` -> `TSLAUSDT`),
+and journals "would trade / would skip" with fee-adjusted RR and the simulated outcome. It places **no orders, uses no
+API keys, touches no MVS file**, and writes only to `~/gwp-shadow/` on the phone.
+
+* Needs this repo to be **public** (it reads `raw.githubusercontent.com` without a token).
+* Grade A = 5+ of 6 votes, or H2 among the agreeing timeframes (backtest: 83-97% win, far fewer trades); Grade B = the rest.
+* Default bots: forex + stocks (add `"crypto"` in `~/gwp-shadow/config.json`). Skip reasons: `NOT_LISTED_ON_BYBIT`,
+  `PRICE_BASIS_MISMATCH` (>0.5%), `NET_RR_TOO_LOW_AFTER_FEES` (<0.6).
+* Real orders come only after 3-4 weeks of shadow results, behind a master switch that is OFF by default.
+* Bybit coverage (public docs): only EUR/USD, GBP/USD, USD/JPY exist as FX perps (plus gold `XAUUSDT`); the other GWP
+  forex symbols are not available. US stock perps exist (V5 `category=linear`) but require the master account to sign
+  Bybit's TradFi agreement in the app. Public market data being visible does NOT prove the Ghana account may trade it.
+
 ## Changelog / mistakes learned
 
 Kept here deliberately, not swept away — same "verify, don't assume"
@@ -380,6 +397,7 @@ standard as the rest of this repo.
      every pivot (the old gate only covered POC). Real data: H2-confirmed trades won 94% (crypto) / 97% (forex) with no stop-loss.
   2. The sweep now compares 4-of-6, 3-of-6 and 5-of-6, each with/without the VWAP pivot and with/without the H2 requirement
      (11 rows). Nothing changes live until you pick a row.
+  3. Docs only (no code change, version stays 1.3.4): added the "Auto-trading on Bybit — shadow logger first" section.
   3. README explains what "win rate" means in these reports (break-even scratches count as non-wins).
 - **v1.3.3** — *the real head-to-head sweep decides the default: six-way vote, 4-of-6.*
   1. Sweep after the v1.3.2 fix compared every design on the same data (table under "Backtest Results"). The six-way vote at
