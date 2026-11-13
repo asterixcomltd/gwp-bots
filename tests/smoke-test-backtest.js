@@ -75,7 +75,7 @@ async function testBacktest(botDir, botName) {
   };
   const planBars = derivePlanBars(plan, base);
 
-  const { backtestSymbol, generateReport } = createBacktestEngine({ config, core, version: '1.3.3', botLabel: botName, plan });
+  const { backtestSymbol, generateReport } = createBacktestEngine({ config, core, version: '1.3.4', botLabel: botName, plan });
   const evalWindowStartTime = now - days * 86400;
 
   const { trades, funnel } = await backtestSymbol('TESTSYM', planBars, evalWindowStartTime, plan);

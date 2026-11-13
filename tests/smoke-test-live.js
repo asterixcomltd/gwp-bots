@@ -44,7 +44,7 @@ async function testBot(botDir, botName, tfSeconds) {
   require('fs').mkdirSync(tmpDir, { recursive: true });
   const persistence = createPersistence(tmpDir);
 
-  const engine = createEngine({ config, core, dataClient, telegram, persistence, botLabel: botName, version: '1.3.3' });
+  const engine = createEngine({ config, core, dataClient, telegram, persistence, botLabel: botName, version: '1.3.4' });
 
   let errors = 0;
   for (const sym of config.SYMBOLS.slice(0, 5)) {
