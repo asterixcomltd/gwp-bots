@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.3
+ *  GWP — SHARED SETUP EVALUATOR (shared/setup-eval.js)   v1.3.4
  *
  *  The ONE place the signal decision pipeline lives. engine.js (live) and
  *  backtest-engine.js (replay) both call evaluate(); they only differ in
@@ -174,6 +174,10 @@ module.exports = function createSetupEvaluator({ config, core, plan }) {
     if (bestPivot.name === 'POC' && config.POC_REQUIRE_STRUCT_CONFIRM && !resolved.agreeing.includes(S.label)) {
       log(`  ⚠️ POC pivot without ${S.label} confirmation — historically the weakest segment. Skipping.`);
       return fail('POC_NO2H_GATED');
+    }
+    if (config.REQUIRE_STRUCT_CONFIRM_ALL && !resolved.agreeing.includes(S.label)) {
+      log(`  ⚠️ ${S.label} (the zone's own timeframe) did not vote with the trade — REQUIRE_STRUCT_CONFIRM_ALL is on. Skipping.`);
+      return fail('NO_STRUCT_CONFIRM');
     }
     const prominence = core.computePOCProminence(vpStruct);
     if (!core.isPOCProminenceTrusted(bestPivot.name, prominence, config)) {

@@ -74,15 +74,21 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
   if (SWEEP) {
     sweepVariants.push({ name: 'LEGACY D1+30M+2H+15M (3-of-4, look-ahead fixed, Fib prefilter OFF)', plan: legacyPlan, legacy: true, fibPrefilter: false });
     // Every row names the profile it REALLY runs. Plans carry their own vote threshold (plan.minAgree).
+    // `cfg` = per-row config overrides (applied before the row runs, restored after).
     const h6 = (minAgree) => ({ ...buildPlan(config, { profile: 'H6' }), minAgree });
-    for (const m of [3, 4, 5]) sweepVariants.push({ name: `H6 six-way vote>=${m}  (Fib prefilter ON)`, plan: h6(m), fibPrefilter: true });
-    sweepVariants.push({ name: 'H6 six-way vote>=4  (Fib prefilter OFF)', plan: h6(4), fibPrefilter: false });
-    // GROUPS profile: triggers (M15,M30) + structures (H1,H2) + bias (H3,H4), one positive member per group,
-    // optionally ALSO requiring N of 6 timeframes in total.
-    for (const [biasMin, noOppose, minTotal] of [[1, 'bias', 0], [1, 'none', 0], [1, 'bias', 4], [1, 'none', 4], [1, 'none', 5], [2, 'none', 0]]) {
-      const gp = buildPlan(config, { profile: 'GROUPS', biasMin, noOppose, minTotal });
-      sweepVariants.push({ name: `GROUPS bias>=${biasMin} no-oppose:${noOppose}${minTotal ? ' + total>=' + minTotal + '/6' : ''}  (Fib prefilter ON)`, plan: gp, fibPrefilter: true });
-    }
+    const NOVWAP = { VWAP_CONFLUENCE_ENABLED: false }, H2OK = { REQUIRE_STRUCT_CONFIRM_ALL: true };
+    const row = (name, plan, cfg = {}, fibPrefilter = true) => sweepVariants.push({ name, plan, cfg, fibPrefilter });
+    row('H6 vote>=4  (v1.3.3 default)', h6(4));
+    row('H6 vote>=4 + no VWAP pivot', h6(4), NOVWAP);
+    row('H6 vote>=4 + H2 must vote with trade', h6(4), H2OK);
+    row('H6 vote>=4 + no VWAP + H2 must vote', h6(4), { ...NOVWAP, ...H2OK });
+    row('H6 vote>=3', h6(3));
+    row('H6 vote>=3 + no VWAP pivot', h6(3), NOVWAP);
+    row('H6 vote>=3 + H2 must vote with trade', h6(3), H2OK);
+    row('H6 vote>=3 + no VWAP + H2 must vote', h6(3), { ...NOVWAP, ...H2OK });
+    row('H6 vote>=5', h6(5));
+    row('H6 vote>=5 + no VWAP pivot', h6(5), NOVWAP);
+    row('GROUPS bias>=1 no-oppose:none', buildPlan(config, { profile: 'GROUPS', noOppose: 'none' }));
     for (const v of sweepVariants) v.trades = [];
   }
 
@@ -111,7 +117,9 @@ module.exports = async function runBacktest({ config, dataClient, botLabel, vers
       for (const v of sweepVariants) {
         const pb = v.legacy ? derivePlanBars(v.plan, baseBars) : derivePlanBars(v.plan, baseBars);
         config.FIB_EXCLUDE_BEFORE_SCORING = v.fibPrefilter !== undefined ? v.fibPrefilter : basePrefilter;
+        const saved = {}; for (const k of Object.keys(v.cfg || {})) { saved[k] = config[k]; config[k] = v.cfg[k]; }
         const r = await backtestSymbol(symbol, pb, evalWindowStartTime, v.plan);
+        for (const k of Object.keys(saved)) config[k] = saved[k];
         v.trades.push(...r.trades);
       }
       continue;
