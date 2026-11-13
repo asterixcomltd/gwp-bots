@@ -1,5 +1,5 @@
 /**
- * GWP CRYPTO — strategy.js (LIVE RUNNER)  v1.3.3
+ * GWP CRYPTO — strategy.js (LIVE RUNNER)  v1.3.4
  * All decision logic lives in ../../shared/core.js and ../../shared/engine.js
  * (shared with the Forex and Stocks sub-bots — see those files' headers).
  * This file only wires up the KuCoin data client and hands off to the
@@ -14,7 +14,7 @@ runLive({
   config,
   dataClient: createKucoinClient(config),
   botLabel: 'GWP Crypto',
-  version: '1.3.3',
+  version: '1.3.4',
   dir: __dirname,
 }).catch(err => {
   console.error('❌ Fatal error in GWP Crypto strategy.js:', err);
