@@ -62,6 +62,8 @@ In H6 the roles below vote; 4 of 6 must agree.
 | Variable | Default | Effect |
 |---|---|---|
 | `GWP_TF_PROFILE` | `H6` | `GROUPS` = enforced groups; `LEGACY` = original D1/30M/2H/15M 3-of-4 design |
+| `GWP_REQUIRE_H2_CONFIRM` | `false` | `true` = trade only when H2 (the zone's own timeframe) also voted with the trade — far fewer, much cleaner trades (see v1.3.4) |
+| `VWAP_CONFLUENCE_ENABLED` | `true` | `false` = drop the VWAP pivot (the weakest pivot in the real data) |
 | `GWP_GROUP_MIN_TOTAL` | `0` | GROUPS only: also require N of 6 timeframes in total (try `4`) |
 | `GWP_GROUP_NO_OPPOSE` | `bias` | GROUPS only: which groups must also have no opposing member (`none`/`bias`/`structure,bias`/`all`) |
 | `GWP_GROUP_BIAS_MIN` | `1` | GROUPS only: `2` = both H3 and H4 must agree |
@@ -348,11 +350,37 @@ How to read it honestly:
   60 days (Twelve Data intraday depth), so its numbers are directional only.
 * The committed `backtest-report.txt` files are the old v1.0.0 ones until you re-run the normal (non-sweep) backtests.
 
+### What the real v1.3.3 backtest (4-of-6) says about where accuracy is won and lost
+
+From the three normal backtest reports (crypto 110 trades, forex 123, stocks 11; 360 days, stocks 60):
+
+| Segment | Crypto | Forex | Stocks |
+|---|---|---|---|
+| Overall | 66.4% · +75.5R | 78.0% · +123.1R | 90.9% · +10.1R |
+| **H2 voted with the trade ("2H-confirmed")** | **17 trades · 94.1% · 0 SL** | **34 · 97.1% · 0 SL** | 5 · 100% |
+| H2 did not vote ("no-2H-confirm") | 93 · 61.3% | 89 · 70.8% | 6 · 83.3% |
+| VWAP pivot | 72 · 58.3% | 64 · 71.9% | 6 · 83.3% |
+| VAL / VAH / POC pivots | 38 · ≈82% | 59 · ≈85% | 5 · 100% |
+| 4 votes / 5 votes / 6 votes | 63% / 81% / 100% | 76% / 86% / 100% | 86% / 100% / – |
+
+How to read "win rate" in these reports: a trade that is stopped out at break-even after the stop is moved counts as a
+non-win. Crypto's 110 trades contain only **3 real losses (1 full stop-loss)**; 34 more were break-even scratches. The
+"no-real-loss rate" line (97% crypto, 98% forex) is the real-money safety figure; the win rate is the "reached TP1" figure.
+
+The two weak segments are the VWAP pivot and trades where H2 itself didn't confirm. Both are switchable
+(`VWAP_CONFLUENCE_ENABLED=false`, `GWP_REQUIRE_H2_CONFIRM=true`) and the next sweep measures them head-to-head.
+
 ## Changelog / mistakes learned
 
 Kept here deliberately, not swept away — same "verify, don't assume"
 standard as the rest of this repo.
 
+- **v1.3.4** — *accuracy levers found in the real 4-of-6 reports, added as switches (defaults unchanged).*
+  1. New switch `GWP_REQUIRE_H2_CONFIRM` (default off): require the zone's own timeframe (H2) to vote with the trade for
+     every pivot (the old gate only covered POC). Real data: H2-confirmed trades won 94% (crypto) / 97% (forex) with no stop-loss.
+  2. The sweep now compares 4-of-6, 3-of-6 and 5-of-6, each with/without the VWAP pivot and with/without the H2 requirement
+     (11 rows). Nothing changes live until you pick a row.
+  3. README explains what "win rate" means in these reports (break-even scratches count as non-wins).
 - **v1.3.3** — *the real head-to-head sweep decides the default: six-way vote, 4-of-6.*
   1. Sweep after the v1.3.2 fix compared every design on the same data (table under "Backtest Results"). The six-way vote at
      4-of-6 (+Fib fix) was equal-or-better than my GROUPS design on win rate and clearly better on total R, so **H6 4-of-6 is
