@@ -1,9 +1,9 @@
 {
-  "_lastRunAt": "2026-11-13T12:41:22.584Z",
+  "_lastRunAt": "2026-11-13T20:07:21.892Z",
   "MSFT": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "SELL",
-    "price": 523.10999,
+    "price": 524.65,
     "biasByTF": {
       "M15": "BEARISH",
       "M30": "BEARISH",
@@ -24,12 +24,12 @@
       "H3",
       "H4"
     ],
-    "updatedAt": "2026-11-13T12:34:58.435Z"
+    "updatedAt": "2026-11-13T20:00:57.765Z"
   },
   "GOOGL": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 298.75,
+    "price": 295.56,
     "biasByTF": {
       "M15": "BULLISH",
       "M30": "BULLISH",
@@ -41,44 +41,39 @@
     "bias30m": "BULLISH",
     "bias2h": "NEUTRAL",
     "bias15m": "BULLISH",
-    "updatedAt": "2026-11-13T12:36:10.472Z"
+    "updatedAt": "2026-11-13T20:02:09.792Z"
   },
   "META": {
-    "signal": "SCANNED",
-    "price": 623.59003,
+    "signal": "WAITING_FOR_ZONE",
     "direction": "BUY",
-    "voteTally": "4/6",
-    "agreeing": [
-      "M15",
-      "H1",
-      "H2",
-      "H3"
-    ],
+    "price": 637.75,
     "biasByTF": {
       "M15": "BULLISH",
-      "M30": "NEUTRAL",
+      "M30": "BULLISH",
       "H1": "BULLISH",
       "H2": "BULLISH",
       "H3": "BULLISH",
       "H4": "NEUTRAL"
     },
-    "bias30m": "NEUTRAL",
+    "bias30m": "BULLISH",
     "bias2h": "BULLISH",
     "bias15m": "BULLISH",
-    "poc": 618.48190115,
-    "vah": 699.0939108499999,
-    "val": 605.35901585,
-    "swingHigh": 648.38,
-    "swingLow": 583.79999,
-    "atrStruct": 8.945579844981427,
-    "updatedAt": "2026-11-13T12:36:34.484Z"
+    "voteTally": "5/6",
+    "agreeing": [
+      "M15",
+      "M30",
+      "H1",
+      "H2",
+      "H3"
+    ],
+    "updatedAt": "2026-11-13T20:02:34.126Z"
   },
   "TSLA": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 397.62,
+    "price": 390.835,
     "biasByTF": {
-      "M15": "BULLISH",
+      "M15": "NEUTRAL",
       "M30": "NEUTRAL",
       "H1": "BULLISH",
       "H2": "NEUTRAL",
@@ -87,13 +82,13 @@
     },
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
-    "bias15m": "BULLISH",
-    "updatedAt": "2026-11-13T12:36:58.506Z"
+    "bias15m": "NEUTRAL",
+    "updatedAt": "2026-11-13T20:02:57.790Z"
   },
   "AMD": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "BUY",
-    "price": 585.58008,
+    "price": 526.435,
     "biasByTF": {
       "M15": "BULLISH",
       "M30": "BULLISH",
@@ -114,12 +109,12 @@
       "H3",
       "H4"
     ],
-    "updatedAt": "2026-11-13T12:37:22.503Z"
+    "updatedAt": "2026-11-13T20:03:21.851Z"
   },
   "NFLX": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "SELL",
-    "price": 62.675,
+    "price": 62.45,
     "biasByTF": {
       "M15": "BEARISH",
       "M30": "BEARISH",
@@ -140,265 +135,254 @@
       "H3",
       "H4"
     ],
-    "updatedAt": "2026-11-13T12:37:46.502Z"
+    "updatedAt": "2026-11-13T20:03:45.800Z"
   },
   "NVDA": {
     "signal": "WAITING_FOR_ZONE",
     "direction": "SELL",
-    "price": 166.039993,
-    "biasByTF": {
-      "M15": "NEUTRAL",
-      "M30": "BEARISH",
-      "H1": "BEARISH",
-      "H2": "BEARISH",
-      "H3": "BEARISH",
-      "H4": "BEARISH"
-    },
-    "bias30m": "BEARISH",
-    "bias2h": "BEARISH",
-    "bias15m": "NEUTRAL",
-    "voteTally": "5/6",
-    "agreeing": [
-      "M30",
-      "H1",
-      "H2",
-      "H3",
-      "H4"
-    ],
-    "updatedAt": "2026-11-13T12:35:22.458Z"
-  },
-  "AMZN": {
-    "signal": "WAITING_FOR_ZONE",
-    "direction": "BUY",
-    "price": 267.45999,
-    "biasByTF": {
-      "M15": "BULLISH",
-      "M30": "BULLISH",
-      "H1": "BULLISH",
-      "H2": "BULLISH",
-      "H3": "BULLISH",
-      "H4": "BULLISH"
-    },
-    "bias30m": "BULLISH",
-    "bias2h": "BULLISH",
-    "bias15m": "BULLISH",
-    "voteTally": "6/6",
-    "agreeing": [
-      "M15",
-      "M30",
-      "H1",
-      "H2",
-      "H3",
-      "H4"
-    ],
-    "updatedAt": "2026-11-13T12:35:46.473Z"
-  },
-  "AVGO": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 364.38,
-    "biasByTF": {
-      "M15": "BULLISH",
-      "M30": "NEUTRAL",
-      "H1": "NEUTRAL",
-      "H2": "BULLISH",
-      "H3": "NEUTRAL",
-      "H4": "BULLISH"
-    },
-    "bias30m": "NEUTRAL",
-    "bias2h": "BULLISH",
-    "bias15m": "BULLISH",
-    "updatedAt": "2026-11-13T12:38:10.509Z"
-  },
-  "AAPL": {
-    "signal": "WAITING_FOR_ZONE",
-    "direction": "BUY",
-    "price": 354.89001,
-    "biasByTF": {
-      "M15": "BULLISH",
-      "M30": "BULLISH",
-      "H1": "BULLISH",
-      "H2": "BULLISH",
-      "H3": "BULLISH",
-      "H4": "BULLISH"
-    },
-    "bias30m": "BULLISH",
-    "bias2h": "BULLISH",
-    "bias15m": "BULLISH",
-    "voteTally": "6/6",
-    "agreeing": [
-      "M15",
-      "M30",
-      "H1",
-      "H2",
-      "H3",
-      "H4"
-    ],
-    "updatedAt": "2026-11-13T12:34:34.452Z"
-  },
-  "SPCX": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 139.96001,
-    "biasByTF": {
-      "M15": "BULLISH",
-      "M30": "BULLISH",
-      "H1": "NEUTRAL",
-      "H2": "BEARISH",
-      "H3": "NEUTRAL",
-      "H4": "BEARISH"
-    },
-    "bias30m": "BULLISH",
-    "bias2h": "BEARISH",
-    "bias15m": "BULLISH",
-    "updatedAt": "2026-11-13T12:38:34.512Z"
-  },
-  "SPY": {
-    "signal": "SCANNED",
-    "price": 757.19,
-    "direction": "BUY",
-    "voteTally": "5/6",
-    "agreeing": [
-      "M15",
-      "M30",
-      "H1",
-      "H2",
-      "H4"
-    ],
-    "biasByTF": {
-      "M15": "BULLISH",
-      "M30": "BULLISH",
-      "H1": "BULLISH",
-      "H2": "BULLISH",
-      "H3": "NEUTRAL",
-      "H4": "BULLISH"
-    },
-    "bias30m": "BULLISH",
-    "bias2h": "BULLISH",
-    "bias15m": "BULLISH",
-    "poc": 737.3564681,
-    "vah": 769.1479551,
-    "val": 737.3564681,
-    "swingHigh": 775.64001,
-    "swingLow": 732.71002,
-    "atrStruct": 4.894759762055811,
-    "updatedAt": "2026-11-13T12:38:58.520Z"
-  },
-  "QQQ": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 688.16998,
-    "biasByTF": {
-      "M15": "NEUTRAL",
-      "M30": "NEUTRAL",
-      "H1": "NEUTRAL",
-      "H2": "NEUTRAL",
-      "H3": "NEUTRAL",
-      "H4": "BEARISH"
-    },
-    "bias30m": "NEUTRAL",
-    "bias2h": "NEUTRAL",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-11-13T12:39:22.582Z"
-  },
-  "JPM": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 342.82001,
-    "biasByTF": {
-      "M15": "BULLISH",
-      "M30": "NEUTRAL",
-      "H1": "NEUTRAL",
-      "H2": "BULLISH",
-      "H3": "NEUTRAL",
-      "H4": "BULLISH"
-    },
-    "bias30m": "NEUTRAL",
-    "bias2h": "BULLISH",
-    "bias15m": "BULLISH",
-    "updatedAt": "2026-11-13T12:39:46.552Z"
-  },
-  "V": {
-    "signal": "NO_AGREEMENT",
-    "direction": null,
-    "price": 420.37,
-    "biasByTF": {
-      "M15": "NEUTRAL",
-      "M30": "NEUTRAL",
-      "H1": "NEUTRAL",
-      "H2": "BULLISH",
-      "H3": "BULLISH",
-      "H4": "NEUTRAL"
-    },
-    "bias30m": "NEUTRAL",
-    "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "updatedAt": "2026-11-13T12:40:10.556Z"
-  },
-  "MA": {
-    "signal": "WAITING_FOR_ZONE",
-    "direction": "BUY",
-    "price": 652.57001,
-    "biasByTF": {
-      "M15": "NEUTRAL",
-      "M30": "BEARISH",
-      "H1": "BULLISH",
-      "H2": "BULLISH",
-      "H3": "BULLISH",
-      "H4": "BULLISH"
-    },
-    "bias30m": "BEARISH",
-    "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "voteTally": "4/6",
-    "agreeing": [
-      "H1",
-      "H2",
-      "H3",
-      "H4"
-    ],
-    "updatedAt": "2026-11-13T12:40:34.556Z"
-  },
-  "XOM": {
-    "signal": "WAITING_FOR_ZONE",
-    "direction": "SELL",
-    "price": 169.785,
+    "price": 161.345,
     "biasByTF": {
       "M15": "BEARISH",
       "M30": "BEARISH",
       "H1": "BEARISH",
       "H2": "BEARISH",
       "H3": "BEARISH",
-      "H4": "NEUTRAL"
+      "H4": "BEARISH"
     },
     "bias30m": "BEARISH",
     "bias2h": "BEARISH",
     "bias15m": "BEARISH",
-    "voteTally": "5/6",
+    "voteTally": "6/6",
     "agreeing": [
       "M15",
       "M30",
       "H1",
       "H2",
-      "H3"
+      "H3",
+      "H4"
     ],
-    "updatedAt": "2026-11-13T12:40:58.585Z"
+    "updatedAt": "2026-11-13T20:01:21.798Z"
   },
-  "DIA": {
+  "AMZN": {
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "BUY",
+    "price": 265.67,
+    "biasByTF": {
+      "M15": "BULLISH",
+      "M30": "BULLISH",
+      "H1": "BULLISH",
+      "H2": "BULLISH",
+      "H3": "BULLISH",
+      "H4": "BULLISH"
+    },
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "6/6",
+    "agreeing": [
+      "M15",
+      "M30",
+      "H1",
+      "H2",
+      "H3",
+      "H4"
+    ],
+    "updatedAt": "2026-11-13T20:01:45.814Z"
+  },
+  "AVGO": {
     "signal": "NO_AGREEMENT",
     "direction": null,
-    "price": 522.48999,
+    "price": 345.52,
     "biasByTF": {
-      "M15": "NEUTRAL",
+      "M15": "BULLISH",
       "M30": "NEUTRAL",
-      "H1": "BULLISH",
+      "H1": "NEUTRAL",
       "H2": "NEUTRAL",
       "H3": "NEUTRAL",
       "H4": "NEUTRAL"
     },
     "bias30m": "NEUTRAL",
     "bias2h": "NEUTRAL",
+    "bias15m": "BULLISH",
+    "updatedAt": "2026-11-13T20:04:09.807Z"
+  },
+  "AAPL": {
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "BUY",
+    "price": 358.02,
+    "biasByTF": {
+      "M15": "BULLISH",
+      "M30": "BULLISH",
+      "H1": "BULLISH",
+      "H2": "BULLISH",
+      "H3": "BULLISH",
+      "H4": "BULLISH"
+    },
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "6/6",
+    "agreeing": [
+      "M15",
+      "M30",
+      "H1",
+      "H2",
+      "H3",
+      "H4"
+    ],
+    "updatedAt": "2026-11-13T20:00:33.818Z"
+  },
+  "SPCX": {
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 139.785,
+    "biasByTF": {
+      "M15": "BULLISH",
+      "M30": "BULLISH",
+      "H1": "NEUTRAL",
+      "H2": "BEARISH",
+      "H3": "BEARISH",
+      "H4": "BEARISH"
+    },
+    "bias30m": "BULLISH",
+    "bias2h": "BEARISH",
+    "bias15m": "BULLISH",
+    "updatedAt": "2026-11-13T20:04:33.826Z"
+  },
+  "SPY": {
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 752.26,
+    "biasByTF": {
+      "M15": "NEUTRAL",
+      "M30": "BULLISH",
+      "H1": "NEUTRAL",
+      "H2": "NEUTRAL",
+      "H3": "BEARISH",
+      "H4": "NEUTRAL"
+    },
+    "bias30m": "BULLISH",
+    "bias2h": "NEUTRAL",
     "bias15m": "NEUTRAL",
-    "updatedAt": "2026-11-13T12:41:22.580Z"
+    "updatedAt": "2026-11-13T20:04:57.821Z"
+  },
+  "QQQ": {
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 677.8,
+    "biasByTF": {
+      "M15": "NEUTRAL",
+      "M30": "NEUTRAL",
+      "H1": "NEUTRAL",
+      "H2": "BEARISH",
+      "H3": "NEUTRAL",
+      "H4": "BEARISH"
+    },
+    "bias30m": "NEUTRAL",
+    "bias2h": "BEARISH",
+    "bias15m": "NEUTRAL",
+    "updatedAt": "2026-11-13T20:05:21.872Z"
+  },
+  "JPM": {
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 344.195,
+    "biasByTF": {
+      "M15": "BULLISH",
+      "M30": "NEUTRAL",
+      "H1": "NEUTRAL",
+      "H2": "BULLISH",
+      "H3": "NEUTRAL",
+      "H4": "BULLISH"
+    },
+    "bias30m": "NEUTRAL",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "updatedAt": "2026-11-13T20:05:45.882Z"
+  },
+  "V": {
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "BUY",
+    "price": 426.59,
+    "biasByTF": {
+      "M15": "BULLISH",
+      "M30": "NEUTRAL",
+      "H1": "BULLISH",
+      "H2": "BULLISH",
+      "H3": "BULLISH",
+      "H4": "BULLISH"
+    },
+    "bias30m": "NEUTRAL",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "5/6",
+    "agreeing": [
+      "M15",
+      "H1",
+      "H2",
+      "H3",
+      "H4"
+    ],
+    "updatedAt": "2026-11-13T20:06:09.857Z"
+  },
+  "MA": {
+    "signal": "WAITING_FOR_ZONE",
+    "direction": "BUY",
+    "price": 661.28,
+    "biasByTF": {
+      "M15": "BULLISH",
+      "M30": "BULLISH",
+      "H1": "BULLISH",
+      "H2": "BULLISH",
+      "H3": "BULLISH",
+      "H4": "BULLISH"
+    },
+    "bias30m": "BULLISH",
+    "bias2h": "BULLISH",
+    "bias15m": "BULLISH",
+    "voteTally": "6/6",
+    "agreeing": [
+      "M15",
+      "M30",
+      "H1",
+      "H2",
+      "H3",
+      "H4"
+    ],
+    "updatedAt": "2026-11-13T20:06:33.868Z"
+  },
+  "XOM": {
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 169.945,
+    "biasByTF": {
+      "M15": "NEUTRAL",
+      "M30": "NEUTRAL",
+      "H1": "BEARISH",
+      "H2": "BEARISH",
+      "H3": "BEARISH",
+      "H4": "NEUTRAL"
+    },
+    "bias30m": "NEUTRAL",
+    "bias2h": "BEARISH",
+    "bias15m": "NEUTRAL",
+    "updatedAt": "2026-11-13T20:06:57.876Z"
+  },
+  "DIA": {
+    "signal": "NO_AGREEMENT",
+    "direction": null,
+    "price": 522.29,
+    "biasByTF": {
+      "M15": "BULLISH",
+      "M30": "BULLISH",
+      "H1": "BULLISH",
+      "H2": "NEUTRAL",
+      "H3": "BEARISH",
+      "H4": "NEUTRAL"
+    },
+    "bias30m": "BULLISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BULLISH",
+    "updatedAt": "2026-11-13T20:07:21.888Z"
   }
 }
