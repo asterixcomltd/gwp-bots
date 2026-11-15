@@ -4173,8 +4173,8 @@
     },
     "nakedPOC": {
       "naked": false,
-      "priorPOC": 0.79745700435,
-      "tested": true,
+      "priorPOC": null,
+      "tested": null,
       "aligned": false
     },
     "multiTFPOC": {
@@ -4238,8 +4238,8 @@
     },
     "nakedPOC": {
       "naked": false,
-      "priorPOC": 0.7973356993,
-      "tested": true,
+      "priorPOC": null,
+      "tested": null,
       "aligned": false
     },
     "multiTFPOC": {
@@ -5667,11 +5667,11 @@
       "computed": true
     },
     "migration": {
-      "migrating": true,
-      "direction": "UP",
-      "distance": 0.011086038750000027,
-      "currentPOC": 0.87864999875,
-      "pastPOC": 0.86756396
+      "migrating": false,
+      "direction": null,
+      "distance": 0,
+      "currentPOC": null,
+      "pastPOC": null
     },
     "nakedPOC": {
       "naked": false,
@@ -6952,16 +6952,15 @@
   {
     "symbol": "EUR/AUD",
     "direction": "SELL",
-    "entryTime": 1763595900,
+    "entryTime": 1763644500,
     "entryPrice": 1.78558216,
     "slPrice": 1.78558216,
-    "tp1Price": 1.7747189138213746,
+    "tp1Price": 1.77484,
     "tp2Price": 1.7695915,
-    "origSlPrice": 1.7946348651488544,
+    "origSlPrice": 1.7945035098825184,
     "rr1": 1.2,
-    "rr2": 1.77,
+    "rr2": 1.79,
     "patterns": [
-      "POC_RECLAIM",
       "CLOSE_REJECTION"
     ],
     "pivot": "VWAP",
@@ -6979,7 +6978,7 @@
     "td9Confirms": false,
     "slAtrMult": 0.25,
     "prominence": {
-      "prominenceRatio": 3.211888782358518,
+      "prominenceRatio": 3.054479142922222,
       "computed": true
     },
     "migration": {
@@ -7016,7 +7015,7 @@
     "exitPrice": 1.78558216,
     "rr": 0.6,
     "exitTime": 1763656200,
-    "hoursHeld": 17
+    "hoursHeld": 3
   },
   {
     "symbol": "EUR/AUD",
@@ -7963,9 +7962,9 @@
       "pastPOC": 1.84607725
     },
     "nakedPOC": {
-      "naked": true,
-      "priorPOC": 1.86863025,
-      "tested": false,
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
       "aligned": false
     },
     "multiTFPOC": {
