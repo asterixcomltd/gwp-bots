@@ -1,6 +1,160 @@
 [
   {
     "symbol": "GBP/CAD",
+    "barTime": 1794952800,
+    "price": 1.8884,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 1.873072,
+    "zoneHigh": 1.880094,
+    "ts": "2026-11-18T01:20:35.624Z"
+  },
+  {
+    "symbol": "EUR/AUD",
+    "barTime": 1794952800,
+    "price": 1.63078,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 1.5957999999999999,
+    "zoneHigh": 1.60582,
+    "ts": "2026-11-18T01:20:11.654Z"
+  },
+  {
+    "symbol": "AUD/JPY",
+    "barTime": 1794952800,
+    "price": 107.55001,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 109.539298,
+    "zoneHigh": 110.416294,
+    "ts": "2026-11-18T01:19:47.635Z"
+  },
+  {
+    "symbol": "EUR/GBP",
+    "barTime": 1794952800,
+    "price": 0.83251,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.83526,
+    "zoneHigh": 0.83633,
+    "ts": "2026-11-18T01:19:23.597Z"
+  },
+  {
+    "symbol": "EUR/JPY",
+    "barTime": 1794952800,
+    "price": 175.38523,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 177.015582,
+    "zoneHigh": 177.765886,
+    "ts": "2026-11-18T01:18:59.585Z"
+  },
+  {
+    "symbol": "USD/CHF",
+    "barTime": 1794952800,
+    "price": 0.84138,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.818658,
+    "zoneHigh": 0.8244360000000001,
+    "ts": "2026-11-18T01:18:35.575Z"
+  },
+  {
+    "symbol": "NZD/USD",
+    "barTime": 1794952800,
+    "price": 0.54986,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.5587059999999999,
+    "zoneHigh": 0.562228,
+    "ts": "2026-11-18T01:18:11.573Z"
+  },
+  {
+    "symbol": "USD/CAD",
+    "barTime": 1794952800,
+    "price": 1.43002,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 1.4008180000000001,
+    "zoneHigh": 1.4085260000000002,
+    "ts": "2026-11-18T01:17:47.544Z"
+  },
+  {
+    "symbol": "AUD/USD",
+    "barTime": 1794952800,
+    "price": 0.67407,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 0.6911579999999999,
+    "zoneHigh": 0.6975439999999999,
+    "ts": "2026-11-18T01:17:23.552Z"
+  },
+  {
+    "symbol": "GBP/JPY",
+    "barTime": 1794952800,
+    "price": 210.67688,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 212.108134,
+    "zoneHigh": 212.943072,
+    "ts": "2026-11-18T01:16:59.571Z"
+  },
+  {
+    "symbol": "USD/JPY",
+    "biasByTF": {
+      "M15": "NEUTRAL",
+      "M30": "NEUTRAL",
+      "H1": "NEUTRAL",
+      "H2": "BULLISH",
+      "H3": "BULLISH",
+      "H4": "BULLISH"
+    },
+    "bias30m": "NEUTRAL",
+    "bias2h": "BULLISH",
+    "bias15m": "NEUTRAL",
+    "fired": false,
+    "reason": "NO_4OF6_AGREEMENT",
+    "ts": "2026-11-18T01:16:35.540Z"
+  },
+  {
+    "symbol": "GBP/USD",
+    "biasByTF": {
+      "M15": "NEUTRAL",
+      "M30": "NEUTRAL",
+      "H1": "NEUTRAL",
+      "H2": "BEARISH",
+      "H3": "BEARISH",
+      "H4": "BEARISH"
+    },
+    "bias30m": "NEUTRAL",
+    "bias2h": "BEARISH",
+    "bias15m": "NEUTRAL",
+    "fired": false,
+    "reason": "NO_4OF6_AGREEMENT",
+    "ts": "2026-11-18T01:16:11.531Z"
+  },
+  {
+    "symbol": "EUR/USD",
+    "barTime": 1794952800,
+    "price": 1.09934,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 1.115088,
+    "zoneHigh": 1.121214,
+    "ts": "2026-11-18T01:15:47.516Z"
+  },
+  {
+    "symbol": "XAU/USD",
+    "barTime": 1794952800,
+    "price": 3853.58869,
+    "fired": false,
+    "reason": "NOT_NEAR_ZONE",
+    "zoneLow": 4022.8526059999995,
+    "zoneHigh": 4085.9298579999995,
+    "ts": "2026-11-18T01:15:23.519Z"
+  },
+  {
+    "symbol": "GBP/CAD",
     "barTime": 1794931200,
     "price": 1.88887,
     "fired": false,
@@ -20340,143 +20494,5 @@
     "fired": false,
     "reason": "NO_3OF4_AGREEMENT",
     "ts": "2026-10-17T18:26:22.468Z"
-  },
-  {
-    "symbol": "GBP/JPY",
-    "biasD1": "BEARISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "BULLISH",
-    "bias15m": "BULLISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T18:25:58.460Z"
-  },
-  {
-    "symbol": "USD/JPY",
-    "biasD1": "NEUTRAL",
-    "bias30m": "BULLISH",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BULLISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T18:25:34.450Z"
-  },
-  {
-    "symbol": "GBP/USD",
-    "barTime": 1792260000,
-    "price": 1.3329,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 1.3185,
-    "zoneHigh": 1.32318,
-    "ts": "2026-10-17T18:25:10.462Z"
-  },
-  {
-    "symbol": "EUR/USD",
-    "biasD1": "BEARISH",
-    "bias30m": "BULLISH",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BULLISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T18:24:46.443Z"
-  },
-  {
-    "symbol": "XAU/USD",
-    "biasD1": "BEARISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "BULLISH",
-    "bias15m": "NEUTRAL",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T18:24:22.439Z"
-  },
-  {
-    "symbol": "GBP/CAD",
-    "biasD1": "BULLISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "NEUTRAL",
-    "bias15m": "NEUTRAL",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T15:59:27.481Z"
-  },
-  {
-    "symbol": "EUR/AUD",
-    "barTime": 1792245600,
-    "price": 1.6176,
-    "fired": false,
-    "reason": "POC_CONFLUENCE_TOO_LOOSE",
-    "ts": "2026-10-17T15:59:03.469Z"
-  },
-  {
-    "symbol": "AUD/JPY",
-    "biasD1": "BEARISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "NEUTRAL",
-    "bias15m": "BULLISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T15:58:39.452Z"
-  },
-  {
-    "symbol": "EUR/GBP",
-    "barTime": 1792245600,
-    "price": 0.84321,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 0.849472,
-    "zoneHigh": 0.8521259999999999,
-    "ts": "2026-10-17T15:58:15.439Z"
-  },
-  {
-    "symbol": "EUR/JPY",
-    "biasD1": "BEARISH",
-    "bias30m": "BULLISH",
-    "bias2h": "BEARISH",
-    "bias15m": "BULLISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T15:57:51.437Z"
-  },
-  {
-    "symbol": "USD/CHF",
-    "barTime": 1792245600,
-    "price": 0.8244,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 0.832382,
-    "zoneHigh": 0.835956,
-    "ts": "2026-10-17T15:57:27.425Z"
-  },
-  {
-    "symbol": "NZD/USD",
-    "barTime": 1792245600,
-    "price": 0.56517,
-    "fired": false,
-    "reason": "NOT_NEAR_ZONE",
-    "zoneLow": 0.558782,
-    "zoneHigh": 0.560964,
-    "ts": "2026-10-17T15:57:03.419Z"
-  },
-  {
-    "symbol": "USD/CAD",
-    "biasD1": "BULLISH",
-    "bias30m": "BEARISH",
-    "bias2h": "BEARISH",
-    "bias15m": "NEUTRAL",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T15:56:39.409Z"
-  },
-  {
-    "symbol": "AUD/USD",
-    "biasD1": "BEARISH",
-    "bias30m": "NEUTRAL",
-    "bias2h": "BEARISH",
-    "bias15m": "BULLISH",
-    "fired": false,
-    "reason": "NO_3OF4_AGREEMENT",
-    "ts": "2026-10-17T15:56:15.400Z"
   }
 ]
