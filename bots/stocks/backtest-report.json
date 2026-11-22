@@ -1,5 +1,73 @@
 [
   {
+    "symbol": "AAPL",
+    "direction": "SELL",
+    "entryTime": 1795194900,
+    "entryPrice": 353.23299000000003,
+    "slPrice": 353.23299000000003,
+    "tp1Price": 343.07999,
+    "tp2Price": 341.48249,
+    "origSlPrice": 361.6601108417192,
+    "rr1": 1.2,
+    "rr2": 1.39,
+    "patterns": [
+      "CLOSE_REJECTION"
+    ],
+    "pivot": "VAH",
+    "fibPct": "78.6%",
+    "voteTally": "4/6",
+    "agreeing": [
+      "M15",
+      "M30",
+      "H1",
+      "H3"
+    ],
+    "voteTotal": 6,
+    "structLabel": "H2",
+    "confluenceScore": 2,
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.2515307788325867,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "UP",
+      "distance": 32.775770249999994,
+      "currentPOC": 345.03249,
+      "pastPOC": 312.25671975
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 314.68439135,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "H3",
+        "H4"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "H3",
+        "H4"
+      ]
+    },
+    "beMoved": true,
+    "tp1Hit": true,
+    "halfR": 1.2,
+    "result": "TP1+TP2",
+    "exitPrice": 341.48249,
+    "rr": 1.29,
+    "exitTime": 1795207500,
+    "hoursHeld": 4
+  },
+  {
     "symbol": "MSFT",
     "direction": "SELL",
     "entryTime": 1792422900,
@@ -67,76 +135,6 @@
     "rr": 1.05,
     "exitTime": 1793194200,
     "hoursHeld": 214
-  },
-  {
-    "symbol": "NVDA",
-    "direction": "BUY",
-    "entryTime": 1789997400,
-    "entryPrice": 214.45761,
-    "slPrice": 214.45761,
-    "tp1Price": 221.84499,
-    "tp2Price": 234.62304005,
-    "origSlPrice": 208.38541615808023,
-    "rr1": 1.22,
-    "rr2": 3.32,
-    "patterns": [
-      "ENGULFING",
-      "CLOSE_REJECTION"
-    ],
-    "pivot": "VWAP",
-    "fibPct": "78.6%",
-    "voteTally": "5/6",
-    "agreeing": [
-      "M15",
-      "M30",
-      "H1",
-      "H2",
-      "H4"
-    ],
-    "voteTotal": 6,
-    "structLabel": "H2",
-    "confluenceScore": 2,
-    "td9Confirms": false,
-    "slAtrMult": 0.25,
-    "prominence": {
-      "prominenceRatio": 9.994320450808463,
-      "computed": true
-    },
-    "migration": {
-      "migrating": false,
-      "direction": null,
-      "distance": 0,
-      "currentPOC": null,
-      "pastPOC": null
-    },
-    "nakedPOC": {
-      "naked": false,
-      "priorPOC": null,
-      "tested": null,
-      "aligned": false
-    },
-    "multiTFPOC": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "H3",
-        "H4"
-      ]
-    },
-    "multiTFFib": {
-      "anyAligned": true,
-      "alignedLabels": [
-        "H3",
-        "H4"
-      ]
-    },
-    "beMoved": true,
-    "tp1Hit": true,
-    "halfR": 1.22,
-    "result": "TIMEOUT",
-    "exitPrice": 230.55,
-    "rr": 1.94,
-    "exitTime": 1790775000,
-    "hoursHeld": 216
   },
   {
     "symbol": "GOOGL",
@@ -732,9 +730,9 @@
       "pastPOC": null
     },
     "nakedPOC": {
-      "naked": true,
-      "priorPOC": 153.82175,
-      "tested": false,
+      "naked": false,
+      "priorPOC": null,
+      "tested": null,
       "aligned": false
     },
     "multiTFPOC": {
