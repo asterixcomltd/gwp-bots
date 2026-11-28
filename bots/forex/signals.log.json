@@ -1,5 +1,81 @@
 [
   {
+    "symbol": "EUR/GBP",
+    "signal": "FIRED",
+    "direction": "SELL",
+    "entryTime": 1795828500,
+    "entryPrice": 0.837775,
+    "slPrice": 0.8396065846765529,
+    "tp1Price": 0.8355770983881367,
+    "tp2Price": 0.8340888000000001,
+    "risk": 0.0018315846765528665,
+    "rr1": 1.1999999999999758,
+    "rr2": 2.0125741644320723,
+    "confluencePivot": "VAH",
+    "fibPct": "78.6%",
+    "patterns": [
+      "POC_RECLAIM",
+      "PIN_BAR",
+      "CLOSE_REJECTION"
+    ],
+    "voteTally": "4/6",
+    "agreeing": [
+      "M15",
+      "M30",
+      "H1",
+      "H4"
+    ],
+    "riskMult": 0.65,
+    "biasByTF": {
+      "M15": "BEARISH",
+      "M30": "BEARISH",
+      "H1": "BEARISH",
+      "H2": "NEUTRAL",
+      "H3": "NEUTRAL",
+      "H4": "BEARISH"
+    },
+    "bias30m": "BEARISH",
+    "bias2h": "NEUTRAL",
+    "bias15m": "BEARISH",
+    "td9Confirms": false,
+    "slAtrMult": 0.25,
+    "prominence": {
+      "prominenceRatio": 2.4187223276407273,
+      "computed": true
+    },
+    "migration": {
+      "migrating": true,
+      "direction": "DOWN",
+      "distance": -0.001132299999999975,
+      "currentPOC": 0.834716,
+      "pastPOC": 0.8358483
+    },
+    "nakedPOC": {
+      "naked": true,
+      "priorPOC": 0.85765025,
+      "tested": false,
+      "aligned": false
+    },
+    "multiTFPOC": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "H3",
+        "H4"
+      ]
+    },
+    "multiTFFib": {
+      "anyAligned": true,
+      "alignedLabels": [
+        "H3",
+        "H4"
+      ]
+    },
+    "freshPrice": 0.83465,
+    "driftPct": 0.373,
+    "alertDelivered": true,
+    "time": "2026-11-28T01:34:31.184Z"
+  },
+  {
     "symbol": "NZD/USD",
     "signal": "FIRED",
     "direction": "SELL",
